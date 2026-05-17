@@ -1,6 +1,6 @@
 <p align="center">
-  <a href="https://www.npmjs.com/package/aiex-cli"><img src="https://img.shields.io/npm/v/aiex?style=flat&colorA=18181B&colorB=green" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/aiex-cli"><img src="https://img.shields.io/npm/dm/aiex?style=flat&colorA=18181B&colorB=green" alt="npm downloads"></a>
+  <a href="https://www.npmjs.com/package/aiex-cli"><img src="https://img.shields.io/npm/v/aiex-cli?style=flat&colorA=18181B&colorB=green" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/aiex-cli"><img src="https://img.shields.io/npm/dm/aiex-cli?style=flat&colorA=18181B&colorB=green" alt="npm downloads"></a>
   <a href="https://github.com/OSpoon/aiex-cli/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-green?style=flat&colorA=18181B&colorB=green" alt="license"></a>
 </p>
 
