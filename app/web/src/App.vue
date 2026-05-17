@@ -109,7 +109,6 @@ async function loadSchema(name: string) {
     const data = await getSchema(name)
     schema.value = data as JSONSchema
     originalSchema.value = JSON.parse(JSON.stringify(data))
-    toast.success(`Loaded ${name}`)
   } catch {
     toast.error(`Failed to load ${name}`)
   }
@@ -130,7 +129,6 @@ async function handleSave() {
   try {
     await saveSchema(fileName, schema.value)
     originalSchema.value = JSON.parse(JSON.stringify(schema.value))
-    toast.success(`Saved ${fileName}`)
     await loadSchemaList()
   } catch {
     toast.error(`Failed to save ${fileName}`)
@@ -152,10 +150,8 @@ async function handleSaveAndMigrate() {
   migrating.value = true
 
   try {
-    // Save first
     await saveSchema(fileName, schema.value)
     originalSchema.value = JSON.parse(JSON.stringify(schema.value))
-    toast.success(`Saved ${fileName}`)
     await loadSchemaList()
 
     // Then migrate
@@ -187,7 +183,6 @@ async function handleDelete(name: string) {
   loading.value = true
   try {
     await deleteSchema(name)
-    toast.success(`Deleted ${name}`)
     await loadSchemaList()
     const currentTableName = (schema.value as any).table?.name
     if (currentTableName === name.replace(".json", "")) {
@@ -226,7 +221,6 @@ function loadExample() {
   }
   schema.value = JSON.parse(JSON.stringify(ECOMMERCE_EXAMPLE))
   originalSchema.value = JSON.parse(JSON.stringify(ECOMMERCE_EXAMPLE))
-  toast.success("Loaded e-commerce example schema")
 }
 
 async function handlePreviewPrompt(name: string) {

@@ -142,7 +142,6 @@ async function handleSave() {
       }
     }
     await saveAIConfig(config)
-    toast.success("AI settings saved")
   } catch (e: any) {
     toast.error(e.message || "Failed to save")
   } finally {
