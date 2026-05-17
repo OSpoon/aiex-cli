@@ -69,18 +69,22 @@ Converts your JSON Schema files into a SQLite database with full migration suppo
 ### 4. Extract Data
 
 ```bash
-aiex extract -s <schema> -f <file>  # from file (txt, pdf, png, jpg, ...)
-aiex extract -s <schema> -t <text>  # from text
+aiex extract -s <schema> -f <file>     # from file (txt, pdf, png, jpg, ...)
+aiex extract -s <schema> -t <text>     # from text
+aiex extract -s <schema> -f <file> -m <model>  # specify AI model (overrides auto-selection)
 ```
 
 The AI reads your document and outputs structured JSON matching your schema.
 
 **Examples:**
 ```bash
-aiex extract -s paper -f research.pdf   # save result to .aiex/extracted/
-aiex extract -s paper -f research.pdf --db  # also insert into SQLite database
+aiex extract -s paper -f research.pdf              # save result to .aiex/extracted/
+aiex extract -s paper -f research.pdf --db         # also insert into SQLite database
+aiex extract -s paper -f research.pdf -m gpt-4o    # use a specific model
 ```
 Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema. Add `--db` to also insert the data directly into the SQLite database.
+
+By default, aiex automatically selects a model based on your input type (vision-capable for images, structured output for text). Use `--model` / `-m` to override and specify any model from your AI configuration.
 
 <br>
 
@@ -94,6 +98,7 @@ Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` w
 | `aiex web` | Launch visual schema editor in browser |
 | `aiex extract -s <name> -f <file>` | Extract structured data from documents via AI |
 | `aiex extract -s <name> -f <file> --db` | Extract and insert into SQLite database |
+| `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
 | `aiex doctor` | System and configuration diagnostics |
 
 <br>

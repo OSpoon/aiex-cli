@@ -78,6 +78,11 @@ export const extractCommand = defineCommand({
       alias: 'f',
       description: 'File path (text/image/PDF) to extract from',
     },
+    model: {
+      type: 'string',
+      alias: 'm',
+      description: 'AI model to use for extraction (overrides auto-selection)',
+    },
     db: {
       type: 'boolean',
       alias: 'd',
@@ -122,6 +127,19 @@ export const extractCommand = defineCommand({
       consola.error('No models configured. Please add at least one model in AI Settings')
       outro('Failed!')
       return
+    }
+
+    // Resolve model override
+    let modelOverride = undefined
+    if (args.model) {
+      const matched = aiConfig.provider.models.find(m => m.name === args.model)
+      if (!matched) {
+        const available = aiConfig.provider.models.map(m => m.name).join(', ')
+        consola.error(`Model "${args.model}" not found in configuration. Available models: ${available}`)
+        outro('Failed!')
+        return
+      }
+      modelOverride = matched
     }
 
     // Determine mode: text or file
@@ -187,6 +205,7 @@ export const extractCommand = defineCommand({
       text,
       aiexDir,
       file: filePath,
+      modelOverride,
     })
 
     if (!result.success) {
