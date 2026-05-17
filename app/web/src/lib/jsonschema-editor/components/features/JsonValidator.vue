@@ -1,0 +1,151 @@
+<script setup lang="ts">
+import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
+import type { ValidationResult } from "@/lib/jsonschema-editor/utils/jsonValidator"
+import { CheckCircle, Loader2, XCircle } from "lucide-vue-next"
+import { computed, ref, watch } from "vue"
+import Button from "@/lib/jsonschema-editor/components/ui/Button.vue"
+import Dialog from "@/lib/jsonschema-editor/components/ui/Dialog.vue"
+// biome-ignore lint/style/useImportType: Vue template needs the runtime component import
+import MonacoEditor from "@/lib/jsonschema-editor/components/ui/MonacoEditor.vue"
+import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
+import {
+  validateJson
+
+} from "@/lib/jsonschema-editor/utils/jsonValidator"
+
+const props = withDefaults(
+  defineProps<{
+    schema: JSONSchema
+    /** When provided, renders as a dialog. Omit to render inline. */
+    visible?: boolean
+  }>(),
+  { visible: undefined }
+)
+
+const emit = defineEmits<{
+  "update:visible": [value: boolean]
+}>()
+
+const t = useTranslation()
+const monacoRef = ref<InstanceType<typeof MonacoEditor> | null>(null)
+const validationResult = ref<ValidationResult | null>(null)
+const isValidating = ref(false)
+const isDialog = ref(props.visible !== undefined)
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const editorText = ref(
+  JSON.stringify(
+    {
+      name: "John Doe",
+      email: "john@example.com",
+      age: 30
+    },
+    null,
+    2
+  )
+)
+
+function handleValidation() {
+  isValidating.value = true
+  validationResult.value = validateJson(editorText.value, props.schema)
+  isValidating.value = false
+}
+
+function debouncedValidate() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(handleValidation, 500)
+}
+
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      setTimeout(() => {
+        monacoRef.value?.layout()
+        handleValidation()
+      }, 100)
+    }
+  }
+)
+
+function handleEditorUpdate(newText: string) {
+  editorText.value = newText
+  debouncedValidate()
+}
+
+const errorCount = computed(() => validationResult.value?.errors?.length || 0)
+</script>
+
+<template>
+  <!-- Validation results (shared between dialog and inline) -->
+  <component
+    :is="isDialog ? Dialog : 'div'"
+    v-bind="isDialog ? {
+      visible: props.visible ?? false,
+      class: 'md:max-w-[700px] max-h-[80vh] w-[95vw] jscb',
+    } : { class: 'space-y-4 jscb' }"
+    @update:visible="isDialog && emit('update:visible', $event)"
+  >
+    <template v-if="isDialog" #header>
+      <div class="mb-2">
+        <div class="text-lg font-semibold">
+          {{ t.validatorTitle }}
+        </div>
+        <p class="text-sm text-muted-foreground">
+          {{ t.validatorDescription }}
+        </p>
+      </div>
+    </template>
+
+    <div class="space-y-4">
+      <div class="border rounded-md h-[300px] overflow-hidden">
+        <MonacoEditor
+          ref="monacoRef"
+          :model-value="editorText"
+          @update:model-value="handleEditorUpdate"
+          language="json"
+        />
+      </div>
+
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <template v-if="isValidating">
+            <Loader2 class="animate-spin" :size="16" />
+            <span class="text-sm text-muted-foreground">{{ t.schemaEditorLoading }}</span>
+          </template>
+          <template v-else-if="validationResult?.valid">
+            <CheckCircle :size="16" class="text-green-500" />
+            <span class="text-sm text-green-600">{{ t.validatorValid }}</span>
+          </template>
+          <template v-else-if="validationResult && !validationResult.valid">
+            <XCircle :size="16" class="text-red-500" />
+            <span class="text-sm text-red-600">
+              {{ t.validatorErrorCount.replace('{count}', String(errorCount)) }}
+            </span>
+          </template>
+        </div>
+        <Button size="sm" @click="handleValidation">
+          {{ t.validatorTitle }}
+        </Button>
+      </div>
+
+      <div v-if="validationResult?.errors?.length" class="space-y-2 max-h-[200px] overflow-y-auto">
+        <div
+          v-for="(error, idx) in validationResult.errors"
+          :key="idx"
+          class="flex items-start gap-2 p-2 rounded-md bg-red-50 dark:bg-red-950/20 text-sm"
+        >
+          <XCircle :size="14" class="text-red-500 mt-0.5 shrink-0" />
+          <div>
+            <span class="font-mono text-xs text-muted-foreground">{{ error.path }}</span>
+            <span v-if="error.line"> ({{ t.validatorErrorLocationLineOnly.replace('{line}', String(error.line)) }})</span>
+            <p class="text-red-600">
+              {{ error.message }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </component>
+</template>

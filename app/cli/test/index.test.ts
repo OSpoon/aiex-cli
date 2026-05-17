@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildDoctorDiagnostics,
+  doctorDiagnosticsTableRows,
+  formatDoctorDiagnosticsJson,
+} from '@/index'
+
+const defaultProject = {
+  aiexDir: '/tmp/fixture/.aiex',
+  dirExists: false,
+  schemaCount: 0,
+  schemaFiles: [] as string[],
+  aiConfig: false,
+  aiApiKeySet: false,
+  aiModelCount: 0,
+  aiModels: [] as string[],
+  aiProvider: null,
+  aiConnectionOk: null,
+  hasDatabase: false,
+  migrationCount: 0,
+  errors: [] as string[],
+}
+
+describe('core logic', () => {
+  it('should build and format doctor diagnostics', () => {
+    const diagnostics = buildDoctorDiagnostics({
+      pkg: { name: 'fixture-cli', version: '1.0.0' },
+      executable: '/bin/fixture',
+      node: 'v24.0.0',
+      platform: 'darwin',
+      arch: 'arm64',
+      shell: '/bin/zsh',
+      packageManager: 'pnpm/10.33.0',
+      osType: 'Darwin',
+      osRelease: '25.0.0',
+      cwd: '/tmp/fixture',
+      configPath: '/tmp/config.json',
+      configStoreKeys: ['version', 'name'],
+      project: defaultProject,
+    })
+
+    expect(diagnostics.config.keys).toEqual(['name', 'version'])
+    expect(formatDoctorDiagnosticsJson(diagnostics)).toContain('"fixture-cli"')
+    expect(doctorDiagnosticsTableRows(diagnostics)).toContainEqual(['configKeys', 'name, version'])
+  })
+
+  it('includes project diagnostics in table rows', () => {
+    const diagnostics = buildDoctorDiagnostics({
+      pkg: { name: 'test-cli', version: '2.0.0' },
+      executable: '/bin/test',
+      node: 'v24.0.0',
+      platform: 'darwin',
+      arch: 'arm64',
+      shell: '/bin/zsh',
+      packageManager: 'pnpm/10.33.0',
+      osType: 'Darwin',
+      osRelease: '25.0.0',
+      cwd: '/project',
+      configPath: '/tmp/config.json',
+      configStoreKeys: ['name'],
+      project: {
+        aiexDir: '/project/.aiex',
+        dirExists: true,
+        schemaCount: 2,
+        schemaFiles: ['users.json', 'posts.json'],
+        aiConfig: true,
+        aiApiKeySet: true,
+        aiModelCount: 2,
+        aiModels: ['gpt-4o', 'gpt-4o-vision'],
+        aiProvider: 'https://api.openai.com/v1',
+        aiConnectionOk: true,
+        hasDatabase: true,
+        migrationCount: 3,
+        errors: ['Could not read schema directory'],
+      },
+    })
+
+    const rows = doctorDiagnosticsTableRows(diagnostics)
+    expect(rows).toContainEqual(['aiexDir', '/project/.aiex'])
+    expect(rows).toContainEqual(['dirExists', 'true'])
+    expect(rows).toContainEqual(['schemaFiles', '2 (users.json, posts.json)'])
+    expect(rows).toContainEqual(['aiConfig', 'true'])
+    expect(rows).toContainEqual(['aiApiKeySet', 'true'])
+    expect(rows).toContainEqual(['aiModels', 'gpt-4o, gpt-4o-vision'])
+    expect(rows).toContainEqual(['aiProvider', 'https://api.openai.com/v1'])
+    expect(rows).toContainEqual(['aiConnectionOk', 'true'])
+    expect(rows).toContainEqual(['hasDatabase', 'true'])
+    expect(rows).toContainEqual(['migrations', '3'])
+    expect(rows).toContainEqual(['error', 'Could not read schema directory'])
+  })
+})

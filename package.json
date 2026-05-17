@@ -1,0 +1,43 @@
+{
+  "name": "aiex-monorepo",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "description": "aiex monorepo",
+  "author": "OSpoon <zxin088@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/OSpoon/aiex-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OSpoon/aiex-cli.git"
+  },
+  "bugs": "https://github.com/OSpoon/aiex-cli/issues",
+  "scripts": {
+    "build": "pnpm -r build",
+    "build:cli": "pnpm --filter aiex-cli build",
+    "build:web": "pnpm --filter aiex-web build",
+    "dev": "pnpm --filter aiex-cli dev",
+    "dev:web": "pnpm --filter aiex-web dev",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "release": "cd app/cli && bumpp --push --tag",
+    "prepare": "simple-git-hooks"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "catalog:cli",
+    "@antfu/ni": "catalog:cli",
+    "bumpp": "catalog:cli",
+    "eslint": "catalog:cli",
+    "lint-staged": "catalog:cli",
+    "node-gyp": "^11.0.0",
+    "simple-git-hooks": "catalog:cli"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && pnpm run build:cli && pnpm exec lint-staged"
+  },
+  "lint-staged": {
+    "app/cli/**/*": "eslint --fix --config app/cli/eslint.config.mjs",
+    "app/web/**/*": "eslint --fix --config app/web/eslint.config.mjs"
+  }
+}

@@ -1,0 +1,15 @@
+.cache
+.claude
+.DS_Store
+.idea
+*.log
+*.tgz
+coverage
+dist
+lib-cov
+logs
+node_modules
+temp
+.aiex
+ai-config.json
+app/cli/README.md

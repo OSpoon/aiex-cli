@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /*
+   * Map Tailwind color utilities to PrimeVue SEMANTIC tokens.
+   * These tokens automatically switch between light/dark mode values
+   * when PrimeVue's darkModeSelector is active.
+   *
+   * Semantic tokens used:
+   *   --p-content-background   (light: white, dark: surface.900)
+   *   --p-content-hover-background (light: surface.100, dark: surface.800)
+   *   --p-content-border-color (light: surface.200, dark: surface.700)
+   *   --p-text-color           (light: surface.700, dark: surface.0)
+   *   --p-text-muted-color     (light: surface.500, dark: surface.400)
+   *   --p-primary-color        (auto per preset)
+   *   --p-primary-contrast-color (auto per preset)
+   */
+  --color-background: var(--p-content-background);
+  --color-foreground: var(--p-text-color);
+  --color-border: var(--p-content-border-color);
+  --color-input: var(--p-content-border-color);
+  --color-ring: var(--p-primary-color);
+
+  --color-primary: var(--p-primary-color);
+  --color-primary-foreground: var(--p-primary-contrast-color);
+
+  --color-secondary: var(--p-content-hover-background);
+  --color-secondary-foreground: var(--p-text-color);
+
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: var(--p-content-background);
+
+  --color-muted: var(--p-content-hover-background);
+  --color-muted-foreground: var(--p-text-muted-color);
+
+  --color-accent: var(--p-content-hover-background);
+  --color-accent-foreground: var(--p-text-color);
+
+  --color-popover: var(--p-overlay-popover-background);
+  --color-popover-foreground: var(--p-overlay-popover-color);
+
+  --color-card: var(--p-content-background);
+  --color-card-foreground: var(--p-text-color);
+
+  --radius-lg: 0.8rem;
+  --radius-md: calc(0.8rem - 2px);
+  --radius-sm: calc(0.8rem - 4px);
+
+  --animate-fade-in: jscb-fade-in 0.3s ease-out;
+  --animate-fade-out: jscb-fade-out 0.3s ease-out;
+  --animate-scale-in: jscb-scale-in 0.2s ease-out;
+  --animate-scale-out: jscb-scale-out 0.2s ease-out;
+  --animate-float: jscb-float 3s ease-in-out infinite;
+  --animate-enter: jscb-fade-in 0.4s ease-out, jscb-scale-in 0.3s ease-out;
+  --animate-exit: jscb-fade-out 0.3s ease-out, jscb-scale-out 0.2s ease-out;
+
+  --font-sans:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --transition-property-height: height;
+  --transition-property-spacing: margin, padding;
+
+  --ease-bounce-in: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  @keyframes jscb-fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes jscb-fade-out {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+
+  @keyframes jscb-scale-in {
+    0% {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes jscb-scale-out {
+    from {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    to {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+  }
+
+  @keyframes jscb-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+}
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility json-field-row {
+  @apply flex items-center gap-2 py-2 px-3 rounded-md transition-colors;
+
+  &:hover {
+    background: var(--p-content-hover-background);
+  }
+}
+
+@utility json-field-label {
+  @apply text-sm font-medium;
+  color: var(--p-text-color);
+}
+
+@utility json-editor-container {
+  background: var(--p-content-background);
+}
+
+@utility glass-panel {
+  background: var(--p-content-background);
+}
+
+@utility animate-in {
+  @apply animate-enter;
+}
+
+@utility animate-out {
+  @apply animate-exit;
+}
+
+@utility field-button {
+  @apply flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors;
+  background: var(--p-content-hover-background);
+  color: var(--p-text-color);
+
+  &:hover {
+    background: var(--p-content-border-color);
+  }
+}
+
+@utility hover-action {
+  @apply opacity-0 group-hover:opacity-100 transition-opacity;
+}
+
+@utility monaco-editor-container {
+  @apply w-full h-full;
+
+  & > div {
+    @apply h-full;
+  }
+}
+
+@utility monaco-editor {
+  @apply h-full;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  .jscb {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-medium tracking-tight;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply focus-visible:outline-hidden;
+  }
+}

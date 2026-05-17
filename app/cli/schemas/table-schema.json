@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OSpoon/aiex-cli/main/app/cli/schemas/table-schema.json",
+  "title": "aiex Table Schema",
+  "description": "Defines a database table and its columns for aiex-cli schema-to-SQLite migration.",
+  "type": "object",
+  "required": ["title", "type", "table", "properties"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Pointer to this schema file for IDE validation.",
+      "format": "uri",
+      "default": "https://raw.githubusercontent.com/OSpoon/aiex-cli/main/app/cli/schemas/table-schema.json"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable table title (e.g. 'User', 'OrderItem')."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional table description."
+    },
+    "type": {
+      "type": "string",
+      "const": "object",
+      "description": "Must be 'object' — each file defines one table."
+    },
+    "table": {
+      "$ref": "#/$defs/tableConfig",
+      "description": "Table-level configuration."
+    },
+    "properties": {
+      "$ref": "#/$defs/properties",
+      "description": "Column definitions keyed by property name (camelCase)."
+    },
+    "required": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of property names that are NOT NULL.",
+      "default": []
+    }
+  },
+
+  "$defs": {
+    "tableConfig": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "SQLite table name in snake_case (lowercase letters, digits, underscores).",
+          "examples": ["users", "order_items", "blog_posts"]
+        },
+        "timestamps": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically add created_at and updated_at TIMESTAMP columns."
+        },
+        "softDelete": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically add deleted_at nullable TIMESTAMP column."
+        }
+      }
+    },
+
+    "properties": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/property" },
+      "description": "Column definitions. Keys are camelCase property names."
+    },
+
+    "property": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/columnType",
+          "description": "Column data type."
+        },
+        "format": {
+          "$ref": "#/$defs/formatType",
+          "description": "Semantic format hint that influences the SQLite column type."
+        },
+        "primary": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mark this column as PRIMARY KEY. Only one per table."
+        },
+        "autoIncrement": {
+          "type": "boolean",
+          "default": false,
+          "description": "AUTO_INCREMENT for integer primary keys."
+        },
+        "unique": {
+          "type": "boolean",
+          "default": false,
+          "description": "Add UNIQUE constraint."
+        },
+        "default": {
+          "description": "Default value for the column. Type should match the column type."
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum string length (validation only, not a DB constraint)."
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum string length (validation only, not a DB constraint)."
+        },
+        "minimum": {
+          "type": "number",
+          "description": "Minimum numeric value (validation only, not a DB constraint)."
+        },
+        "maximum": {
+          "type": "number",
+          "description": "Maximum numeric value (validation only, not a DB constraint)."
+        },
+        "drizzle": {
+          "$ref": "#/$defs/drizzleConfig",
+          "description": "Drizzle ORM specific overrides."
+        },
+        "nested": {
+          "$ref": "#/$defs/nestedConfig",
+          "description": "Create a separate related table instead of embedding as JSON."
+        },
+        "foreignKey": {
+          "$ref": "#/$defs/foreignKeyRef",
+          "description": "Foreign key reference to another table."
+        },
+        "properties": {
+          "$ref": "#/$defs/properties",
+          "description": "Sub-properties when type is 'object'. Ignored unless nested.enabled or drizzle.mode='json'."
+        },
+        "items": {
+          "$ref": "#/$defs/property",
+          "description": "Item schema when type is 'array'. Ignored unless items.nested.enabled."
+        },
+        "required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required sub-properties for nested objects."
+        }
+      }
+    },
+
+    "columnType": {
+      "type": "string",
+      "enum": ["string", "integer", "number", "boolean", "object", "array", "null"],
+      "description": "Data type. Maps to SQLite as: string→TEXT, integer→INTEGER, number→REAL, boolean→INTEGER(boolean), object→TEXT(json), array→TEXT(json), null→TEXT."
+    },
+
+    "formatType": {
+      "type": "string",
+      "enum": ["date-time", "email", "uri", "json"],
+      "description": "Format hints: 'date-time' → INTEGER(timestamp), 'json' → TEXT(json), 'email'/'uri' → TEXT (no special mapping)."
+    },
+
+    "drizzleConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["json", "timestamp", "timestamp_ms", "boolean", "bigint"],
+          "description": "Override Drizzle column mode. 'json' stores as TEXT(json), 'timestamp'/'timestamp_ms' as INTEGER, 'boolean' as INTEGER(boolean), 'bigint' as INTEGER(bigint)."
+        },
+        "customType": {
+          "type": "string",
+          "description": "Custom Drizzle type name (reserved for future use)."
+        }
+      }
+    },
+
+    "nestedConfig": {
+      "type": "object",
+      "required": ["enabled", "relation"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "const": true,
+          "description": "Must be true to activate nested table creation."
+        },
+        "relation": {
+          "type": "string",
+          "enum": ["has-one", "has-many"],
+          "description": "'has-one' → one() relation, 'has-many' → many() relation. Only one level of nesting is supported."
+        }
+      }
+    },
+
+    "foreignKeyRef": {
+      "type": "object",
+      "required": ["table", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Target table name (snake_case)."
+        },
+        "column": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Target column name in the referenced table."
+        }
+      }
+    }
+  }
+}

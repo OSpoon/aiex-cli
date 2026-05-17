@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "antfu.pnpm-catalog-lens",
+    "vue.volar",
+    "editorconfig.editorconfig",
+    "antfu.unocss",
+    "vitest.explorer",
+    "wiensss.region-highlighter"
+  ]
+}

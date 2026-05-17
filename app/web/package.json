@@ -1,0 +1,41 @@
+{
+  "name": "aiex-web",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@primevue/themes": "catalog:",
+    "@vueuse/core": "catalog:",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:",
+    "clsx": "catalog:",
+    "hono": "catalog:",
+    "lucide-vue-next": "catalog:",
+    "primeicons": "catalog:",
+    "primevue": "catalog:",
+    "tailwind-merge": "catalog:",
+    "vue": "catalog:",
+    "vue-sonner": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "catalog:cli",
+    "@hono/node-server": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "eslint": "catalog:cli",
+    "eslint-plugin-format": "catalog:",
+    "monaco-editor": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:cli",
+    "vue-eslint-parser": "catalog:",
+    "vue-tsc": "catalog:cli"
+  }
+}

@@ -1,0 +1,71 @@
+packages:
+  - playground
+  - docs
+  - packages/*
+  - app/*
+catalog:
+  '@ai-sdk/openai-compatible': ^2.0.47
+  '@clack/prompts': ^1.2.0
+  '@hono/node-server': ^1.0.0
+  '@primevue/themes': ^4.0.0
+  '@tailwindcss/vite': ^4.0.0
+  '@types/update-notifier': ^6.0.8
+  '@typescript-eslint/parser': ^8.59.3
+  '@vitejs/plugin-vue': ^5.0.0
+  '@vueuse/core': ^14.3.0
+  ai: ^6.0.182
+  ajv: ^8.17.1
+  ajv-formats: ^3.0.1
+  better-sqlite3: ^11.0.0
+  citty: ^0.2.2
+  cli-table3: ^0.6.5
+  clsx: ^2.1.1
+  conf: ^13.1.0
+  consola: ^3.4.2
+  date-fns: ^4.1.0
+  drizzle-orm: ^0.38.4
+  es-toolkit: ^1.46.1
+  esbuild: ^0.19.12
+  eslint-plugin-format: ^2.0.1
+  hono: ^4.0.0
+  lucide-vue-next: ^0.400.0
+  monaco-editor: ^0.50.0
+  picocolors: ^1.1.1
+  primeicons: ^7.0.0
+  primevue: ^4.0.0
+  tailwind-merge: ^3.3.1
+  tailwindcss: ^4.0.0
+  update-notifier: ^7.3.1
+  vue: ^3.4.0
+  vue-eslint-parser: ^10.4.0
+  vue-sonner: ^2.0.9
+  zod: ^3.23.0
+catalogMode: prefer
+catalogs:
+  cli:
+    '@antfu/eslint-config': ^8.1.1
+    '@antfu/ni': ^30.1.0
+    bumpp: ^11.0.1
+    drizzle-kit: ^0.30.0
+    eslint: ^10.2.0
+    lint-staged: ^16.4.0
+    publint: ^0.3.18
+    simple-git-hooks: ^2.13.1
+    tsdown: ^0.17.3
+    tsx: ^4.21.0
+    typescript: ^6.0.2
+    vite: ^8.0.8
+    vue-tsc: ^3.0.0
+  testing:
+    tsnapi: ^0.1.1
+    vitest: ^4.1.4
+  types:
+    '@types/better-sqlite3': ^7.6.0
+    '@types/node': ^25.6.0
+ignoreWorkspaceRootCheck: true
+onlyBuiltDependencies:
+  - better-sqlite3
+  - esbuild
+  - simple-git-hooks
+shellEmulator: true
+trustPolicy: no-downgrade
