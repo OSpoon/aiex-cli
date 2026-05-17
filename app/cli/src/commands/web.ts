@@ -24,12 +24,6 @@ export const webCommand = defineCommand({
       description: 'Port to listen on',
       default: '13000',
     },
-    open: {
-      type: 'boolean',
-      alias: 'o',
-      description: 'Open browser after starting',
-      default: false,
-    },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex web '))
@@ -55,13 +49,11 @@ export const webCommand = defineCommand({
       consola.info(`Schema directory: ${pc.dim(config.schemaPath)}`)
       consola.info('Press Ctrl+C to stop')
 
-      if (args.open) {
-        const url = `http://localhost:${port}`
-        const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-        execAsync(`${cmd} ${url}`).catch(() => {
-          consola.warn(`Could not open browser. Visit ${url} manually.`)
-        })
-      }
+      const url = `http://localhost:${port}`
+      const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
+      execAsync(`${cmd} ${url}`).catch(() => {
+        consola.warn(`Could not open browser. Visit ${url} manually.`)
+      })
     })
 
     await new Promise(() => {})
