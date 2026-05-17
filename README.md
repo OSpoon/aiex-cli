@@ -21,8 +21,8 @@ npm install -g aiex-cli
 ```
 
 ```bash
-cd my-project && aiex schema --init   # set up your schema directory
-aiex schema "*.json"                   # generate SQLite from JSON Schema
+aiex schema --init                      # set up .aiex/schema/ directory
+aiex schema                             # generate SQLite from JSON Schema files
 aiex extract -s invoice -f invoice.pdf # extract data with AI
 ```
 
@@ -58,7 +58,7 @@ Opens a browser UI where you can visually design and manage your schemas, config
 ### 3. Generate Database
 
 ```bash
-aiex schema "*.json"
+aiex schema
 ```
 
 Converts your JSON Schema files into a SQLite database with full migration support.

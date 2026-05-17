@@ -1,6 +1,6 @@
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
 import { execFile } from 'node:child_process'
-import fs, { glob } from 'node:fs/promises'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
@@ -17,26 +17,6 @@ import {
 import tableSchemaFile from '~/schemas/table-schema.json'
 
 const execFileAsync = promisify(execFile)
-
-async function resolveSchemaFiles(pattern: string): Promise<string[]> {
-  const cwd = process.cwd()
-  const absPattern = path.isAbsolute(pattern) ? pattern : path.resolve(cwd, pattern)
-  const files: string[] = []
-
-  try {
-    for await (const entry of glob(absPattern)) {
-      files.push(entry)
-    }
-  }
-  catch {
-    const exists = await fs.access(absPattern).then(() => true, () => false)
-    if (exists) {
-      files.push(absPattern)
-    }
-  }
-
-  return files.filter(f => f.endsWith('.json'))
-}
 
 async function generateFromFiles(schemaFiles: string[], config: MigrationConfig): Promise<boolean> {
   const entries = await Promise.all(
@@ -106,11 +86,6 @@ export const schemaCommand = defineCommand({
     description: 'Sync JSON Schema to SQLite database',
   },
   args: {
-    files: {
-      type: 'positional',
-      description: 'JSON Schema file path(s), supports glob patterns',
-      required: false,
-    },
     init: {
       type: 'boolean',
       alias: 'i',
@@ -252,22 +227,24 @@ export const schemaCommand = defineCommand({
 
       consola.success(`Initialized ${pc.cyan('.aiex/')} with example schemas`)
       consola.info('Example includes: User (with preferences has-one), Post (with comments has-many)')
-      outro('Run: aiex schema .aiex/schema/*.json')
+      outro('Run: aiex schema')
       return
     }
 
-    // Check for required files argument
-    if (!args.files) {
-      consola.error('Missing required argument: FILES')
-      consola.info('Use --init to initialize with an example schema')
-      outro('Failed!')
-      return
+    // Scan .aiex/schema/ for JSON Schema files
+    let schemaFiles: string[]
+    try {
+      schemaFiles = await fs.readdir(config.schemaPath)
+      schemaFiles = schemaFiles
+        .filter(f => f.endsWith('.json'))
+        .map(f => path.join(config.schemaPath, f))
+    }
+    catch {
+      schemaFiles = []
     }
 
-    // Resolve schema files from positional arg
-    const schemaFiles = await resolveSchemaFiles(args.files as string)
     if (schemaFiles.length === 0) {
-      consola.error(`No schema files found for: ${args.files}`)
+      consola.error(`No schema files found in ${pc.cyan('.aiex/schema/')}`)
       consola.info('Use --init to initialize with an example schema')
       outro('Failed!')
       return
