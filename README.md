@@ -4,7 +4,7 @@
   <a href="https://github.com/OSpoon/aiex-cli/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-green?style=flat&colorA=18181B&colorB=green" alt="license"></a>
 </p>
 
-<h1 align="center">aiex</h1>
+<h1 align="center">AIEX</h1>
 
 <p align="center">
   <b>JSON Schema → SQLite — with AI-powered data extraction</b>
