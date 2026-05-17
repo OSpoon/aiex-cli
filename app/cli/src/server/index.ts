@@ -4,6 +4,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { aiRoutes } from '@/server/routes/ai'
+import { dataRoutes } from '@/server/routes/data'
 import { schemaRoutes } from '@/server/routes/schema'
 
 export function createApp(config: MigrationConfig, staticDir: string): Hono {
@@ -13,6 +14,7 @@ export function createApp(config: MigrationConfig, staticDir: string): Hono {
 
   app.route('/api', schemaRoutes(config))
   app.route('/api', aiRoutes(config))
+  app.route('/api', dataRoutes(config))
 
   app.use('/*', serveStatic({
     root: staticDir,
@@ -30,7 +32,7 @@ export function createApp(config: MigrationConfig, staticDir: string): Hono {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>aiex Schema Editor</title>
+    <title>AIEX Schema Editor</title>
   </head>
   <body>
     <div id="app"></div>

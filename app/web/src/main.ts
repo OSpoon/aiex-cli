@@ -4,6 +4,11 @@ import Tooltip from 'primevue/tooltip'
 import { createApp } from 'vue'
 import App from '@/App.vue'
 
+import VxeUI from 'vxe-pc-ui'
+import 'vxe-pc-ui/lib/style.css'
+import VxeUITable from 'vxe-table'
+import 'vxe-table/lib/style.css'
+
 import '@/lib/jsonschema-editor/index.css'
 import 'primeicons/primeicons.css'
 import 'vue-sonner/style.css'
@@ -22,5 +27,7 @@ app.use(PrimeVue, {
   },
 })
 app.directive('tooltip', Tooltip)
+app.use(VxeUI)
+app.use(VxeUITable)
 
 app.mount('#app')

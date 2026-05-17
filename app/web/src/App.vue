@@ -8,9 +8,12 @@ import { computed, onMounted, ref } from "vue"
 import { toast, Toaster } from "vue-sonner"
 import { deleteSchema, getPromptSnapshot, getSchema, listSchemas, migrateSchema, saveSchema } from "@/api-client"
 import AISettings from "@/components/AISettings.vue"
+import DataBrowser from "@/components/DataBrowser.vue"
 import { JsonSchemaEditor, useTheme } from "@/lib/jsonschema-editor"
 
 const { darkMode, toggleDarkMode } = useTheme()
+
+const currentView = ref<"editor" | "data">("editor")
 
 // Complex e-commerce example schema
 const ECOMMERCE_EXAMPLE: JSONSchema = {
@@ -253,7 +256,7 @@ onMounted(() => {
   <div class="jscb grid grid-rows-[auto_1fr] grid-cols-[200px_1fr] h-screen gap-2 p-4 bg-background">
     <header class="col-span-2 text-center">
       <h1 class="m-0 text-xl text-foreground">
-        aiex Schema Editor
+        AIEX Schema Editor
       </h1>
       <p class="mt-1 text-sm text-muted-foreground">
         Visual JSON Schema editor for SQLite database generation
@@ -290,42 +293,63 @@ onMounted(() => {
     </Dialog>
 
     <div class="row-start-2 flex flex-col min-h-0 bg-card border border-border rounded-xl p-3">
-      <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
-        Saved Schemas
-      </h3>
-      <ul class="list-none p-0 m-0 flex-1 min-h-0 overflow-y-auto">
-        <li
-          v-for="name in savedSchemas"
-          :key="name"
-          class="flex items-center justify-between p-2 rounded cursor-pointer hover:bg-secondary"
+      <div class="flex mb-3 shrink-0 bg-muted rounded-lg p-0.5">
+        <button
+          class="flex-1 px-3 py-1.5 text-sm rounded-md transition-colors"
+          :class="currentView === 'editor' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+          @click="currentView = 'editor'"
         >
-          <span class="flex-1 truncate" @click="loadSchema(name)">{{ name.replace('.json', '') }}</span>
-          <div class="flex items-center gap-1">
-            <Button icon="pi pi-eye" severity="secondary" size="small" text v-tooltip="'Preview Prompt'" @click="handlePreviewPrompt(name)" />
-            <Button icon="pi pi-trash" severity="danger" size="small" text @click="handleDelete(name)" />
-          </div>
-        </li>
-      </ul>
-      <div class="flex flex-col gap-2 mt-3 shrink-0">
-        <Button class="w-full" label="New" icon="pi pi-plus" severity="secondary" size="small" @click="newSchema" />
-        <Button class="w-full" label="Load Example" icon="pi pi-box" severity="help" size="small" outlined @click="loadExample" />
-        <div class="flex items-center justify-center gap-1 pt-1 border-t border-border">
-          <Button :icon="darkMode ? 'pi pi-sun' : 'pi pi-moon'" severity="secondary" text size="small" @click="toggleDarkMode()" v-tooltip="'Toggle dark mode'" />
-          <Button icon="pi pi-cog" severity="secondary" text size="small" @click="showAISettings = true" v-tooltip="'AI Settings'" />
-        </div>
+          Editor
+        </button>
+        <button
+          class="flex-1 px-3 py-1.5 text-sm rounded-md transition-colors"
+          :class="currentView === 'data' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+          @click="currentView = 'data'"
+        >
+          Data
+        </button>
       </div>
+
+      <template v-if="currentView === 'editor'">
+        <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
+          Saved Schemas
+        </h3>
+        <ul class="list-none p-0 m-0 flex-1 min-h-0 overflow-y-auto">
+          <li
+            v-for="name in savedSchemas"
+            :key="name"
+            class="flex items-center justify-between p-2 rounded cursor-pointer hover:bg-secondary"
+          >
+            <span class="flex-1 truncate" @click="loadSchema(name)">{{ name.replace('.json', '') }}</span>
+            <div class="flex items-center gap-1">
+              <Button icon="pi pi-eye" severity="secondary" size="small" text v-tooltip="'Preview Prompt'" @click="handlePreviewPrompt(name)" />
+              <Button icon="pi pi-trash" severity="danger" size="small" text @click="handleDelete(name)" />
+            </div>
+          </li>
+        </ul>
+        <div class="flex flex-col gap-2 mt-3 shrink-0">
+          <Button class="w-full" label="New" icon="pi pi-plus" severity="secondary" size="small" @click="newSchema" />
+          <Button class="w-full" label="Load Example" icon="pi pi-box" severity="help" size="small" outlined @click="loadExample" />
+          <div class="flex items-center justify-center gap-1 pt-1 border-t border-border">
+            <Button :icon="darkMode ? 'pi pi-sun' : 'pi pi-moon'" severity="secondary" text size="small" @click="toggleDarkMode()" v-tooltip="'Toggle dark mode'" />
+            <Button icon="pi pi-cog" severity="secondary" text size="small" @click="showAISettings = true" v-tooltip="'AI Settings'" />
+          </div>
+        </div>
+      </template>
     </div>
 
     <main
       class="row-start-2 min-h-0 bg-card border border-border rounded-xl overflow-hidden flex flex-col"
     >
       <JsonSchemaEditor
+        v-if="currentView === 'editor'"
         v-model:schema="schema"
         :loading="loading"
         :migrating="migrating"
         @save="handleSave"
         @save-and-migrate="handleSaveAndMigrate"
       />
+      <DataBrowser v-else />
     </main>
   </div>
 </template>

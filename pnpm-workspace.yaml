@@ -39,6 +39,8 @@ catalog:
   vue: ^3.4.0
   vue-eslint-parser: ^10.4.0
   vue-sonner: ^2.0.9
+  vxe-pc-ui: ^4.14.12
+  vxe-table: ^4.18.13
   zod: ^3.23.0
 catalogMode: prefer
 catalogs:

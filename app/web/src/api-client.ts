@@ -134,4 +134,34 @@ export async function registryLookup(modelName: string): Promise<ModelCapabiliti
   return data as ModelCapabilities
 }
 
+// Data Browser API
+
+export interface ExtractionRecord {
+  name: string
+  schemaName: string
+  timestamp: string
+  fileSize: number
+  modifiedAt: string
+}
+
+export async function listExtractions(): Promise<ExtractionRecord[]> {
+  const res = await fetch('/api/data')
+  if (!res.ok) {
+    throw new Error('Failed to list extractions')
+  }
+  return res.json() as Promise<ExtractionRecord[]>
+}
+
+export interface ExtractionDetail {
+  success: boolean
+  content?: string
+  name?: string
+  error?: string
+}
+
+export async function getExtraction(name: string): Promise<ExtractionDetail> {
+  const res = await fetch(`/api/data/${encodeURIComponent(name)}`)
+  return res.json() as Promise<ExtractionDetail>
+}
+
 
