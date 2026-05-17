@@ -202,6 +202,27 @@ describe('ai config schema', () => {
     })).toThrow()
   })
 
+  it('accepts config with maxTokens in capabilities', () => {
+    const result = AIConfigSchema.parse({
+      ...validConfig,
+      provider: {
+        ...validConfig.provider,
+        models: [{ name: 'gpt-4', capabilities: { vision: false, structuredOutput: true, maxTokens: 128000 } }],
+      },
+    })
+    expect(result.provider.models[0].capabilities.maxTokens).toBe(128000)
+  })
+
+  it('rejects negative maxTokens', () => {
+    expect(() => AIConfigSchema.parse({
+      ...validConfig,
+      provider: {
+        ...validConfig.provider,
+        models: [{ name: 'gpt-4', capabilities: { vision: false, structuredOutput: true, maxTokens: -1 } }],
+      },
+    })).toThrow()
+  })
+
   it('rejects empty model name', () => {
     expect(() => AIConfigSchema.parse({
       ...validConfig,
@@ -297,6 +318,78 @@ describe('selectModel', () => {
     ]
     const result = selectModel({ models, isImage: true })
     expect(result.name).toBe('gpt-4-vision')
+  })
+
+  it('filters models with insufficient context window for long text', () => {
+    const models: AIModelConfig[] = [
+      { name: 'small', capabilities: { vision: false, structuredOutput: true, maxTokens: 1000 } },
+      { name: 'large', capabilities: { vision: false, structuredOutput: true, maxTokens: 10000 } },
+    ]
+    const result = selectModel({ models, isImage: false, inputTokens: 2000 })
+    expect(result.name).toBe('large')
+  })
+
+  it('filters vision models with insufficient context window for image inputs', () => {
+    const models: AIModelConfig[] = [
+      { name: 'small-vision', capabilities: { vision: true, structuredOutput: true, maxTokens: 500 } },
+      { name: 'large-vision', capabilities: { vision: true, structuredOutput: true, maxTokens: 5000 } },
+    ]
+    const result = selectModel({ models, isImage: true, fileName: 'test.png', inputTokens: 1000 })
+    expect(result.name).toBe('large-vision')
+  })
+
+  it('falls back to all models when none can fit inputTokens (best effort)', () => {
+    const models: AIModelConfig[] = [
+      { name: 'tiny', capabilities: { vision: false, structuredOutput: false, maxTokens: 100 } },
+    ]
+    const result = selectModel({ models, isImage: false, inputTokens: 500 })
+    expect(result.name).toBe('tiny')
+  })
+
+  it('ignores context filter when inputTokens is not provided', () => {
+    const models: AIModelConfig[] = [
+      { name: 'tiny', capabilities: { vision: false, structuredOutput: false, maxTokens: 100 } },
+      { name: 'large', capabilities: { vision: false, structuredOutput: true, maxTokens: 10000 } },
+    ]
+    const result = selectModel({ models, isImage: false })
+    expect(result.name).toBe('large')
+  })
+
+  it('uses models without maxTokens as compatible candidates', () => {
+    const models: AIModelConfig[] = [
+      { name: 'unknown', capabilities: { vision: false, structuredOutput: true } },
+      { name: 'small', capabilities: { vision: false, structuredOutput: false, maxTokens: 100 } },
+    ]
+    const result = selectModel({ models, isImage: false, inputTokens: 500 })
+    expect(result.name).toBe('unknown')
+  })
+
+  it('filters models with insufficient output tokens', () => {
+    const models: AIModelConfig[] = [
+      { name: 'small-out', capabilities: { vision: false, structuredOutput: true, maxOutputTokens: 200 } },
+      { name: 'large-out', capabilities: { vision: false, structuredOutput: true, maxOutputTokens: 5000 } },
+    ]
+    const result = selectModel({ models, isImage: false, outputTokens: 1000 })
+    expect(result.name).toBe('large-out')
+  })
+
+  it('uses models without maxOutputTokens as compatible candidates', () => {
+    const models: AIModelConfig[] = [
+      { name: 'unknown', capabilities: { vision: false, structuredOutput: true } },
+      { name: 'small', capabilities: { vision: false, structuredOutput: true, maxOutputTokens: 100 } },
+    ]
+    const result = selectModel({ models, isImage: false, outputTokens: 500 })
+    expect(result.name).toBe('unknown')
+  })
+
+  it('filters by both input and output tokens simultaneously', () => {
+    const models: AIModelConfig[] = [
+      { name: 'a', capabilities: { vision: false, structuredOutput: true, maxTokens: 500, maxOutputTokens: 5000 } },
+      { name: 'b', capabilities: { vision: false, structuredOutput: true, maxTokens: 5000, maxOutputTokens: 200 } },
+      { name: 'c', capabilities: { vision: false, structuredOutput: true, maxTokens: 10000, maxOutputTokens: 10000 } },
+    ]
+    const result = selectModel({ models, isImage: false, inputTokens: 2000, outputTokens: 1000 })
+    expect(result.name).toBe('c')
   })
 })
 

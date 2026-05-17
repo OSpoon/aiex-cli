@@ -130,7 +130,7 @@ export const extractCommand = defineCommand({
     }
 
     // Resolve model override
-    let modelOverride = undefined
+    let modelOverride
     if (args.model) {
       const matched = aiConfig.provider.models.find(m => m.name === args.model)
       if (!matched) {

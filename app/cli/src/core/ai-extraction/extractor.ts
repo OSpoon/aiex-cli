@@ -99,10 +99,17 @@ export async function extractStructuredData(input: {
   const useFileContent = !!file
   const isImageFile = useFileContent && detectMimeType(file!).startsWith('image/')
 
+  const inputTokens = text ? Math.ceil(text.length / 2) : undefined
+
+  const fieldCount = schema.properties ? Object.keys(schema.properties).length : 0
+  const outputTokens = fieldCount > 0 ? fieldCount * 80 : undefined
+
   const selected = modelOverride ?? selectModel({
     models: config.provider.models,
     isImage: isImageFile,
     fileName: file,
+    inputTokens,
+    outputTokens,
   })
 
   const useStructuredOutput = selected.capabilities.structuredOutput

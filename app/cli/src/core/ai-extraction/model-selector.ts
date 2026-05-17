@@ -4,6 +4,8 @@ export interface SelectModelInput {
   models: AIModelConfig[]
   isImage: boolean
   fileName?: string
+  inputTokens?: number
+  outputTokens?: number
 }
 
 export interface SelectedModel {
@@ -11,29 +13,48 @@ export interface SelectedModel {
   capabilities: AIModelConfig['capabilities']
 }
 
+function filterCompatible(models: AIModelConfig[], inputTokens?: number, outputTokens?: number): AIModelConfig[] {
+  return models.filter((m) => {
+    if (inputTokens && m.capabilities.maxTokens && m.capabilities.maxTokens < inputTokens) {
+      return false
+    }
+    if (outputTokens && m.capabilities.maxOutputTokens && m.capabilities.maxOutputTokens < outputTokens) {
+      return false
+    }
+    return true
+  })
+}
+
 export function selectModel(input: SelectModelInput): SelectedModel {
-  const { models, isImage, fileName } = input
+  const { models, isImage, fileName, inputTokens, outputTokens } = input
 
   if (models.length === 0) {
     throw new Error('No AI models configured. Please add at least one model in AI Settings.')
   }
 
+  let candidates = filterCompatible(models, inputTokens, outputTokens)
+  if (candidates.length === 0) {
+    candidates = models
+  }
+
   if (isImage) {
-    const visionModel = models.find(m => m.capabilities.vision)
+    const visionModel = candidates.find(m => m.capabilities.vision)
     if (!visionModel) {
       const hint = fileName ? ` (${fileName})` : ''
+      const msg = inputTokens
+        ? `No vision-capable model with sufficient context window (≥${inputTokens} tokens) found${hint}.`
+        : `Image input requires a model with vision capability${hint}.`
       throw new Error(
-        `Image input requires a model with vision capability${hint}. `
-        + 'Please add a vision-capable model (e.g. qwen-vl-plus) in AI Settings.',
+        `${msg} Please add a suitable vision-capable model in AI Settings.`,
       )
     }
     return { name: visionModel.name, capabilities: visionModel.capabilities }
   }
 
-  const soModel = models.find(m => m.capabilities.structuredOutput)
+  const soModel = candidates.find(m => m.capabilities.structuredOutput)
   if (soModel) {
     return { name: soModel.name, capabilities: soModel.capabilities }
   }
 
-  return { name: models[0].name, capabilities: models[0].capabilities }
+  return { name: candidates[0].name, capabilities: candidates[0].capabilities }
 }

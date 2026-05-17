@@ -3,6 +3,8 @@ import capabilities from './model-capabilities.json'
 export interface RegistryEntry {
   vision: boolean
   structuredOutput: boolean
+  maxTokens?: number
+  maxOutputTokens?: number
 }
 
 const registry = capabilities as Record<string, RegistryEntry>
