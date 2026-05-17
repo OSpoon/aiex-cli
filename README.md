@@ -23,7 +23,8 @@ npm install -g aiex-cli
 ```bash
 aiex schema --init                      # set up .aiex/schema/ directory
 aiex schema                             # generate SQLite from JSON Schema files
-aiex extract -s invoice -f invoice.pdf # extract data with AI
+aiex extract -s invoice -f invoice.pdf  # extract data with AI
+aiex extract -s invoice -f invoice.pdf --db  # extract and insert into database
 ```
 
 <br>
@@ -46,6 +47,8 @@ aiex schema --init
 ```
 
 Creates a `.aiex/` directory with example schemas to get you started.
+
+Add your own JSON Schema files to `.aiex/schema/` (one file per table), then run `aiex schema` to migrate them into the database.
 
 ### 2. Visual Editor
 
@@ -72,11 +75,12 @@ aiex extract -s <schema> -t <text>  # from text
 
 The AI reads your document and outputs structured JSON matching your schema.
 
-**Example:**
+**Examples:**
 ```bash
-aiex extract -s paper -f research.pdf
+aiex extract -s paper -f research.pdf   # save result to .aiex/extracted/
+aiex extract -s paper -f research.pdf --db  # also insert into SQLite database
 ```
-Creates `output.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema.
+Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema. Add `--db` to also insert the data directly into the SQLite database.
 
 <br>
 
@@ -85,10 +89,11 @@ Creates `output.json` with fields like `title`, `firstAuthor`, `journal`, `year`
 | Command | Description |
 | --- | --- |
 | `aiex schema --init` | Scaffold `.aiex/` directory with example schemas |
-| `aiex schema <files>` | Parse JSON Schema files and migrate to SQLite |
+| `aiex schema` | Parse JSON Schema files and migrate to SQLite |
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
 | `aiex web` | Launch visual schema editor in browser |
-| `aiex extract -s <name>` | Extract structured data from documents via AI |
+| `aiex extract -s <name> -f <file>` | Extract structured data from documents via AI |
+| `aiex extract -s <name> -f <file> --db` | Extract and insert into SQLite database |
 | `aiex doctor` | System and configuration diagnostics |
 
 <br>

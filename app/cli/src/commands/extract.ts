@@ -2,14 +2,16 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { intro, outro, spinner } from '@clack/prompts'
+import Database from 'better-sqlite3'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
 import { ZodError } from 'zod'
-import { extractStructuredData, readAIConfig } from '@/core/ai-extraction'
+import { extractStructuredData, insertExtractedData, readAIConfig } from '@/core/ai-extraction'
 import {
   createMigrationConfig,
   JsonSchemaDefinitionSchema,
+  parseJsonSchema,
 } from '@/core/schema-sqlite'
 
 const IMAGE_EXTENSIONS = new Set([
@@ -21,6 +23,38 @@ const IMAGE_EXTENSIONS = new Set([
   'bmp',
   'svg',
 ])
+
+async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
+  try {
+    await fs.access(dbPath)
+  }
+  catch {
+    return `Database not found at ${pc.cyan('.aiex/database.db')}. Run ${pc.cyan('aiex schema')} first to create the database.`
+  }
+
+  try {
+    const result = parseJsonSchema(schema)
+    const db = new Database(dbPath)
+    try {
+      for (const table of result.tables) {
+        const row = db.prepare(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
+        ).get(table.name)
+        if (!row) {
+          return `Table "${table.name}" not found in database. Run ${pc.cyan('aiex schema')} first to create tables.`
+        }
+      }
+    }
+    finally {
+      db.close()
+    }
+  }
+  catch (e) {
+    return `Cannot verify database: ${e instanceof Error ? e.message : String(e)}`
+  }
+
+  return null
+}
 
 export const extractCommand = defineCommand({
   meta: {
@@ -43,6 +77,12 @@ export const extractCommand = defineCommand({
       type: 'string',
       alias: 'f',
       description: 'File path (text/image/PDF) to extract from',
+    },
+    db: {
+      type: 'boolean',
+      alias: 'd',
+      description: 'Insert extracted data into SQLite database',
+      default: false,
     },
   },
   async run({ args }) {
@@ -168,6 +208,44 @@ export const extractCommand = defineCommand({
           `Token usage: prompt=${result.tokensUsed.prompt}, completion=${result.tokensUsed.completion}, total=${result.tokensUsed.total}`,
         ),
       )
+    }
+
+    if (args.db && result.data) {
+      const s2 = spinner()
+      s2.start('Inserting into database...')
+
+      const dbError = await ensureDatabaseReady(config.databasePath, schema)
+      if (dbError) {
+        s2.stop('Database not ready')
+        consola.error(dbError)
+        outro('Failed!')
+        return
+      }
+
+      try {
+        const db = new Database(config.databasePath)
+        try {
+          const insertResult = insertExtractedData(db, schema, result.data as Record<string, unknown>)
+          if (insertResult.success) {
+            s2.stop(`Inserted into ${insertResult.tablesInserted.length} table(s)`)
+          }
+          else {
+            s2.stop('Database insert failed')
+            consola.error(insertResult.error || 'Unknown error')
+            outro('Failed!')
+            return
+          }
+        }
+        finally {
+          db.close()
+        }
+      }
+      catch (e) {
+        s2.stop('Database insert failed')
+        consola.error(e instanceof Error ? e.message : String(e))
+        outro('Failed!')
+        return
+      }
     }
 
     outro('Done!')
