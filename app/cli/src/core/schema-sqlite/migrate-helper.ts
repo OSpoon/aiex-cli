@@ -6,6 +6,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
 import * as esbuild from 'esbuild'
+import { sanitizeMigrationName } from './migration-name'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
@@ -80,6 +81,7 @@ async function loadPrevSnapshot(migrationsPath: string): Promise<DrizzleSQLiteSn
 async function saveSnapshot(
   migrationsPath: string,
   snapshot: DrizzleSQLiteSnapshotJSON,
+  migrationName?: string,
 ): Promise<string> {
   const metaPath = path.join(migrationsPath, 'meta')
   await fs.mkdir(metaPath, { recursive: true })
@@ -95,7 +97,8 @@ async function saveSnapshot(
   }
 
   const idx = journal.entries.length + 1
-  const tag = `${String(idx).padStart(4, '0')}_${snapshot.id.replace(/-/g, '_').substring(0, 8)}`
+  const suffix = sanitizeMigrationName(migrationName) || snapshot.id.replace(/-/g, '_').substring(0, 8)
+  const tag = `${String(idx).padStart(4, '0')}_${suffix}`
 
   const snapshotPath = path.join(metaPath, `${tag}_snapshot.json`)
   await fs.writeFile(snapshotPath, JSON.stringify(snapshot, null, 2))
@@ -196,9 +199,10 @@ async function main(): Promise<void> {
   const schemaPath = args[0]
   const migrationsPath = args[1]
   const dbPath = args[2]
+  const migrationName = args[3]
 
   if (!schemaPath || !migrationsPath || !dbPath) {
-    console.error('Usage: migrate-helper.ts <schemaPath> <migrationsPath> <dbPath>')
+    console.error('Usage: migrate-helper.ts <schemaPath> <migrationsPath> <dbPath> [migrationName]')
     process.exit(1)
   }
 
@@ -226,7 +230,7 @@ async function main(): Promise<void> {
       applyMigrationWithTransaction(dbPath, sqlStatements)
 
       // Only save snapshot and migration file AFTER successful DB update
-      const tag = await saveSnapshot(migrationsPath, currentSnapshot)
+      const tag = await saveSnapshot(migrationsPath, currentSnapshot, migrationName)
       await saveMigrationFile(migrationsPath, tag, sqlStatements)
 
       // eslint-disable-next-line no-console
@@ -243,4 +247,5 @@ async function main(): Promise<void> {
   }
 }
 
-main()
+if (process.argv[1] && __filename === path.resolve(process.argv[1]))
+  main()

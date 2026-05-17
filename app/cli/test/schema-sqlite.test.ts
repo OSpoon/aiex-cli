@@ -7,6 +7,7 @@ import {
   JsonSchemaDefinitionSchema,
   parseJsonSchema,
 } from '@/core/schema-sqlite'
+import { sanitizeMigrationName } from '@/core/schema-sqlite/migration-name'
 
 // ============================================
 // Test helper: deep complex schema generator
@@ -91,6 +92,14 @@ function createComplexEcommerceSchema() {
 }
 
 describe('schema-sqlite', () => {
+  describe('migration naming', () => {
+    it('sanitizes --name values for migration filenames', () => {
+      expect(sanitizeMigrationName('Create Users Table')).toBe('create_users_table')
+      expect(sanitizeMigrationName('  v2: orders/items!  ')).toBe('v2_orders_items')
+      expect(sanitizeMigrationName('___')).toBeUndefined()
+    })
+  })
+
   describe('jsonSchemaDefinitionSchema validation', () => {
     it('should validate a valid schema', () => {
       const schema = {
@@ -562,8 +571,8 @@ describe('schema-sqlite', () => {
 
       expect(code).toContain('export const users_profileRelations = relations(users_profile')
       expect(code).toContain('one(users, {')
-      expect(code).toContain('fields: [users_id]')
-      expect(code).toContain('references: [id]')
+      expect(code).toContain('fields: [users_profile.users_id]')
+      expect(code).toContain('references: [users.id]')
     })
 
     it('should generate parent table relation with one() for has-one', () => {

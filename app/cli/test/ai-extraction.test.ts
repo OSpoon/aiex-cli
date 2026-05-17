@@ -2,6 +2,7 @@ import type { AIModelConfig } from '@/core/ai-extraction/types'
 import { describe, expect, it } from 'vitest'
 import { lookupModelCapabilities } from '@/core/ai-extraction/capabilities'
 import { maskApiKey } from '@/core/ai-extraction/config'
+import { schemaToExtractionOutputSchema, validateExtractedData } from '@/core/ai-extraction/extractor'
 import { safeParseJSON } from '@/core/ai-extraction/json-utils'
 import { selectModel } from '@/core/ai-extraction/model-selector'
 import {
@@ -18,6 +19,111 @@ import {
   inlineObjectSchema,
   nestedSchema,
 } from './ai-extraction.test-utils'
+
+// ───────────── Unit tests: schemaToExtractionOutputSchema ─────────────
+
+describe('schemaToExtractionOutputSchema', () => {
+  it('converts a user table schema into an extraction output schema', () => {
+    const schema = schemaToExtractionOutputSchema(nestedSchema)
+
+    expect(schema).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'address', 'orders'],
+      properties: {
+        name: { type: ['string', 'null'] },
+        address: {
+          type: ['object', 'null'],
+          additionalProperties: false,
+          required: ['street', 'city'],
+          properties: {
+            street: { type: ['string', 'null'] },
+            city: { type: ['string', 'null'] },
+          },
+        },
+        orders: {
+          type: ['array', 'null'],
+          items: {
+            type: ['object', 'null'],
+            additionalProperties: false,
+            required: ['product', 'amount'],
+            properties: {
+              product: { type: ['string', 'null'] },
+              amount: { type: ['number', 'null'] },
+            },
+          },
+        },
+      },
+    })
+  })
+
+  it('does not leak aiex table-definition fields into AI output', () => {
+    const schema = schemaToExtractionOutputSchema(flatSchema)
+    const properties = schema.properties as Record<string, unknown>
+
+    expect(schema).not.toHaveProperty('table')
+    expect(schema).not.toHaveProperty('$defs')
+    expect(properties).toHaveProperty('name')
+    expect(properties).not.toHaveProperty('properties')
+  })
+})
+
+// ───────────── Unit tests: validateExtractedData ─────────────
+
+describe('validateExtractedData', () => {
+  it('accepts complete data that matches the extraction schema', () => {
+    const result = validateExtractedData(nestedSchema, {
+      name: 'Alice',
+      address: {
+        street: 'Main St',
+        city: 'Shanghai',
+      },
+      orders: [
+        { product: 'Book', amount: 12.5 },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('allows null values for missing source information', () => {
+    const result = validateExtractedData(nestedSchema, {
+      name: null,
+      address: null,
+      orders: null,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects unexpected fields before saving extracted data', () => {
+    const result = validateExtractedData(flatSchema, {
+      name: 'Alice',
+      age: 32,
+      unexpected: true,
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success)
+      expect(result.error).toContain('$.unexpected: unexpected field')
+  })
+
+  it('rejects missing fields and type mismatches', () => {
+    const result = validateExtractedData(nestedSchema, {
+      name: 'Alice',
+      address: {
+        street: 'Main St',
+        city: 123,
+      },
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toContain('$.address.city: expected string or null')
+      expect(result.error).toContain('$.orders: missing field')
+    }
+  })
+})
 
 // ───────────── Unit tests: schemaToDescription ─────────────
 

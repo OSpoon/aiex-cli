@@ -78,7 +78,7 @@ function generateRelationDefinitions(relations: ParsedRelation[], reverseRelatio
     const relDefs: string[] = []
 
     for (const rel of childRels) {
-      relDefs.push(`    ${rel.name}: one(${rel.toTable}, {\n      fields: [${rel.fromColumn}],\n      references: [id],\n    })`)
+      relDefs.push(`    ${rel.name}: one(${rel.toTable}, {\n      fields: [${rel.fromTable}.${rel.fromColumn}],\n      references: [${rel.toTable}.${rel.toColumn}],\n    })`)
     }
 
     for (const rel of parentRels) {

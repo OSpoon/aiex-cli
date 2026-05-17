@@ -5,6 +5,8 @@ import Database from 'better-sqlite3'
 import { Hono } from 'hono'
 
 const FILE_REGEX = /\.json$/
+const EXTRACTION_FILE_RE = /^[\w.-]+\.json$/
+const TABLE_NAME_RE = /^[a-z][a-z0-9_]*$/
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
 const TIMESTAMP_TZ = /(\d{3})Z/
 
@@ -65,19 +67,6 @@ export function dataRoutes(config: MigrationConfig): Hono {
     }
   })
 
-  app.get('/data/:name', async (c) => {
-    const name = c.req.param('name')
-    const filePath = path.join(extractedDir, name)
-
-    try {
-      const content = await fs.readFile(filePath, 'utf-8')
-      return c.json({ success: true, content, name })
-    }
-    catch {
-      return c.json({ error: 'Extraction result not found' }, 404)
-    }
-  })
-
   // ── Table data endpoints ──
 
   app.get('/data/tables', async (c) => {
@@ -133,6 +122,9 @@ export function dataRoutes(config: MigrationConfig): Hono {
 
   app.get('/data/tables/:name', async (c) => {
     const tableName = c.req.param('name')
+    if (!TABLE_NAME_RE.test(tableName)) {
+      return c.json({ error: 'Invalid table name' }, 400)
+    }
     const sortField = c.req.query('sortField')
     const sortOrder = c.req.query('sortOrder') || 'asc'
 
@@ -185,6 +177,22 @@ export function dataRoutes(config: MigrationConfig): Hono {
     }
     finally {
       db.close()
+    }
+  })
+
+  app.get('/data/:name', async (c) => {
+    const name = c.req.param('name')
+    if (name !== path.basename(name) || !EXTRACTION_FILE_RE.test(name) || name.includes('..')) {
+      return c.json({ error: 'Invalid extraction file name' }, 400)
+    }
+    const filePath = path.join(extractedDir, name)
+
+    try {
+      const content = await fs.readFile(filePath, 'utf-8')
+      return c.json({ success: true, content, name })
+    }
+    catch {
+      return c.json({ error: 'Extraction result not found' }, 404)
     }
   })
 

@@ -1,11 +1,10 @@
 import type { AIConfig, AIModelConfig, ExtractionResult } from './types'
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { JsonSchemaDefinition, JsonSchemaProperty } from '@/core/schema-sqlite/schemas'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { generateText, jsonSchema, Output } from 'ai'
 import { getErrorMessage } from '@/core/schema-sqlite'
-import tableSchemaFile from '~/schemas/table-schema.json'
 import { safeParseJSON } from './json-utils'
 import { selectModel } from './model-selector'
 import { generateExtractionPrompt } from './prompt-generator'
@@ -58,6 +57,151 @@ async function readFilePart(filePath: string): Promise<ReadFilePartResult> {
     return { type: 'image', name, image: dataUri }
   }
   return { type: 'file', name, data: dataUri, mimeType: mime }
+}
+
+function nullableType(type: string): string[] {
+  return type === 'null' ? ['null'] : [type, 'null']
+}
+
+function propertyToExtractionSchema(property: JsonSchemaProperty): Record<string, unknown> {
+  if (property.type === 'array') {
+    return {
+      type: nullableType('array'),
+      items: property.items ? propertyToExtractionSchema(property.items) : {},
+    }
+  }
+
+  if (property.type === 'object') {
+    const childProperties = property.properties
+      ? Object.fromEntries(
+          Object.entries(property.properties).map(([name, prop]) => [name, propertyToExtractionSchema(prop)]),
+        )
+      : undefined
+
+    return {
+      type: nullableType('object'),
+      ...(childProperties
+        ? {
+            properties: childProperties,
+            required: Object.keys(childProperties),
+            additionalProperties: false,
+          }
+        : { additionalProperties: true }),
+    }
+  }
+
+  return {
+    type: nullableType(property.type),
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function schemaToExtractionOutputSchema(schema: JsonSchemaDefinition): Record<string, unknown> {
+  const properties = Object.fromEntries(
+    Object.entries(schema.properties)
+      .filter(([, prop]) => !(prop.primary && prop.autoIncrement))
+      .map(([name, prop]) => [name, propertyToExtractionSchema(prop)]),
+  )
+
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties,
+    required: Object.keys(properties),
+  }
+}
+
+function validatePropertyValue(path: string, property: JsonSchemaProperty, value: unknown, issues: string[]): void {
+  if (value === null)
+    return
+
+  switch (property.type) {
+    case 'string':
+      if (typeof value !== 'string')
+        issues.push(`${path}: expected string or null`)
+      return
+    case 'integer':
+      if (!Number.isInteger(value))
+        issues.push(`${path}: expected integer or null`)
+      return
+    case 'number':
+      if (typeof value !== 'number' || Number.isNaN(value))
+        issues.push(`${path}: expected number or null`)
+      return
+    case 'boolean':
+      if (typeof value !== 'boolean')
+        issues.push(`${path}: expected boolean or null`)
+      return
+    case 'array':
+      if (!Array.isArray(value)) {
+        issues.push(`${path}: expected array or null`)
+        return
+      }
+      if (property.items) {
+        const itemProperty = property.items
+        value.forEach((item, index) => validatePropertyValue(`${path}[${index}]`, itemProperty, item, issues))
+      }
+      return
+    case 'object': {
+      if (!isRecord(value)) {
+        issues.push(`${path}: expected object or null`)
+        return
+      }
+      if (property.properties)
+        validateProperties(path, property.properties, value, issues)
+      return
+    }
+    case 'null':
+      issues.push(`${path}: expected null`)
+  }
+}
+
+function validateProperties(
+  basePath: string,
+  properties: Record<string, JsonSchemaProperty>,
+  data: Record<string, unknown>,
+  issues: string[],
+): void {
+  const expected = Object.entries(properties)
+    .filter(([, prop]) => !(prop.primary && prop.autoIncrement))
+
+  const expectedKeys = new Set(expected.map(([name]) => name))
+  for (const key of Object.keys(data)) {
+    if (!expectedKeys.has(key))
+      issues.push(`${basePath}.${key}: unexpected field`)
+  }
+
+  for (const [name, prop] of expected) {
+    const path = `${basePath}.${name}`
+    if (!(name in data)) {
+      issues.push(`${path}: missing field`)
+      continue
+    }
+    validatePropertyValue(path, prop, data[name], issues)
+  }
+}
+
+export function validateExtractedData(
+  schema: JsonSchemaDefinition,
+  data: unknown,
+): { success: true } | { success: false, error: string } {
+  if (!isRecord(data)) {
+    return { success: false, error: 'Extracted data must be a JSON object.' }
+  }
+
+  const issues: string[] = []
+  validateProperties('$', schema.properties, data, issues)
+  if (issues.length > 0) {
+    return {
+      success: false,
+      error: `Extracted data does not match schema:\n${issues.map(issue => `  - ${issue}`).join('\n')}`,
+    }
+  }
+
+  return { success: true }
 }
 
 async function loadPromptSnapshot(aiexDir: string, tableName: string): Promise<PromptSnapshot | null> {
@@ -126,19 +270,21 @@ export async function extractStructuredData(input: {
 
     const snapshot = await loadPromptSnapshot(aiexDir, schema.table.name)
 
+    const promptText = file ? PLACEHOLDER_TEXT : text
+
     if (snapshot) {
       system = snapshot.system
-      user = snapshot.user.replaceAll(PLACEHOLDER_TEXT, text)
+      user = snapshot.user.replaceAll(PLACEHOLDER_TEXT, promptText)
     }
     else {
       const promptConfig = config.prompt ?? DEFAULT_PROMPT_CONFIG
-      const generated = generateExtractionPrompt(schema, text, promptConfig)
+      const generated = generateExtractionPrompt(schema, promptText, promptConfig)
       system = generated.system
       user = generated.user
     }
 
     const outputSchema = jsonSchema<Record<string, unknown>>(
-      tableSchemaFile as Record<string, unknown>,
+      schemaToExtractionOutputSchema(schema),
     )
 
     let result
@@ -190,6 +336,11 @@ export async function extractStructuredData(input: {
     }
     else {
       data = safeParseJSON(result.text)
+    }
+
+    const validation = validateExtractedData(schema, data)
+    if (!validation.success) {
+      return { success: false, error: validation.error }
     }
 
     const outputDir = path.resolve(aiexDir, config.extraction.outputDir.replace('.aiex/', ''))

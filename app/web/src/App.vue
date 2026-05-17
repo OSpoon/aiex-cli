@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import type { JSONSchema } from "@/lib/jsonschema-editor"
+import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import tableSchemaMeta from "@aiex/table-schema"
 import { useEventListener } from "@vueuse/core"
 import Button from "primevue/button"
 import Dialog from "primevue/dialog"
-import { computed, onMounted, ref } from "vue"
+import { computed, defineAsyncComponent, onMounted, ref } from "vue"
 import { toast, Toaster } from "vue-sonner"
 import { deleteSchema, getPromptSnapshot, getSchema, listSchemas, migrateSchema, saveSchema } from "@/api-client"
-import AISettings from "@/components/AISettings.vue"
-import DataBrowser from "@/components/DataBrowser.vue"
-import { JsonSchemaEditor, useTheme } from "@/lib/jsonschema-editor"
+import { useTheme } from "@/lib/jsonschema-editor/themes/useTheme"
 
 const { darkMode, toggleDarkMode } = useTheme()
+const AISettings = defineAsyncComponent(() => import("@/components/AISettings.vue"))
+const DataBrowser = defineAsyncComponent(() => import("@/components/DataBrowser.vue"))
+const JsonSchemaEditor = defineAsyncComponent(() => import("@/lib/jsonschema-editor/components/SchemaEditor/JsonSchemaEditor.vue"))
 
 const currentView = ref<"editor" | "data">("editor")
 

@@ -7,10 +7,14 @@ import { aiRoutes } from '@/server/routes/ai'
 import { dataRoutes } from '@/server/routes/data'
 import { schemaRoutes } from '@/server/routes/schema'
 
+const LOCAL_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/
+
 export function createApp(config: MigrationConfig, staticDir: string): Hono {
   const app = new Hono()
 
-  app.use('*', cors())
+  app.use('*', cors({
+    origin: origin => LOCAL_ORIGIN_RE.test(origin) ? origin : null,
+  }))
 
   app.route('/api', schemaRoutes(config))
   app.route('/api', aiRoutes(config))

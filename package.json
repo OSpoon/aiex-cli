@@ -13,7 +13,7 @@
   },
   "bugs": "https://github.com/OSpoon/aiex-cli/issues",
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm --filter aiex-cli build",
     "build:cli": "pnpm --filter aiex-cli build",
     "build:web": "pnpm --filter aiex-web build",
     "dev": "pnpm --filter aiex-cli dev",

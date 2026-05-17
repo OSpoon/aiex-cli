@@ -15,6 +15,15 @@ import {
 } from '@/core/schema-sqlite'
 
 const execFileAsync = promisify(execFile)
+const SCHEMA_FILE_RE = /^[\w.-]+\.json$/
+const TABLE_NAME_RE = /^[a-z][a-z0-9_]*$/
+
+function resolveSchemaFile(schemaDir: string, name: string): string | null {
+  if (name !== path.basename(name) || !SCHEMA_FILE_RE.test(name) || name.includes('..')) {
+    return null
+  }
+  return path.join(schemaDir, name)
+}
 
 export function schemaRoutes(config: MigrationConfig): Hono {
   const app = new Hono()
@@ -35,7 +44,10 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   // Get a specific schema
   app.get('/schema/:name', async (c) => {
     const name = c.req.param('name')
-    const filePath = path.join(schemaDir, name)
+    const filePath = resolveSchemaFile(schemaDir, name)
+    if (!filePath) {
+      return c.json({ error: 'Invalid schema file name' }, 400)
+    }
 
     try {
       const content = await fs.readFile(filePath, 'utf-8')
@@ -49,7 +61,10 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   // Save a schema
   app.post('/schema/:name', async (c) => {
     const name = c.req.param('name')
-    const filePath = path.join(schemaDir, name)
+    const filePath = resolveSchemaFile(schemaDir, name)
+    if (!filePath) {
+      return c.json({ error: 'Invalid schema file name' }, 400)
+    }
 
     try {
       const body = await c.req.json()
@@ -76,6 +91,9 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   // Get prompt snapshot for a schema
   app.get('/prompt-snapshot/:name', async (c) => {
     const name = c.req.param('name')
+    if (!TABLE_NAME_RE.test(name)) {
+      return c.json({ success: false, error: 'Invalid table name' }, 400)
+    }
     const aiexDir = path.dirname(schemaDir)
     const snapshotPath = path.join(aiexDir, 'extracted', `${name}.prompt.md`)
 
@@ -91,7 +109,10 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   // Delete a schema
   app.delete('/schema/:name', async (c) => {
     const name = c.req.param('name')
-    const filePath = path.join(schemaDir, name)
+    const filePath = resolveSchemaFile(schemaDir, name)
+    if (!filePath) {
+      return c.json({ error: 'Invalid schema file name' }, 400)
+    }
 
     try {
       await fs.unlink(filePath)

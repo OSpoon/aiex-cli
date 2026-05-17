@@ -2,6 +2,9 @@
 import Button from "primevue/button"
 import { onMounted, ref } from "vue"
 import { toast } from "vue-sonner"
+import { VxeColumn, VxeTable } from "vxe-table"
+import "vxe-pc-ui/lib/style.css"
+import "vxe-table/lib/style.css"
 
 interface TableInfo {
   name: string

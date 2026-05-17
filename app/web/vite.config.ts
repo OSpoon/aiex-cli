@@ -20,6 +20,7 @@ export default defineConfig({
   build: {
     outDir: '../cli/dist/web',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 2500,
   },
   optimizeDeps: {
     include: [

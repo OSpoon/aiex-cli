@@ -18,6 +18,25 @@ import tableSchemaFile from '~/schemas/table-schema.json'
 
 const execFileAsync = promisify(execFile)
 
+function fail(message?: string): void {
+  if (message)
+    consola.error(message)
+  outro('Failed!')
+  process.exitCode = 1
+}
+
+async function writeJsonIfAbsent(filePath: string, data: unknown): Promise<'created' | 'skipped'> {
+  try {
+    await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, { flag: 'wx' })
+    return 'created'
+  }
+  catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST')
+      return 'skipped'
+    throw error
+  }
+}
+
 async function generateFromFiles(schemaFiles: string[], config: MigrationConfig): Promise<boolean> {
   const entries = await Promise.all(
     schemaFiles.map(async (filePath) => {
@@ -42,14 +61,17 @@ async function generateFromFiles(schemaFiles: string[], config: MigrationConfig)
   return true
 }
 
-async function migrate(config: MigrationConfig): Promise<boolean> {
+async function migrate(config: MigrationConfig, migrationName?: string): Promise<boolean> {
   const helperPath = resolveHelperPath()
   const tsxPath = resolveTsxPath()
+  const helperArgs = [tsxPath, helperPath, config.drizzleSchemaPath, config.migrationsPath, config.databasePath]
+  if (migrationName)
+    helperArgs.push(migrationName)
 
   try {
     const { stdout } = await execFileAsync(
       process.execPath,
-      [tsxPath, helperPath, config.drizzleSchemaPath, config.migrationsPath, config.databasePath],
+      helperArgs,
       { cwd: process.cwd() },
     )
 
@@ -216,16 +238,14 @@ export const schemaCommand = defineCommand({
         required: ['title', 'slug', 'authorId'],
       }
 
-      await fs.writeFile(
-        path.join(config.schemaPath, 'user.json'),
-        `${JSON.stringify(userSchema, null, 2)}\n`,
-      )
-      await fs.writeFile(
-        path.join(config.schemaPath, 'post.json'),
-        `${JSON.stringify(postSchema, null, 2)}\n`,
-      )
+      const userStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'user.json'), userSchema)
+      const postStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'post.json'), postSchema)
 
       consola.success(`Initialized ${pc.cyan('.aiex/')} with example schemas`)
+      if (userStatus === 'skipped')
+        consola.warn(`${pc.cyan('.aiex/schema/user.json')} already exists, skipped`)
+      if (postStatus === 'skipped')
+        consola.warn(`${pc.cyan('.aiex/schema/post.json')} already exists, skipped`)
       consola.info('Example includes: User (with preferences has-one), Post (with comments has-many)')
       outro('Run: aiex schema')
       return
@@ -244,9 +264,8 @@ export const schemaCommand = defineCommand({
     }
 
     if (schemaFiles.length === 0) {
-      consola.error(`No schema files found in ${pc.cyan('.aiex/schema/')}`)
       consola.info('Use --init to initialize with an example schema')
-      outro('Failed!')
+      fail(`No schema files found in ${pc.cyan('.aiex/schema/')}`)
       return
     }
 
@@ -258,7 +277,7 @@ export const schemaCommand = defineCommand({
     s1.stop(genOk ? 'Schema generated' : 'Generation failed')
 
     if (!genOk) {
-      outro('Failed!')
+      fail()
       return
     }
 
@@ -270,11 +289,11 @@ export const schemaCommand = defineCommand({
     // Migrate
     const s2 = spinner()
     s2.start('Running migrations...')
-    const migOk = await migrate(config)
+    const migOk = await migrate(config, args.name)
     s2.stop(migOk ? 'Migrations applied' : 'Migration failed')
 
     if (!migOk) {
-      outro('Failed!')
+      fail()
       return
     }
 

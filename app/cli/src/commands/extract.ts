@@ -24,6 +24,18 @@ const IMAGE_EXTENSIONS = new Set([
   'svg',
 ])
 
+const FILE_PART_EXTENSIONS = new Set([
+  ...IMAGE_EXTENSIONS,
+  'pdf',
+])
+
+function fail(message?: string): void {
+  if (message)
+    consola.error(message)
+  outro('Failed!')
+  process.exitCode = 1
+}
+
 async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
   try {
     await fs.access(dbPath)
@@ -98,34 +110,29 @@ export const extractCommand = defineCommand({
     const aiexDir = path.dirname(config.schemaPath)
 
     if (!args.text && !args.file) {
-      consola.error('Please provide text (-t) or a file (-f) to extract from')
-      outro('Failed!')
+      fail('Please provide text (-t) or a file (-f) to extract from')
       return
     }
 
     if (args.text && args.file) {
-      consola.error('-t and -f cannot be used together')
-      outro('Failed!')
+      fail('-t and -f cannot be used together')
       return
     }
 
     // Read AI config
     const aiConfig = await readAIConfig(aiexDir)
     if (!aiConfig) {
-      consola.error('AI configuration not found. Please configure AI settings in the Web interface first')
-      outro('Failed!')
+      fail('AI configuration not found. Please configure AI settings in the Web interface first')
       return
     }
 
     if (!aiConfig.provider.apiKey) {
-      consola.error('API Key not configured. Please configure AI settings in the Web interface first')
-      outro('Failed!')
+      fail('API Key not configured. Please configure AI settings in the Web interface first')
       return
     }
 
     if (!aiConfig.provider.models?.length) {
-      consola.error('No models configured. Please add at least one model in AI Settings')
-      outro('Failed!')
+      fail('No models configured. Please add at least one model in AI Settings')
       return
     }
 
@@ -135,8 +142,7 @@ export const extractCommand = defineCommand({
       const matched = aiConfig.provider.models.find(m => m.name === args.model)
       if (!matched) {
         const available = aiConfig.provider.models.map(m => m.name).join(', ')
-        consola.error(`Model "${args.model}" not found in configuration. Available models: ${available}`)
-        outro('Failed!')
+        fail(`Model "${args.model}" not found in configuration. Available models: ${available}`)
         return
       }
       modelOverride = matched
@@ -148,7 +154,7 @@ export const extractCommand = defineCommand({
 
     if (args.file) {
       const ext = path.extname(args.file as string).toLowerCase().replace('.', '')
-      if (IMAGE_EXTENSIONS.has(ext)) {
+      if (FILE_PART_EXTENSIONS.has(ext)) {
         filePath = args.file as string
       }
       else {
@@ -156,8 +162,7 @@ export const extractCommand = defineCommand({
           text = await fs.readFile(args.file as string, 'utf-8')
         }
         catch {
-          consola.error(`Cannot read file: ${args.file}`)
-          outro('Failed!')
+          fail(`Cannot read file: ${args.file}`)
           return
         }
       }
@@ -176,13 +181,12 @@ export const extractCommand = defineCommand({
       schema = JSON.parse(content)
     }
     catch {
-      consola.error(`Cannot read schema file: ${schemaName}.json`)
-      outro('Failed!')
+      fail(`Cannot read schema file: ${schemaName}.json`)
       return
     }
 
     try {
-      JsonSchemaDefinitionSchema.parse(schema)
+      schema = JsonSchemaDefinitionSchema.parse(schema)
     }
     catch (e) {
       if (e instanceof ZodError) {
@@ -191,7 +195,7 @@ export const extractCommand = defineCommand({
           consola.error(`  - ${issue.path.join('.')}: ${issue.message}`)
         }
       }
-      outro('Failed!')
+      fail()
       return
     }
 
@@ -210,8 +214,7 @@ export const extractCommand = defineCommand({
 
     if (!result.success) {
       s.stop('Extraction failed')
-      consola.error(result.error || 'Unknown error')
-      outro('Failed!')
+      fail(result.error || 'Unknown error')
       return
     }
 
@@ -236,8 +239,7 @@ export const extractCommand = defineCommand({
       const dbError = await ensureDatabaseReady(config.databasePath, schema)
       if (dbError) {
         s2.stop('Database not ready')
-        consola.error(dbError)
-        outro('Failed!')
+        fail(dbError)
         return
       }
 
@@ -250,8 +252,7 @@ export const extractCommand = defineCommand({
           }
           else {
             s2.stop('Database insert failed')
-            consola.error(insertResult.error || 'Unknown error')
-            outro('Failed!')
+            fail(insertResult.error || 'Unknown error')
             return
           }
         }
@@ -261,8 +262,7 @@ export const extractCommand = defineCommand({
       }
       catch (e) {
         s2.stop('Database insert failed')
-        consola.error(e instanceof Error ? e.message : String(e))
-        outro('Failed!')
+        fail(e instanceof Error ? e.message : String(e))
         return
       }
     }
