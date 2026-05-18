@@ -71,6 +71,7 @@
     "hono": "catalog:",
     "picocolors": "catalog:",
     "tsx": "catalog:cli",
+    "unpdf": "catalog:",
     "update-notifier": "catalog:",
     "zod": "catalog:"
   },

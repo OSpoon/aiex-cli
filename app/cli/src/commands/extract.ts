@@ -8,6 +8,7 @@ import { consola } from 'consola'
 import pc from 'picocolors'
 import { ZodError } from 'zod'
 import { extractStructuredData, insertExtractedData, readAIConfig } from '@/core/ai-extraction'
+import { createPdfConverter } from '@/core/pdf-converter'
 import {
   createMigrationConfig,
   JsonSchemaDefinitionSchema,
@@ -23,6 +24,8 @@ const FILE_PART_EXTENSIONS = new Set([
   'bmp',
   'svg',
 ])
+
+const PDF_CONVERTER = createPdfConverter()
 
 function fail(message?: string): void {
   if (message)
@@ -66,7 +69,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
 export const extractCommand = defineCommand({
   meta: {
     name: 'extract',
-    description: 'Extract structured data from text or image files',
+    description: 'Extract structured data from text, images, or PDFs',
   },
   args: {
     schema: {
@@ -83,7 +86,7 @@ export const extractCommand = defineCommand({
     file: {
       type: 'string',
       alias: 'f',
-      description: 'File path (image) to extract from',
+      description: 'File path (image/PDF) to extract from',
     },
     model: {
       type: 'string',
@@ -151,6 +154,12 @@ export const extractCommand = defineCommand({
       const ext = path.extname(args.file as string).toLowerCase().replace('.', '')
       if (FILE_PART_EXTENSIONS.has(ext)) {
         filePath = args.file as string
+      }
+      else if (ext === 'pdf') {
+        const buffer = await fs.readFile(args.file as string)
+        const result = await PDF_CONVERTER.convert(buffer)
+        text = result.text
+        consola.info(`Extracted ${result.pageCount} page(s) from PDF`)
       }
       else {
         text = await fs.readFile(args.file as string, 'utf-8')

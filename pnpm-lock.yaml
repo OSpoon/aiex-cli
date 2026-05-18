@@ -139,6 +139,9 @@ catalogs:
     tailwindcss:
       specifier: ^4.0.0
       version: 4.3.0
+    unpdf:
+      specifier: ^1.6.2
+      version: 1.6.2
     update-notifier:
       specifier: ^7.3.1
       version: 7.3.1
@@ -257,6 +260,9 @@ importers:
       tsx:
         specifier: catalog:cli
         version: 4.21.0
+      unpdf:
+        specifier: 'catalog:'
+        version: 1.6.2
       update-notifier:
         specifier: 'catalog:'
         version: 7.3.1
@@ -4076,6 +4082,14 @@ packages:
 
   unist-util-visit@5.0.0:
     resolution: {integrity: sha512-MR04uvD+07cwl/yhVuVWAtw+3GOR/knlL55Nd/wAdblk27GCVt3lqpTivy/tkJcZoNPzTwS1Y+KMojlLDhoTzg==}
+
+  unpdf@1.6.2:
+    resolution: {integrity: sha512-zQ80ySoPuPHOsvIoRp/nJyQt8TOUoTh1+WBCGcBvlddQNgKDLRwm0AY3x8Q35I7+kIiRSgqMx+Ma2pl9McIp7A==}
+    peerDependencies:
+      '@napi-rs/canvas': ^0.1.69
+    peerDependenciesMeta:
+      '@napi-rs/canvas':
+        optional: true
 
   unrun@0.2.19:
     resolution: {integrity: sha512-DbwbJ9BvPEb3BeZnIpP9S5tGLO/JIgPQ3JrpMRFIfZMZfMG19f26OlLbC2ml8RRdrI2ZA7z2t+at5tsIHbh6Qw==}
@@ -7992,6 +8006,8 @@ snapshots:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.0
       unist-util-visit-parents: 6.0.1
+
+  unpdf@1.6.2: {}
 
   unrun@0.2.19(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(synckit@0.11.12):
     dependencies:
