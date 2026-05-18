@@ -32,6 +32,7 @@ const DARK_MODE_SELECTOR = '.jscb-dark'
 
 function applyDarkMode(isDark: boolean): void {
   document.documentElement.classList.toggle('jscb-dark', isDark)
+  document.documentElement.setAttribute('data-vxe-ui-theme', isDark ? 'dark' : 'light')
 
   for (const el of document.querySelectorAll<HTMLElement>('.jscb')) {
     el.classList.toggle('dark', isDark)

@@ -93,12 +93,6 @@ export const extractCommand = defineCommand({
       alias: 'm',
       description: 'AI model to use for extraction (overrides auto-selection)',
     },
-    db: {
-      type: 'boolean',
-      alias: 'd',
-      description: 'Insert extracted data into SQLite database',
-      default: false,
-    },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex extract '))
@@ -233,7 +227,7 @@ export const extractCommand = defineCommand({
       )
     }
 
-    if (args.db && result.data) {
+    if (result.data) {
       const s2 = spinner()
       s2.start('Inserting into database...')
 

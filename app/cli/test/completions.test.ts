@@ -28,7 +28,6 @@ const mockCommands: Record<string, CommandDef> = {
       text: { type: 'string', alias: 't', description: 'Text content' },
       file: { type: 'string', alias: 'f', description: 'File path' },
       model: { type: 'string', alias: 'm', description: 'AI model' },
-      db: { type: 'boolean', alias: 'd', description: 'Insert into DB', default: false },
     },
     run: async () => {},
   },
@@ -90,8 +89,6 @@ describe('getCompletions', () => {
     expect(result).toContain('-s')
     expect(result).toContain('--text')
     expect(result).toContain('-t')
-    expect(result).toContain('--db')
-    expect(result).toContain('-d')
   })
 
   it('filters arg names by partial input', () => {

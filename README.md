@@ -23,8 +23,7 @@ npm install -g aiex-cli
 ```bash
 aiex schema --init                      # set up .aiex/schema/ directory
 aiex schema                             # generate SQLite from JSON Schema files
-aiex extract -s invoice -f invoice.pdf  # extract data with AI
-aiex extract -s invoice -f invoice.pdf --db  # extract and insert into database
+aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into database
 ```
 
 <br>
@@ -78,11 +77,10 @@ The AI reads your document and outputs structured JSON matching your schema.
 
 **Examples:**
 ```bash
-aiex extract -s paper -f research.pdf              # save result to .aiex/extracted/
-aiex extract -s paper -f research.pdf --db         # also insert into SQLite database
+aiex extract -s paper -f research.pdf              # save result to .aiex/extracted/ and insert into database
 aiex extract -s paper -f research.pdf -m gpt-4o    # use a specific model
 ```
-Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema. Add `--db` to also insert the data directly into the SQLite database.
+Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema. Data is automatically inserted into the SQLite database.
 
 By default, aiex automatically selects a model based on your input type (vision-capable for images, structured output for text). Use `--model` / `-m` to override and specify any model from your AI configuration.
 
@@ -97,7 +95,7 @@ By default, aiex automatically selects a model based on your input type (vision-
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
 | `aiex web` | Launch visual schema editor in browser |
 | `aiex extract -s <name> -f <file>` | Extract structured data from documents via AI |
-| `aiex extract -s <name> -f <file> --db` | Extract and insert into SQLite database |
+| `aiex extract -s <name> -f <file>` | Extract and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
 | `aiex doctor` | System and configuration diagnostics |
 | `aiex completion bash\|zsh\|fish` | Generate shell completion scripts |
