@@ -1,7 +1,7 @@
 {
   "name": "aiex-cli",
   "type": "module",
-  "version": "0.0.1-beta.7",
+  "version": "0.0.1-beta.8",
   "description": "JSON Schema → SQLite with AI-powered data extraction",
   "author": "OSpoon <zxin088@gmail.com>",
   "license": "MIT",
