@@ -100,6 +100,26 @@ By default, aiex automatically selects a model based on your input type (vision-
 | `aiex extract -s <name> -f <file> --db` | Extract and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
 | `aiex doctor` | System and configuration diagnostics |
+| `aiex completion bash\|zsh\|fish` | Generate shell completion scripts |
+
+### Shell Completions
+
+Enable tab completion for commands and options:
+
+```bash
+# bash
+source <(aiex completion bash)
+
+# zsh
+source <(aiex completion zsh)
+
+# fish
+aiex completion fish | source
+```
+
+To make it permanent, add the `source` line to your shell config file (`~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`).
+
+> Completions are dynamically generated from the command definitions — no manual updates needed when commands or options change.
 
 <br>
 
