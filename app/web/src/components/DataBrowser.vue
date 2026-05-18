@@ -83,6 +83,7 @@ function formatCellValue(val: unknown): string {
             border="none"
             stripe
             highlight-hover-row
+            show-header-overflow
             :sort-config="{ remote: true }"
             @sort-change="sortChange"
           >

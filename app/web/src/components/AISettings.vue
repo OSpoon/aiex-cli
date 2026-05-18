@@ -226,33 +226,6 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- Langfuse Tracing -->
-      <section>
-        <h3 class="text-sm font-semibold mb-3 text-foreground">
-          Langfuse Tracing
-        </h3>
-        <div class="space-y-3">
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="langfuseEnabled" :binary="true" input-id="lf-enabled" />
-            <label for="lf-enabled" class="text-sm cursor-pointer">Enabled</label>
-          </div>
-          <div v-if="langfuseEnabled" class="space-y-3 pl-6 border-l-2 border-border">
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Secret Key</label>
-              <Password v-model="langfuseSecretKey" :feedback="false" toggle-mask size="small" placeholder="sk-lf-..." input-class="w-full" />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Public Key</label>
-              <InputText v-model="langfusePublicKey" size="small" placeholder="pk-lf-..." />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Host (optional)</label>
-              <InputText v-model="langfuseHost" size="small" placeholder="https://us.cloud.langfuse.com" />
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- Models -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
@@ -332,6 +305,33 @@ onUnmounted(() => {
             size="small"
             @click="addingModel = true"
           />
+        </div>
+      </section>
+
+      <!-- Langfuse Tracing -->
+      <section>
+        <h3 class="text-sm font-semibold mb-3 text-foreground">
+          Langfuse Tracing
+        </h3>
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="langfuseEnabled" :binary="true" input-id="lf-enabled" />
+            <label for="lf-enabled" class="text-sm cursor-pointer">Enabled</label>
+          </div>
+          <div v-if="langfuseEnabled" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Secret Key</label>
+              <Password v-model="langfuseSecretKey" :feedback="false" toggle-mask size="small" placeholder="sk-lf-..." input-class="w-full" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Public Key</label>
+              <InputText v-model="langfusePublicKey" size="small" placeholder="pk-lf-..." />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Host (optional)</label>
+              <InputText v-model="langfuseHost" size="small" placeholder="https://us.cloud.langfuse.com" />
+            </div>
+          </div>
         </div>
       </section>
 
