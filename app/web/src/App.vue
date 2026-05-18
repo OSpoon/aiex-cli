@@ -36,14 +36,12 @@ interface TableInfo {
   title: string
   hasData: boolean
 }
-const tablesLoading = ref(false)
 const tables = ref<TableInfo[]>([])
 const selectedTable = ref<string | null>(null)
 const selectedTableData = ref<TableData | null>(null)
 const tableDataLoading = ref(false)
 
 async function loadTables() {
-  tablesLoading.value = true
   try {
     const res = await fetch("/api/data/tables")
     if (!res.ok) throw new Error("Failed to load tables")
@@ -51,7 +49,6 @@ async function loadTables() {
   } catch {
     toast.error("Failed to load tables")
   }
-  tablesLoading.value = false
 }
 
 async function loadTableData(tableName: string, sortField?: string, sortOrder?: string) {
@@ -402,10 +399,6 @@ onMounted(() => {
         <div class="flex flex-col gap-2 mt-3 shrink-0">
           <Button class="w-full" label="New" icon="pi pi-plus" severity="secondary" size="small" @click="newSchema" />
           <Button class="w-full" label="Load Example" icon="pi pi-box" severity="help" size="small" outlined @click="loadExample" />
-          <div class="flex items-center justify-center gap-1 pt-1 border-t border-border">
-            <Button :icon="darkMode ? 'pi pi-sun' : 'pi pi-moon'" severity="secondary" text size="small" @click="toggleDarkMode()" v-tooltip="'Toggle dark mode'" />
-            <Button icon="pi pi-cog" severity="secondary" text size="small" @click="showAISettings = true" v-tooltip="'AI Settings'" />
-          </div>
         </div>
       </template>
 
@@ -429,11 +422,12 @@ onMounted(() => {
             </div>
           </button>
         </div>
-        <div v-if="tables.length === 0 && !tablesLoading" class="text-center py-4 text-muted-foreground text-xs shrink-0">
-          No schemas found. Create one in Editor first.
-        </div>
-        <Button class="w-full mt-3 shrink-0" icon="pi pi-refresh" severity="secondary" size="small" text @click="loadTables" />
       </template>
+
+      <div class="flex items-center justify-center gap-1 mt-3 pt-3 shrink-0 border-t border-border">
+        <Button :icon="darkMode ? 'pi pi-sun' : 'pi pi-moon'" severity="secondary" text size="small" @click="toggleDarkMode()" v-tooltip="'Toggle dark mode'" />
+        <Button icon="pi pi-cog" severity="secondary" text size="small" @click="showAISettings = true" v-tooltip="'AI Settings'" />
+      </div>
     </div>
 
     <main
