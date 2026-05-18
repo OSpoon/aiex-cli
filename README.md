@@ -94,8 +94,7 @@ By default, aiex automatically selects a model based on your input type (vision-
 | `aiex schema` | Parse JSON Schema files and migrate to SQLite |
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
 | `aiex web` | Launch visual schema editor in browser |
-| `aiex extract -s <name> -f <file>` | Extract structured data from documents via AI |
-| `aiex extract -s <name> -f <file>` | Extract and insert into SQLite database |
+| `aiex extract -s <name> -f <file>` | Extract structured data from documents and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
 | `aiex doctor` | System and configuration diagnostics |
 | `aiex completion bash\|zsh\|fish` | Generate shell completion scripts |
