@@ -50,8 +50,9 @@
     "coverage": "vitest --coverage",
     "typecheck": "tsc",
     "lint": "eslint .",
-    "prepublishOnly": "cp ../../README.md . && pnpm run build",
-    "postpublish": "rm -f README.md"
+    "prepack": "cp ../../README.md .",
+    "postpack": "rm -f README.md",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "catalog:",
