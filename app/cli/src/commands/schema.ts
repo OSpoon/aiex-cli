@@ -171,11 +171,11 @@ export const schemaCommand = defineCommand({
         required: ['name', 'examYear', 'examType', 'province', 'totalScore'],
       }
 
-      const examStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'exam_score_report.json'), examReportSchema)
+      const examStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'exam_score_reports.json'), examReportSchema)
 
       consola.success(`Initialized ${pc.cyan('.aiex/')} with example schemas`)
       if (examStatus === 'skipped')
-        consola.warn(`${pc.cyan('.aiex/schema/exam_score_report.json')} already exists, skipped`)
+        consola.warn(`${pc.cyan('.aiex/schema/exam_score_reports.json')} already exists, skipped`)
       consola.info('Example includes: ExamScoreReport (college entrance exam score report)')
       outro('Run: aiex schema')
       return
