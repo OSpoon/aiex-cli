@@ -39,7 +39,8 @@
   "files": [
     "bin",
     "dist",
-    "src/core/schema-sqlite/migrate-helper.ts"
+    "src/core/schema-sqlite/migrate-helper.ts",
+    "src/core/schema-sqlite/migration-name.ts"
   ],
   "scripts": {
     "build": "tsdown && pnpm --filter aiex-web build",
