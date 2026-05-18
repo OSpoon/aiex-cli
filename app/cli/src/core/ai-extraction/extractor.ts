@@ -45,21 +45,19 @@ function detectMimeType(filePath: string): string {
   return MIME_TYPES[ext] || 'application/octet-stream'
 }
 
-interface ImageFilePart { type: 'image', name: string, image: string }
-interface GenericFilePart { type: 'file', name: string, data: string, mimeType: string }
-type ReadFilePartResult = ImageFilePart | GenericFilePart
+interface ImageContentPart { type: 'image', image: Uint8Array, mimeType?: string }
+interface FileContentPart { type: 'file', data: Uint8Array, mediaType: string, filename?: string }
+type ReadFilePartResult = ImageContentPart | FileContentPart
 
 async function readFilePart(filePath: string): Promise<ReadFilePartResult> {
   const mime = detectMimeType(filePath)
   const buffer = await fs.readFile(filePath)
-  const base64 = buffer.toString('base64')
-  const dataUri = `data:${mime};base64,${base64}`
   const name = path.basename(filePath)
 
   if (mime.startsWith('image/')) {
-    return { type: 'image', name, image: dataUri }
+    return { type: 'image', image: buffer, mimeType: mime }
   }
-  return { type: 'file', name, data: dataUri, mimeType: mime }
+  return { type: 'file', data: buffer, mediaType: mime, filename: name }
 }
 
 function nullableType(type: string): string[] {
@@ -295,23 +293,16 @@ export async function extractStructuredData(input: {
 
     if (useFileContent) {
       const filePart = await readFilePart(file!)
-      const fileName = filePart.name
       const userContent = user.includes(PLACEHOLDER_TEXT)
-        ? user.replaceAll(PLACEHOLDER_TEXT, text || `Data is contained in the attached file: ${fileName}`)
+        ? user.replaceAll(PLACEHOLDER_TEXT, text || `Data is contained in the attached file: ${filePart.filename || path.basename(file!)}`)
         : user
 
-      const contentParts: any[] = [{ type: 'text' as const, text: userContent }]
-      if (filePart.type === 'image') {
-        contentParts.push({ type: 'image', image: filePart.image })
-      }
-      else {
-        contentParts.push({ type: 'file', data: filePart.data, mimeType: filePart.mimeType })
-      }
+      const contentParts: any[] = [{ type: 'text' as const, text: userContent }, filePart]
 
       const fileOpts: any = {
         model: provider.chatModel(selected.name),
+        system,
         messages: [
-          { role: 'system', content: system },
           { role: 'user', content: contentParts },
         ],
         abortSignal: AbortSignal.timeout(120_000),
