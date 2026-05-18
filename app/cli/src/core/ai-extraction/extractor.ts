@@ -40,6 +40,7 @@ function initLangfuse(config: AIConfig): void {
           publicKey: config.langfuse.publicKey,
           secretKey: config.langfuse.secretKey,
           baseUrl: config.langfuse.host || 'https://us.cloud.langfuse.com',
+          exportMode: 'immediate',
         }),
       ],
     })
