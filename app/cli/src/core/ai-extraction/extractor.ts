@@ -45,8 +45,8 @@ function initLangfuse(config: AIConfig): void {
 
     provider.register()
   }
-  catch {
-    // Langfuse misconfiguration should never block extraction
+  catch (e) {
+    console.warn('[Langfuse] Failed to initialize tracing:', e instanceof Error ? e.message : e)
   }
 }
 

@@ -137,7 +137,7 @@ The built-in model registry automatically suggests capabilities for 2000+ models
 
 aiex can send AI model interaction traces to [Langfuse](https://langfuse.com) for monitoring and debugging.
 
-- **Enabled** — In Web UI → AI Settings → Langfuse Tracing, toggle on and enter your Langfuse Public Key / Secret Key
+- **Enable** — In Web UI → AI Settings → Langfuse Tracing, toggle on and enter your Langfuse Secret Key / Public Key
 - **Self-hosted** — Optionally set a custom Host URL; defaults to `https://us.cloud.langfuse.com`
 - **No impact when disabled** — No tracing is sent if keys are left empty
 - **Non-blocking** — Misconfigured keys will not affect extraction

@@ -158,6 +158,7 @@ async function handleSave() {
         : undefined
     }
     await saveAIConfig(config)
+    visible.value = false
   } catch (e: any) {
     toast.error(e.message || "Failed to save")
   } finally {
@@ -229,12 +230,12 @@ onUnmounted(() => {
           </div>
           <div v-if="langfuseEnabled" class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Public Key</label>
-              <InputText v-model="langfusePublicKey" size="small" placeholder="pk-lf-..." />
-            </div>
-            <div class="flex flex-col gap-1">
               <label class="text-xs text-muted-foreground">Secret Key</label>
               <Password v-model="langfuseSecretKey" :feedback="false" toggle-mask size="small" placeholder="sk-lf-..." input-class="w-full" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Public Key</label>
+              <InputText v-model="langfusePublicKey" size="small" placeholder="pk-lf-..." />
             </div>
             <div class="flex flex-col gap-1">
               <label class="text-xs text-muted-foreground">Host (optional)</label>
