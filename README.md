@@ -133,6 +133,17 @@ aiex works with any OpenAI-compatible API provider. Configure in the Web UI (AI 
 
 The built-in model registry automatically suggests capabilities for 2000+ models from providers including OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, Alibaba Cloud, and more.
 
+### Langfuse Tracing
+
+aiex can send AI model interaction traces to [Langfuse](https://langfuse.com) for monitoring and debugging.
+
+- **Enabled** — In Web UI → AI Settings → Langfuse Tracing, toggle on and enter your Langfuse Public Key / Secret Key
+- **Self-hosted** — Optionally set a custom Host URL; defaults to `https://us.cloud.langfuse.com`
+- **No impact when disabled** — No tracing is sent if keys are left empty
+- **Non-blocking** — Misconfigured keys will not affect extraction
+
+Once enabled, every `aiex extract` call is automatically traced with full request/response payloads, token usage, and latency.
+
 <br>
 
 ## 🙏 Acknowledgments
