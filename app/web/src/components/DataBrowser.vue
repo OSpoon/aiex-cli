@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Button from "primevue/button"
 import { VxeColumn, VxeTable } from "vxe-table"
 import "vxe-pc-ui/lib/style.css"
 import "vxe-table/lib/style.css"
@@ -44,6 +45,51 @@ function formatCellValue(val: unknown): string {
   if (typeof val === "object") return JSON.stringify(val)
   return String(val)
 }
+
+function downloadBlob(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function escapeCsvValue(val: unknown): string {
+  if (val === null || val === undefined) return ""
+  const str = typeof val === "object" ? JSON.stringify(val) : String(val)
+  if (str.includes(",") || str.includes("\"") || str.includes("\n") || str.includes("\r")) {
+    return `"${str.replace(/"/g, "\"\"")}"`
+  }
+  return str
+}
+
+function exportCSV() {
+  if (!props.tableData) return
+  const { columns, rows } = props.tableData
+  const header = columns.map(c => escapeCsvValue(c.name)).join(",")
+  const body = rows.map(row =>
+    columns.map(c => escapeCsvValue(row[c.name])).join(",")
+  ).join("\n")
+  const bom = "\uFEFF"
+  downloadBlob(`${bom + header}\n${body}`, `${props.tableName}.csv`, "text/csv;charset=utf-8")
+}
+
+function exportJSON() {
+  if (!props.tableData) return
+  const { columns, rows } = props.tableData
+  const data = rows.map((row) => {
+    const obj: Record<string, unknown> = {}
+    columns.forEach((c) => {
+      obj[c.name] = row[c.name]
+    })
+    return obj
+  })
+  downloadBlob(JSON.stringify(data, null, 2), `${props.tableName}.json`, "application/json")
+}
 </script>
 
 <template>
@@ -73,6 +119,24 @@ function formatCellValue(val: unknown): string {
             <span class="text-xs text-muted-foreground shrink-0">
               {{ props.tableData.total }} row(s)
             </span>
+          </div>
+          <div class="flex items-center gap-1">
+            <Button
+              icon="pi pi-file-export"
+              label="CSV"
+              severity="secondary"
+              size="small"
+              outlined
+              @click="exportCSV"
+            />
+            <Button
+              icon="pi pi-code"
+              label="JSON"
+              severity="secondary"
+              size="small"
+              outlined
+              @click="exportJSON"
+            />
           </div>
         </div>
 
