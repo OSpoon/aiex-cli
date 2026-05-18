@@ -249,17 +249,17 @@ describe('generatePromptSnapshot', () => {
 // ───────────── Unit tests: maskApiKey ─────────────
 
 describe('maskApiKey', () => {
-  it('masks key longer than 4 chars, showing sk-*** + last 4', () => {
-    expect(maskApiKey('sk-abcdefghijklmnop')).toBe('sk-***mnop')
+  it('returns the key as-is (no masking)', () => {
+    expect(maskApiKey('sk-abcdefghijklmnop')).toBe('sk-abcdefghijklmnop')
   })
 
-  it('returns **** for key <= 4 chars', () => {
-    expect(maskApiKey('abc')).toBe('****')
-    expect(maskApiKey('abcd')).toBe('****')
+  it('returns short key as-is', () => {
+    expect(maskApiKey('abc')).toBe('abc')
+    expect(maskApiKey('abcd')).toBe('abcd')
   })
 
-  it('returns **** for empty string', () => {
-    expect(maskApiKey('')).toBe('****')
+  it('returns empty string as-is', () => {
+    expect(maskApiKey('')).toBe('')
   })
 })
 

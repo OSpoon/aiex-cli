@@ -39,10 +39,7 @@ export function getDefaultAIConfig(): AIConfig {
 }
 
 export function maskApiKey(apiKey: string): string {
-  if (apiKey.length <= 4) {
-    return '****'
-  }
-  return `sk-***${apiKey.slice(-4)}`
+  return apiKey
 }
 
 async function addToGitignore(aiexDir: string, fileName: string): Promise<void> {

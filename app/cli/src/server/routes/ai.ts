@@ -4,22 +4,11 @@ import { Hono } from 'hono'
 import {
   getDefaultAIConfig,
   lookupModelCapabilities,
-  maskApiKey,
   readAIConfig,
   writeAIConfig,
 } from '@/core/ai-extraction'
 import { AIConfigSchema } from '@/core/ai-extraction/schemas'
 import { getErrorMessage } from '@/core/schema-sqlite'
-
-function maskSecretKey(key: string): string {
-  if (!key || key.length <= 4)
-    return '****'
-  return `sk-***${key.slice(-4)}`
-}
-
-function isMasked(key: string): boolean {
-  return key.startsWith('sk-***')
-}
 
 export function aiRoutes(config: MigrationConfig): Hono {
   const app = new Hono()
@@ -40,19 +29,7 @@ export function aiRoutes(config: MigrationConfig): Hono {
       })
     }
 
-    return c.json({
-      ...aiConfig,
-      provider: {
-        ...aiConfig.provider,
-        apiKey: maskApiKey(aiConfig.provider.apiKey),
-      },
-      langfuse: aiConfig.langfuse
-        ? {
-            ...aiConfig.langfuse,
-            secretKey: maskSecretKey(aiConfig.langfuse.secretKey),
-          }
-        : undefined,
-    })
+    return c.json(aiConfig)
   })
 
   // Lookup model in registry (sync, no network)
@@ -94,26 +71,6 @@ export function aiRoutes(config: MigrationConfig): Hono {
           { success: false, error: 'At least one model must be configured' },
           400,
         )
-      }
-
-      if (body.provider?.apiKey?.startsWith('sk-***')) {
-        const existing = await readAIConfig(aiexDir)
-        if (existing) {
-          body.provider.apiKey = existing.provider.apiKey
-        }
-        else {
-          body.provider.apiKey = ''
-        }
-      }
-
-      if (body.langfuse?.secretKey && isMasked(body.langfuse.secretKey)) {
-        const existing = await readAIConfig(aiexDir)
-        if (existing?.langfuse) {
-          body.langfuse.secretKey = existing.langfuse.secretKey
-        }
-        else {
-          body.langfuse.secretKey = ''
-        }
       }
 
       const validated = AIConfigSchema.parse(body)

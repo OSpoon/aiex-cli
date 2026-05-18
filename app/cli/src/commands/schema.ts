@@ -137,7 +137,6 @@ export const schemaCommand = defineCommand({
       await fs.mkdir(config.migrationsPath, { recursive: true })
 
       // Example: College entrance exam score report
-      // Demonstrates: various field types, constraints, format hints
 
       const examReportSchema = {
         $schema: (tableSchemaFile as { $id: string }).$id,
@@ -172,65 +171,12 @@ export const schemaCommand = defineCommand({
         required: ['name', 'examYear', 'examType', 'province', 'totalScore'],
       }
 
-      const postSchema = {
-        $schema: (tableSchemaFile as { $id: string }).$id,
-        title: 'Post',
-        type: 'object',
-        table: { name: 'posts', timestamps: true, softDelete: true },
-        properties: {
-          id: { type: 'integer', primary: true, autoIncrement: true },
-          title: { type: 'string', minLength: 5, maxLength: 200 },
-          slug: { type: 'string', maxLength: 250, unique: true },
-          content: { type: 'string' },
-          excerpt: { type: 'string', maxLength: 300 },
-          authorId: { type: 'integer' },
-          status: { type: 'string', default: 'draft' },
-          viewCount: { type: 'integer', default: 0, minimum: 0 },
-          likeCount: { type: 'integer', default: 0, minimum: 0 },
-          publishedAt: { type: 'string', format: 'date-time' },
-          // Tags as JSON array
-          tags: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-          // Metadata as embedded JSON
-          metadata: {
-            type: 'object',
-            drizzle: { mode: 'json' },
-            properties: {
-              featuredImage: { type: 'string' },
-              readingTime: { type: 'integer' },
-              seoTitle: { type: 'string' },
-              seoDescription: { type: 'string' },
-            },
-          },
-          // Comments with nested relation (separate table, has-many)
-          comments: {
-            type: 'array',
-            items: {
-              type: 'object',
-              nested: { enabled: true, relation: 'has-many' },
-              properties: {
-                content: { type: 'string', minLength: 1, maxLength: 1000 },
-                authorId: { type: 'integer' },
-                status: { type: 'string', default: 'pending' },
-                parentId: { type: 'integer' },
-              },
-            },
-          },
-        },
-        required: ['title', 'slug', 'authorId'],
-      }
-
       const examStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'exam_score_report.json'), examReportSchema)
-      const postStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'post.json'), postSchema)
 
       consola.success(`Initialized ${pc.cyan('.aiex/')} with example schemas`)
       if (examStatus === 'skipped')
         consola.warn(`${pc.cyan('.aiex/schema/exam_score_report.json')} already exists, skipped`)
-      if (postStatus === 'skipped')
-        consola.warn(`${pc.cyan('.aiex/schema/post.json')} already exists, skipped`)
-      consola.info('Example includes: ExamScoreReport (exam results), Post (blog with comments)')
+      consola.info('Example includes: ExamScoreReport (college entrance exam score report)')
       outro('Run: aiex schema')
       return
     }
