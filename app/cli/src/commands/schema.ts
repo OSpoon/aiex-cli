@@ -140,7 +140,7 @@ export const schemaCommand = defineCommand({
 
       const examReportSchema = {
         $schema: (tableSchemaFile as { $id: string }).$id,
-        title: 'ExamScoreReport',
+        title: 'ScoreReport',
         type: 'object',
         table: { name: 'score_report', timestamps: true },
         properties: {
@@ -176,7 +176,7 @@ export const schemaCommand = defineCommand({
       consola.success(`Initialized ${pc.cyan('.aiex/')} with example schemas`)
       if (examStatus === 'skipped')
         consola.warn(`${pc.cyan('.aiex/schema/score_report.json')} already exists, skipped`)
-      consola.info('Example includes: ExamScoreReport (college entrance exam score report)')
+      consola.info('Example includes: ScoreReport (college entrance exam score report)')
       outro('Run: aiex schema')
       return
     }

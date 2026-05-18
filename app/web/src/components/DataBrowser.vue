@@ -82,8 +82,8 @@ function formatCellValue(val: unknown): string {
             height="auto"
             border="none"
             stripe
-            highlight-hover-row
-            show-header-overflow
+            :row-config="{ isHover: true }"
+            show-header-overflow="title"
             :sort-config="{ remote: true }"
             @sort-change="sortChange"
           >
