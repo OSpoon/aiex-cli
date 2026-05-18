@@ -210,6 +210,9 @@ export const extractCommand = defineCommand({
       aiexDir,
       file: filePath,
       modelOverride,
+      onRetry(info) {
+        s.message(`API responded with ${info.statusCode}, retrying in ${info.delayMs / 1000}s (${info.attempt}/${info.maxRetries})...`)
+      },
     })
 
     if (!result.success) {

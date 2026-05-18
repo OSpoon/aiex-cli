@@ -1,10 +1,12 @@
 import type { AIConfig, AIModelConfig, ExtractionResult } from './types'
 import type { JsonSchemaDefinition, JsonSchemaProperty } from '@/core/schema-sqlite/schemas'
+import type { RetryInfo } from '@/utils/retry'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { generateText, jsonSchema, Output } from 'ai'
 import { getErrorMessage } from '@/core/schema-sqlite'
+import { withRetry } from '@/utils/retry'
 import { safeParseJSON } from './json-utils'
 import { selectModel } from './model-selector'
 import { generateExtractionPrompt } from './prompt-generator'
@@ -12,6 +14,7 @@ import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_TEXT } from './types'
 
 export { selectModel }
 export type { SelectedModel } from './model-selector'
+export type { RetryInfo } from '@/utils/retry'
 
 interface PromptSnapshot {
   system: string
@@ -233,6 +236,7 @@ export async function extractStructuredData(input: {
   aiexDir: string
   file?: string
   modelOverride?: AIModelConfig
+  onRetry?: (info: RetryInfo) => void
 }): Promise<ExtractionResult> {
   const { config, schema, text, aiexDir, file, modelOverride } = input
 
@@ -311,11 +315,12 @@ export async function extractStructuredData(input: {
           { role: 'user', content: contentParts },
         ],
         abortSignal: AbortSignal.timeout(120_000),
+        maxRetries: 0,
       }
       if (useStructuredOutput) {
         fileOpts.output = Output.object({ schema: outputSchema })
       }
-      result = await generateText(fileOpts)
+      result = await withRetry(() => generateText(fileOpts), input.onRetry)
     }
     else {
       const textOpts: any = {
@@ -323,11 +328,12 @@ export async function extractStructuredData(input: {
         system,
         prompt: user,
         abortSignal: AbortSignal.timeout(60_000),
+        maxRetries: 0,
       }
       if (useStructuredOutput) {
         textOpts.output = Output.object({ schema: outputSchema })
       }
-      result = await generateText(textOpts)
+      result = await withRetry(() => generateText(textOpts), input.onRetry)
     }
 
     let data: unknown
