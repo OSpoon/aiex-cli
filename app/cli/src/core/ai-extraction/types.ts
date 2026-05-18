@@ -56,7 +56,7 @@ export const DEFAULT_PROVIDER_CONFIG: AIProviderConfig = {
 }
 
 export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
-  systemTemplate: `You are a professional data extraction assistant. Your task is to extract structured data from text based on the data structure definition provided below.
+  systemTemplate: `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
 
 {schema}
 

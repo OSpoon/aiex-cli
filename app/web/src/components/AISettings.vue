@@ -91,7 +91,7 @@ const canSave = computed(() =>
   && models.value.length > 0
 )
 
-const defaultSystemTemplate = `You are a professional data extraction assistant. Your task is to extract structured data from text based on the data structure definition provided below.
+const defaultSystemTemplate = `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
 
 {schema}
 
