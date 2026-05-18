@@ -16,6 +16,76 @@ const JsonSchemaEditor = defineAsyncComponent(() => import("@/lib/jsonschema-edi
 
 const currentView = ref<"editor" | "data">("editor")
 
+// Data browser state
+interface ColumnInfo {
+  name: string
+  type: string
+  notNull: boolean
+  pk: boolean
+}
+interface TableData {
+  columns: ColumnInfo[]
+  rows: Record<string, unknown>[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+interface TableInfo {
+  name: string
+  title: string
+  hasData: boolean
+}
+const tablesLoading = ref(false)
+const tables = ref<TableInfo[]>([])
+const selectedTable = ref<string | null>(null)
+const selectedTableData = ref<TableData | null>(null)
+const tableDataLoading = ref(false)
+
+async function loadTables() {
+  tablesLoading.value = true
+  try {
+    const res = await fetch("/api/data/tables")
+    if (!res.ok) throw new Error("Failed to load tables")
+    tables.value = await res.json()
+  } catch {
+    toast.error("Failed to load tables")
+  }
+  tablesLoading.value = false
+}
+
+async function loadTableData(tableName: string, sortField?: string, sortOrder?: string) {
+  selectedTable.value = tableName
+  tableDataLoading.value = true
+  try {
+    const params = new URLSearchParams({ page: "1", pageSize: "200" })
+    if (sortField) params.set("sortField", sortField)
+    if (sortOrder) params.set("sortOrder", sortOrder)
+
+    const res = await fetch(`/api/data/tables/${encodeURIComponent(tableName)}?${params}`)
+    if (!res.ok) {
+      const err = await res.json()
+      toast.error(err.error || "Failed to load data")
+      selectedTableData.value = null
+      return
+    }
+    selectedTableData.value = await res.json()
+  } catch {
+    toast.error("Failed to load table data")
+    selectedTableData.value = null
+  }
+  tableDataLoading.value = false
+}
+
+function onSortChange(field: string, order: "asc" | "desc" | null) {
+  if (!selectedTable.value) return
+  if (!order) {
+    loadTableData(selectedTable.value)
+  } else {
+    loadTableData(selectedTable.value, field, order)
+  }
+}
+
 // Complex e-commerce example schema
 const ECOMMERCE_EXAMPLE: JSONSchema = {
   /** Must match Monaco-registered `table-schema.json` `$id` (not json-schema.org metaschema URLs). */
@@ -250,6 +320,7 @@ async function handlePreviewPrompt(name: string) {
 
 onMounted(() => {
   loadSchemaList()
+  loadTables()
 })
 </script>
 
@@ -337,6 +408,32 @@ onMounted(() => {
           </div>
         </div>
       </template>
+
+      <template v-if="currentView === 'data'">
+        <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
+          Tables
+        </h3>
+        <div class="flex-1 min-h-0 overflow-y-auto space-y-1">
+          <button
+            v-for="t in tables"
+            :key="t.name"
+            class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+            :class="selectedTable === t.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
+            @click="loadTableData(t.name)"
+          >
+            <div class="font-medium truncate">
+              {{ t.title }}
+            </div>
+            <div class="text-xs truncate" :class="selectedTable === t.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
+              {{ t.name }} · {{ t.hasData ? 'has data' : 'empty' }}
+            </div>
+          </button>
+        </div>
+        <div v-if="tables.length === 0 && !tablesLoading" class="text-center py-4 text-muted-foreground text-xs shrink-0">
+          No schemas found. Create one in Editor first.
+        </div>
+        <Button class="w-full mt-3 shrink-0" icon="pi pi-refresh" severity="secondary" size="small" text @click="loadTables" />
+      </template>
     </div>
 
     <main
@@ -350,7 +447,13 @@ onMounted(() => {
         @save="handleSave"
         @save-and-migrate="handleSaveAndMigrate"
       />
-      <DataBrowser v-else />
+      <DataBrowser
+        v-else
+        :table-name="selectedTable"
+        :table-data="selectedTableData"
+        :loading="tableDataLoading"
+        @sort-change="onSortChange"
+      />
     </main>
   </div>
 </template>
