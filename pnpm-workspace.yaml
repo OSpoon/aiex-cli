@@ -12,6 +12,7 @@ catalog:
   '@types/update-notifier': ^6.0.8
   '@typescript-eslint/parser': ^8.59.3
   '@vitejs/plugin-vue': ^5.0.0
+  '@vitest/coverage-v8': ^4.1.6
   '@vueuse/core': ^14.3.0
   ai: ^6.0.182
   ajv: ^8.17.1
@@ -59,6 +60,7 @@ catalogs:
     vite: ^8.0.8
     vue-tsc: ^3.0.0
   testing:
+    '@vitest/coverage-v8': ^4.1.4
     tsnapi: ^0.1.1
     vitest: ^4.1.4
   types:
