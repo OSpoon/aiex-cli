@@ -136,56 +136,40 @@ export const schemaCommand = defineCommand({
       await fs.mkdir(path.dirname(config.drizzleSchemaPath), { recursive: true })
       await fs.mkdir(config.migrationsPath, { recursive: true })
 
-      // Example: Blog system with users, posts, and comments
-      // Demonstrates: nested objects, has-one/has-many relations, various types, constraints
+      // Example: College entrance exam score report
+      // Demonstrates: various field types, constraints, format hints
 
-      const userSchema = {
+      const examReportSchema = {
         $schema: (tableSchemaFile as { $id: string }).$id,
-        title: 'User',
+        title: 'ExamScoreReport',
         type: 'object',
-        table: { name: 'users', timestamps: true, softDelete: true },
+        table: { name: 'exam_score_reports', timestamps: true },
         properties: {
-          id: { type: 'integer', primary: true, autoIncrement: true },
-          email: { type: 'string', format: 'email', unique: true },
-          username: { type: 'string', minLength: 3, maxLength: 50, unique: true },
-          displayName: { type: 'string', maxLength: 100 },
-          bio: { type: 'string', maxLength: 500 },
-          avatarUrl: { type: 'string', format: 'uri' },
-          role: { type: 'string', default: 'member' },
-          isActive: { type: 'boolean', default: true },
-          lastLoginAt: { type: 'string', format: 'date-time' },
-          // Profile as embedded JSON (not a separate table)
-          profile: {
-            type: 'object',
-            drizzle: { mode: 'json' },
-            properties: {
-              website: { type: 'string' },
-              location: { type: 'string' },
-              socialLinks: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    platform: { type: 'string' },
-                    url: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          // Preferences with nested relation (separate table, has-one)
-          preferences: {
-            type: 'object',
-            nested: { enabled: true, relation: 'has-one' },
-            properties: {
-              theme: { type: 'string', default: 'light' },
-              language: { type: 'string', default: 'en' },
-              emailNotifications: { type: 'boolean', default: true },
-              pushNotifications: { type: 'boolean', default: false },
-            },
-          },
+          name: { type: 'string', description: '姓名' },
+          reportNumber: { type: 'string', description: '报告编号' },
+          gender: { type: 'string', description: '性别' },
+          printDate: { type: 'string', format: 'date-time', description: '打印日期' },
+          examYear: { type: 'integer', description: '考试年份' },
+          examType: { type: 'string', description: '考试类型，如全国统考' },
+          examCategory: { type: 'string', description: '考试类别，如普通高考' },
+          province: { type: 'string', description: '考试省份' },
+          subjectCategory: { type: 'string', description: '科类，如艺术（文）' },
+          // Subject scores
+          chinese: { type: 'integer', description: '语文成绩' },
+          chineseFull: { type: 'integer', description: '语文满分' },
+          math: { type: 'integer', description: '数学成绩' },
+          mathFull: { type: 'integer', description: '数学满分' },
+          foreignLang: { type: 'integer', description: '外语成绩' },
+          foreignLangFull: { type: 'integer', description: '外语满分' },
+          comprehensive: { type: 'integer', description: '综合成绩' },
+          comprehensiveFull: { type: 'integer', description: '综合满分' },
+          totalScore: { type: 'integer', description: '总分' },
+          totalFullScore: { type: 'integer', description: '总分满分' },
+          // Admission cutoff lines
+          batchLineFirst: { type: 'integer', description: '本科第一批录取分数线' },
+          batchLineSecond: { type: 'integer', description: '本科第二批录取分数线' },
         },
-        required: ['email', 'username'],
+        required: ['name', 'examYear', 'examType', 'province', 'totalScore'],
       }
 
       const postSchema = {
@@ -238,15 +222,15 @@ export const schemaCommand = defineCommand({
         required: ['title', 'slug', 'authorId'],
       }
 
-      const userStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'user.json'), userSchema)
+      const examStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'exam_score_report.json'), examReportSchema)
       const postStatus = await writeJsonIfAbsent(path.join(config.schemaPath, 'post.json'), postSchema)
 
       consola.success(`Initialized ${pc.cyan('.aiex/')} with example schemas`)
-      if (userStatus === 'skipped')
-        consola.warn(`${pc.cyan('.aiex/schema/user.json')} already exists, skipped`)
+      if (examStatus === 'skipped')
+        consola.warn(`${pc.cyan('.aiex/schema/exam_score_report.json')} already exists, skipped`)
       if (postStatus === 'skipped')
         consola.warn(`${pc.cyan('.aiex/schema/post.json')} already exists, skipped`)
-      consola.info('Example includes: User (with preferences has-one), Post (with comments has-many)')
+      consola.info('Example includes: ExamScoreReport (exam results), Post (blog with comments)')
       outro('Run: aiex schema')
       return
     }
