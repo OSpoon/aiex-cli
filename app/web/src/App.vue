@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ExtractionRecord } from "@/api-client"
 import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import tableSchemaMeta from "@aiex/table-schema"
 import { useEventListener } from "@vueuse/core"
@@ -6,13 +7,14 @@ import Button from "primevue/button"
 import Dialog from "primevue/dialog"
 import { computed, defineAsyncComponent, onMounted, ref } from "vue"
 import { toast, Toaster } from "vue-sonner"
-import { deleteSchema, getPromptSnapshot, getSchema, listSchemas, migrateSchema, saveSchema } from "@/api-client"
+import { deleteSchema, getPromptSnapshot, getSchema, listExtractions, listSchemas, migrateSchema, saveSchema } from "@/api-client"
 import { useTheme } from "@/lib/jsonschema-editor/themes/useTheme"
 
 const { darkMode, toggleDarkMode } = useTheme()
 const AISettings = defineAsyncComponent(() => import("@/components/AISettings.vue"))
 const DataBrowser = defineAsyncComponent(() => import("@/components/DataBrowser.vue"))
 const JsonSchemaEditor = defineAsyncComponent(() => import("@/lib/jsonschema-editor/components/SchemaEditor/JsonSchemaEditor.vue"))
+const ExtractionViewer = defineAsyncComponent(() => import("@/components/ExtractionViewer.vue"))
 
 const currentView = ref<"editor" | "data">("editor")
 
@@ -41,6 +43,19 @@ const selectedTable = ref<string | null>(null)
 const selectedTableData = ref<TableData | null>(null)
 const tableDataLoading = ref(false)
 
+// Pagination & search state
+const currentDataPage = ref(1)
+const currentPageSize = ref(50)
+const currentSearch = ref("")
+
+// Data view sub-navigation
+const dataSubView = ref<"table" | "extraction">("table")
+
+// Extraction state
+const extractions = ref<ExtractionRecord[]>([])
+const selectedExtraction = ref<string | null>(null)
+const extractionsLoading = ref(false)
+
 async function loadTables() {
   try {
     const res = await fetch("/api/data/tables")
@@ -51,14 +66,37 @@ async function loadTables() {
   }
 }
 
-async function loadTableData(tableName: string, sortField?: string, sortOrder?: string) {
+async function loadExtractions() {
+  extractionsLoading.value = true
+  try {
+    extractions.value = await listExtractions()
+  } catch {
+    toast.error("Failed to load extractions")
+  }
+  extractionsLoading.value = false
+}
+
+async function loadTableData(
+  tableName: string,
+  page?: number,
+  pageSize?: number,
+  search?: string,
+  sortField?: string,
+  sortOrder?: string
+) {
+  dataSubView.value = "table"
   selectedTable.value = tableName
   tableDataLoading.value = true
-  try {
-    const params = new URLSearchParams({ page: "1", pageSize: "200" })
-    if (sortField) params.set("sortField", sortField)
-    if (sortOrder) params.set("sortOrder", sortOrder)
 
+  const params = new URLSearchParams()
+  params.set("page", String(page ?? currentDataPage.value))
+  params.set("pageSize", String(pageSize ?? currentPageSize.value))
+  if (search !== undefined) params.set("search", search)
+  else if (currentSearch.value) params.set("search", currentSearch.value)
+  if (sortField) params.set("sortField", sortField)
+  if (sortOrder) params.set("sortOrder", sortOrder)
+
+  try {
     const res = await fetch(`/api/data/tables/${encodeURIComponent(tableName)}?${params}`)
     if (!res.ok) {
       const err = await res.json()
@@ -79,13 +117,56 @@ function onSortChange(field: string, order: "asc" | "desc" | null) {
   if (!order) {
     loadTableData(selectedTable.value)
   } else {
-    loadTableData(selectedTable.value, field, order)
+    loadTableData(selectedTable.value, undefined, undefined, undefined, field, order)
   }
 }
 
-// Complex e-commerce example schema
+function onPageChange(page: number) {
+  currentDataPage.value = page
+  if (!selectedTable.value) return
+  loadTableData(selectedTable.value, page)
+}
+
+function onPageSizeChange(size: number) {
+  currentPageSize.value = size
+  currentDataPage.value = 1
+  if (!selectedTable.value) return
+  loadTableData(selectedTable.value, 1, size)
+}
+
+function onSearchChange(query: string) {
+  currentSearch.value = query
+  currentDataPage.value = 1
+  if (!selectedTable.value) return
+  loadTableData(selectedTable.value, 1, undefined, query)
+}
+
+function switchToData() {
+  currentView.value = "data"
+  loadTables()
+  loadExtractions()
+}
+
+function selectTable(name: string) {
+  currentDataPage.value = 1
+  currentSearch.value = ""
+  loadTableData(name, 1, currentPageSize.value, "")
+}
+
+function selectExtraction(name: string) {
+  dataSubView.value = "extraction"
+  selectedExtraction.value = name
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+// ── Schema editor state ──
+
 const ECOMMERCE_EXAMPLE: JSONSchema = {
-  /** Must match Monaco-registered `table-schema.json` `$id` (not json-schema.org metaschema URLs). */
   $schema: (tableSchemaMeta as { $id: string }).$id,
   title: "Customer",
   type: "object",
@@ -225,11 +306,9 @@ async function handleSaveAndMigrate() {
     originalSchema.value = JSON.parse(JSON.stringify(schema.value))
     await loadSchemaList()
 
-    // Then migrate
     loading.value = false
     const result = await migrateSchema()
 
-    // Show warnings
     if (result.warnings && result.warnings.length > 0) {
       for (const warning of result.warnings) {
         toast.warning(warning)
@@ -373,7 +452,7 @@ onMounted(() => {
         <button
           class="flex-1 px-3 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'data' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="currentView = 'data'"
+          @click="switchToData"
         >
           Data
         </button>
@@ -403,24 +482,56 @@ onMounted(() => {
       </template>
 
       <template v-if="currentView === 'data'">
-        <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
-          Tables
-        </h3>
-        <div class="flex-1 min-h-0 overflow-y-auto space-y-1">
-          <button
-            v-for="t in tables"
-            :key="t.name"
-            class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
-            :class="selectedTable === t.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
-            @click="loadTableData(t.name)"
-          >
-            <div class="font-medium truncate">
-              {{ t.title }}
+        <div class="flex-1 min-h-0 overflow-y-auto space-y-3">
+          <div>
+            <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
+              Tables
+            </h3>
+            <div class="space-y-1">
+              <button
+                v-for="t in tables"
+                :key="t.name"
+                class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+                :class="dataSubView === 'table' && selectedTable === t.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
+                @click="selectTable(t.name)"
+              >
+                <div class="font-medium truncate">
+                  {{ t.title }}
+                </div>
+                <div class="text-xs truncate" :class="dataSubView === 'table' && selectedTable === t.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
+                  {{ t.name }} · {{ t.hasData ? 'has data' : 'empty' }}
+                </div>
+              </button>
             </div>
-            <div class="text-xs truncate" :class="selectedTable === t.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
-              {{ t.name }} · {{ t.hasData ? 'has data' : 'empty' }}
+          </div>
+
+          <div>
+            <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
+              Extractions
+            </h3>
+            <div v-if="extractionsLoading" class="text-xs text-muted-foreground py-2 text-center">
+              Loading...
             </div>
-          </button>
+            <div v-else-if="extractions.length === 0" class="text-xs text-muted-foreground py-2 text-center">
+              No extractions yet
+            </div>
+            <div v-else class="space-y-1">
+              <button
+                v-for="ext in extractions"
+                :key="ext.name"
+                class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+                :class="dataSubView === 'extraction' && selectedExtraction === ext.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
+                @click="selectExtraction(ext.name)"
+              >
+                <div class="font-medium truncate">
+                  {{ ext.schemaName }}
+                </div>
+                <div class="text-xs truncate" :class="dataSubView === 'extraction' && selectedExtraction === ext.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
+                  {{ ext.timestamp }} · {{ formatFileSize(ext.fileSize) }}
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
       </template>
 
@@ -442,11 +553,19 @@ onMounted(() => {
         @save-and-migrate="handleSaveAndMigrate"
       />
       <DataBrowser
-        v-else
+        v-else-if="currentView === 'data' && dataSubView === 'table'"
         :table-name="selectedTable"
         :table-data="selectedTableData"
         :loading="tableDataLoading"
+        :search-query="currentSearch"
         @sort-change="onSortChange"
+        @page-change="onPageChange"
+        @page-size-change="onPageSizeChange"
+        @search-change="onSearchChange"
+      />
+      <ExtractionViewer
+        v-else-if="currentView === 'data' && dataSubView === 'extraction'"
+        :extraction-name="selectedExtraction"
       />
     </main>
   </div>

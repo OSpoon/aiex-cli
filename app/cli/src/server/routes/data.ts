@@ -127,6 +127,9 @@ export function dataRoutes(config: MigrationConfig): Hono {
     }
     const sortField = c.req.query('sortField')
     const sortOrder = c.req.query('sortOrder') || 'asc'
+    const page = Math.max(1, Number.parseInt(c.req.query('page') || '1', 10) || 1)
+    const pageSize = Math.min(500, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10) || 50))
+    const search = c.req.query('search') || ''
 
     let db: Database.Database
     try {
@@ -159,17 +162,35 @@ export function dataRoutes(config: MigrationConfig): Hono {
         orderClause = ` ORDER BY \`${sortField}\` ${dir}`
       }
 
-      const countRow = db.prepare(`SELECT COUNT(*) as count FROM \`${tableName}\``).get() as any
+      let whereClause = ''
+      const queryParams: string[] = []
+      if (search) {
+        const conditions = columns.map((col: any) => {
+          queryParams.push(`%${search}%`)
+          return `\`${col.name}\` LIKE ?`
+        })
+        whereClause = ` WHERE ${conditions.join(' OR ')}`
+      }
+
+      const countRow = db.prepare(
+        `SELECT COUNT(*) as count FROM \`${tableName}\`${whereClause}`,
+      ).get(...queryParams) as any
       const total = countRow.count
 
+      const offset = (page - 1) * pageSize
+      const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
       const rows = db.prepare(
-        `SELECT * FROM \`${tableName}\`${orderClause} LIMIT 200`,
-      ).all()
+        `SELECT * FROM \`${tableName}\`${whereClause}${orderClause} LIMIT ? OFFSET ?`,
+      ).all(...queryParams, pageSize, offset)
 
       return c.json({
         columns,
         rows,
         total,
+        page,
+        pageSize,
+        totalPages,
       })
     }
     catch (error: unknown) {
