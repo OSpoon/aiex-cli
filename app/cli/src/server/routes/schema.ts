@@ -115,6 +115,21 @@ export function schemaRoutes(config: MigrationConfig): Hono {
     }
 
     try {
+      // Read schema content before deleting to get table name for snapshot cleanup
+      const aiexDir = path.dirname(schemaDir)
+      try {
+        const content = await fs.readFile(filePath, 'utf-8')
+        const parsed = JsonSchemaDefinitionSchema.safeParse(JSON.parse(content))
+        if (parsed.success) {
+          const tableName = parsed.data.table.name
+          const snapshotPath = path.join(aiexDir, 'extracted', `${tableName}.prompt.md`)
+          await fs.unlink(snapshotPath).catch(() => {})
+        }
+      }
+      catch {
+        // Schema file may be invalid; skip snapshot cleanup
+      }
+
       await fs.unlink(filePath)
       return c.json({ success: true })
     }
