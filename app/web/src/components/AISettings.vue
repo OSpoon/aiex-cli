@@ -21,6 +21,7 @@ const saving = ref(false)
 
 const baseURL = ref("https://dashscope.aliyuncs.com/compatible-mode/v1")
 const apiKey = ref("")
+const timeout = ref(300)
 const models = ref<AIModelConfig[]>([])
 const systemTemplate = ref("")
 const userTemplate = ref("")
@@ -115,6 +116,7 @@ async function loadConfig() {
     const config = await getAIConfig()
     baseURL.value = config.provider.baseURL
     apiKey.value = config.provider.apiKey
+    timeout.value = config.provider.timeout ?? 300
     models.value = config.provider.models ?? []
     systemTemplate.value = config.prompt.systemTemplate
     userTemplate.value = config.prompt.userTemplate
@@ -140,6 +142,7 @@ async function handleSave() {
       provider: {
         baseURL: baseURL.value,
         apiKey: apiKey.value,
+        timeout: timeout.value,
         models: models.value
       },
       prompt: {
@@ -168,6 +171,7 @@ async function handleSave() {
 
 function handleReset() {
   baseURL.value = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  timeout.value = 300
   models.value = [
     { name: "qwen-plus", capabilities: { vision: false, structuredOutput: true } },
     { name: "qwen-vl-plus", capabilities: { vision: true, structuredOutput: true } }
@@ -214,6 +218,10 @@ onUnmounted(() => {
           <div class="flex flex-col gap-1">
             <label class="text-xs text-muted-foreground">API Key</label>
             <Password v-model="apiKey" :feedback="false" toggle-mask size="small" placeholder="sk-xxx" input-class="w-full" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+            <InputText :value="String(timeout)" type="number" size="small" placeholder="300" :min="1" @input="timeout = Number(($event.target as HTMLInputElement).value) || 300" />
           </div>
         </div>
       </section>

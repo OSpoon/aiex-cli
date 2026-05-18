@@ -79,6 +79,7 @@ export interface AIModelConfig {
 export interface AIProviderConfig {
   baseURL: string
   apiKey: string
+  timeout?: number
   models: AIModelConfig[]
 }
 

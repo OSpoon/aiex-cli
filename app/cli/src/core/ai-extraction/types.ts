@@ -12,6 +12,7 @@ export interface AIProviderConfig {
   baseURL: string
   apiKey: string
   models: AIModelConfig[]
+  timeout?: number
 }
 
 export interface PromptConfig {
@@ -60,6 +61,7 @@ export const DEFAULT_PROVIDER_CONFIG: AIProviderConfig = {
   baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   apiKey: '',
   models: [...DEFAULT_MODELS],
+  timeout: 300,
 }
 
 export const DEFAULT_PROMPT_CONFIG: PromptConfig = {

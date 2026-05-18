@@ -16,6 +16,7 @@ export const AIProviderConfigSchema = z.object({
   baseURL: z.string().min(1),
   apiKey: z.string(),
   models: z.array(AIModelConfigSchema).min(1),
+  timeout: z.number().int().positive().default(300).optional(),
 })
 
 export const PromptConfigSchema = z.object({

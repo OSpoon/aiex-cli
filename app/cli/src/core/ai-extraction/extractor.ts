@@ -1,3 +1,4 @@
+import type { SelectedModel } from './model-selector'
 import type { AIConfig, AIModelConfig, ExtractionResult } from './types'
 import type { JsonSchemaDefinition, JsonSchemaProperty } from '@/core/schema-sqlite/schemas'
 import type { RetryInfo } from '@/utils/retry'
@@ -279,13 +280,19 @@ export async function extractStructuredData(input: {
   const fieldCount = schema.properties ? Object.keys(schema.properties).length : 0
   const outputTokens = fieldCount > 0 ? fieldCount * 80 : undefined
 
-  const selected = modelOverride ?? selectModel({
-    models: config.provider.models,
-    isImage: isImageFile,
-    fileName: file,
-    inputTokens,
-    outputTokens,
-  })
+  let selected: SelectedModel
+  try {
+    selected = modelOverride ?? selectModel({
+      models: config.provider.models,
+      isImage: isImageFile,
+      fileName: file,
+      inputTokens,
+      outputTokens,
+    })
+  }
+  catch (e) {
+    return { success: false, error: (e as Error).message }
+  }
 
   const useStructuredOutput = selected.capabilities.structuredOutput
 
@@ -326,6 +333,8 @@ export async function extractStructuredData(input: {
 
     let result
 
+    const timeoutMs = (config.provider.timeout ?? 300) * 1000
+
     if (useFileContent) {
       const filePart = await readFilePart(file!)
       const fileName = filePart.type === 'file' ? filePart.filename : path.basename(file!)
@@ -341,7 +350,7 @@ export async function extractStructuredData(input: {
         messages: [
           { role: 'user', content: contentParts },
         ],
-        abortSignal: AbortSignal.timeout(120_000),
+        abortSignal: AbortSignal.timeout(timeoutMs),
         maxRetries: 0,
         experimental_telemetry: { isEnabled: useTelemetry },
       }
@@ -355,7 +364,7 @@ export async function extractStructuredData(input: {
         model: provider.chatModel(selected.name),
         system,
         prompt: user,
-        abortSignal: AbortSignal.timeout(60_000),
+        abortSignal: AbortSignal.timeout(timeoutMs),
         maxRetries: 0,
         experimental_telemetry: { isEnabled: useTelemetry },
       }
