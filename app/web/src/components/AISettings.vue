@@ -25,6 +25,11 @@ const models = ref<AIModelConfig[]>([])
 const systemTemplate = ref("")
 const userTemplate = ref("")
 
+const langfuseEnabled = ref(false)
+const langfusePublicKey = ref("")
+const langfuseSecretKey = ref("")
+const langfuseHost = ref("")
+
 // Add model state
 const addingModel = ref(false)
 const newModelName = ref("")
@@ -113,6 +118,10 @@ async function loadConfig() {
     models.value = config.provider.models ?? []
     systemTemplate.value = config.prompt.systemTemplate
     userTemplate.value = config.prompt.userTemplate
+    langfuseEnabled.value = !!config.langfuse
+    langfusePublicKey.value = config.langfuse?.publicKey ?? ""
+    langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
+    langfuseHost.value = config.langfuse?.host ?? ""
   } catch {
     apiKey.value = ""
     models.value = []
@@ -139,7 +148,14 @@ async function handleSave() {
       },
       extraction: {
         outputDir: ".aiex/extracted"
-      }
+      },
+      langfuse: langfuseEnabled.value
+        ? {
+            publicKey: langfusePublicKey.value,
+            secretKey: langfuseSecretKey.value,
+            host: langfuseHost.value || undefined
+          }
+        : undefined
     }
     await saveAIConfig(config)
   } catch (e: any) {
@@ -157,6 +173,10 @@ function handleReset() {
   ]
   systemTemplate.value = defaultSystemTemplate
   userTemplate.value = defaultUserTemplate
+  langfuseEnabled.value = false
+  langfusePublicKey.value = ""
+  langfuseSecretKey.value = ""
+  langfuseHost.value = ""
 }
 
 onMounted(() => {
@@ -193,6 +213,33 @@ onUnmounted(() => {
           <div class="flex flex-col gap-1">
             <label class="text-xs text-muted-foreground">API Key</label>
             <Password v-model="apiKey" :feedback="false" toggle-mask size="small" placeholder="sk-xxx" input-class="w-full" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Langfuse Tracing -->
+      <section>
+        <h3 class="text-sm font-semibold mb-3 text-foreground">
+          Langfuse Tracing
+        </h3>
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="langfuseEnabled" :binary="true" input-id="lf-enabled" />
+            <label for="lf-enabled" class="text-sm cursor-pointer">Enabled</label>
+          </div>
+          <div v-if="langfuseEnabled" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Public Key</label>
+              <InputText v-model="langfusePublicKey" size="small" placeholder="pk-lf-..." />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Secret Key</label>
+              <Password v-model="langfuseSecretKey" :feedback="false" toggle-mask size="small" placeholder="sk-lf-..." input-class="w-full" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Host (optional)</label>
+              <InputText v-model="langfuseHost" size="small" placeholder="https://us.cloud.langfuse.com" />
+            </div>
           </div>
         </div>
       </section>

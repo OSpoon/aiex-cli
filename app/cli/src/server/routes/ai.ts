@@ -11,6 +11,16 @@ import {
 import { AIConfigSchema } from '@/core/ai-extraction/schemas'
 import { getErrorMessage } from '@/core/schema-sqlite'
 
+function maskSecretKey(key: string): string {
+  if (!key || key.length <= 4)
+    return '****'
+  return `sk-***${key.slice(-4)}`
+}
+
+function isMasked(key: string): boolean {
+  return key.startsWith('sk-***')
+}
+
 export function aiRoutes(config: MigrationConfig): Hono {
   const app = new Hono()
   const aiexDir = path.dirname(config.schemaPath)
@@ -36,6 +46,12 @@ export function aiRoutes(config: MigrationConfig): Hono {
         ...aiConfig.provider,
         apiKey: maskApiKey(aiConfig.provider.apiKey),
       },
+      langfuse: aiConfig.langfuse
+        ? {
+            ...aiConfig.langfuse,
+            secretKey: maskSecretKey(aiConfig.langfuse.secretKey),
+          }
+        : undefined,
     })
   })
 
@@ -87,6 +103,16 @@ export function aiRoutes(config: MigrationConfig): Hono {
         }
         else {
           body.provider.apiKey = ''
+        }
+      }
+
+      if (body.langfuse?.secretKey && isMasked(body.langfuse.secretKey)) {
+        const existing = await readAIConfig(aiexDir)
+        if (existing?.langfuse) {
+          body.langfuse.secretKey = existing.langfuse.secretKey
+        }
+        else {
+          body.langfuse.secretKey = ''
         }
       }
 

@@ -96,10 +96,17 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
+export interface LangfuseConfig {
+  publicKey: string
+  secretKey: string
+  host?: string
+}
+
 export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
+  langfuse?: LangfuseConfig
 }
 
 export async function getAIConfig(): Promise<AIConfig> {

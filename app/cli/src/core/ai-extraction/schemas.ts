@@ -27,8 +27,15 @@ export const ExtractionConfigSchema = z.object({
   outputDir: z.string().min(1),
 })
 
+export const LangfuseConfigSchema = z.object({
+  publicKey: z.string(),
+  secretKey: z.string(),
+  host: z.string().optional(),
+})
+
 export const AIConfigSchema = z.object({
   provider: AIProviderConfigSchema,
   prompt: PromptConfigSchema,
   extraction: ExtractionConfigSchema,
+  langfuse: LangfuseConfigSchema.optional(),
 })

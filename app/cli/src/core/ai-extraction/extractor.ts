@@ -4,6 +4,8 @@ import type { RetryInfo } from '@/utils/retry'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { LangfuseSpanProcessor } from '@langfuse/otel'
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { generateText, jsonSchema, Output } from 'ai'
 import { getErrorMessage } from '@/core/schema-sqlite'
 import { withRetry } from '@/utils/retry'
@@ -19,6 +21,33 @@ export type { RetryInfo } from '@/utils/retry'
 interface PromptSnapshot {
   system: string
   user: string
+}
+
+let langfuseInitialized = false
+
+function initLangfuse(config: AIConfig): void {
+  if (!config.langfuse?.publicKey || !config.langfuse.secretKey)
+    return
+  if (langfuseInitialized)
+    return
+  langfuseInitialized = true
+
+  try {
+    const provider = new NodeTracerProvider({
+      spanProcessors: [
+        new LangfuseSpanProcessor({
+          publicKey: config.langfuse.publicKey,
+          secretKey: config.langfuse.secretKey,
+          baseUrl: config.langfuse.host || 'https://us.cloud.langfuse.com',
+        }),
+      ],
+    })
+
+    provider.register()
+  }
+  catch {
+    // Langfuse misconfiguration should never block extraction
+  }
 }
 
 const SYSTEM_PROMPT_REGEX = /## System Prompt\n([\s\S]*?)(?=## User Prompt|$)/
@@ -260,7 +289,13 @@ export async function extractStructuredData(input: {
 
   const useStructuredOutput = selected.capabilities.structuredOutput
 
+  const useTelemetry = !!(config.langfuse?.publicKey && config.langfuse.secretKey)
+
   try {
+    if (useTelemetry) {
+      initLangfuse(config)
+    }
+
     const provider = createOpenAICompatible({
       baseURL: config.provider.baseURL,
       name: 'qwen',
@@ -308,6 +343,7 @@ export async function extractStructuredData(input: {
         ],
         abortSignal: AbortSignal.timeout(120_000),
         maxRetries: 0,
+        experimental_telemetry: { isEnabled: useTelemetry },
       }
       if (useStructuredOutput) {
         fileOpts.output = Output.object({ schema: outputSchema })
@@ -321,6 +357,7 @@ export async function extractStructuredData(input: {
         prompt: user,
         abortSignal: AbortSignal.timeout(60_000),
         maxRetries: 0,
+        experimental_telemetry: { isEnabled: useTelemetry },
       }
       if (useStructuredOutput) {
         textOpts.output = Output.object({ schema: outputSchema })

@@ -57,6 +57,8 @@
     "@ai-sdk/openai-compatible": "catalog:",
     "@clack/prompts": "catalog:",
     "@hono/node-server": "catalog:",
+    "@langfuse/otel": "catalog:",
+    "@opentelemetry/sdk-trace-node": "catalog:",
     "ai": "catalog:",
     "better-sqlite3": "catalog:",
     "citty": "catalog:",
