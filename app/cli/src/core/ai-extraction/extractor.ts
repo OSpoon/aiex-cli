@@ -293,8 +293,9 @@ export async function extractStructuredData(input: {
 
     if (useFileContent) {
       const filePart = await readFilePart(file!)
+      const fileName = filePart.type === 'file' ? filePart.filename : path.basename(file!)
       const userContent = user.includes(PLACEHOLDER_TEXT)
-        ? user.replaceAll(PLACEHOLDER_TEXT, text || `Data is contained in the attached file: ${filePart.filename || path.basename(file!)}`)
+        ? user.replaceAll(PLACEHOLDER_TEXT, text || `Data is contained in the attached file: ${fileName}`)
         : user
 
       const contentParts: any[] = [{ type: 'text' as const, text: userContent }, filePart]

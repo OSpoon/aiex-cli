@@ -14,7 +14,7 @@ import {
   parseJsonSchema,
 } from '@/core/schema-sqlite'
 
-const IMAGE_EXTENSIONS = new Set([
+const FILE_PART_EXTENSIONS = new Set([
   'png',
   'jpg',
   'jpeg',
@@ -22,11 +22,6 @@ const IMAGE_EXTENSIONS = new Set([
   'webp',
   'bmp',
   'svg',
-])
-
-const FILE_PART_EXTENSIONS = new Set([
-  ...IMAGE_EXTENSIONS,
-  'pdf',
 ])
 
 function fail(message?: string): void {
@@ -71,7 +66,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
 export const extractCommand = defineCommand({
   meta: {
     name: 'extract',
-    description: 'Extract structured data from text or files (images/PDFs)',
+    description: 'Extract structured data from text or image files',
   },
   args: {
     schema: {
@@ -88,7 +83,7 @@ export const extractCommand = defineCommand({
     file: {
       type: 'string',
       alias: 'f',
-      description: 'File path (text/image/PDF) to extract from',
+      description: 'File path (image) to extract from',
     },
     model: {
       type: 'string',
@@ -158,13 +153,7 @@ export const extractCommand = defineCommand({
         filePath = args.file as string
       }
       else {
-        try {
-          text = await fs.readFile(args.file as string, 'utf-8')
-        }
-        catch {
-          fail(`Cannot read file: ${args.file}`)
-          return
-        }
+        text = await fs.readFile(args.file as string, 'utf-8')
       }
     }
     else if (args.text) {
@@ -201,7 +190,7 @@ export const extractCommand = defineCommand({
 
     // Run extraction
     const s = spinner()
-    s.start(filePath ? 'Extracting data from file...' : 'Extracting data...')
+    s.start(filePath ? 'Extracting data from image...' : 'Extracting data...')
 
     const result = await extractStructuredData({
       config: aiConfig,
