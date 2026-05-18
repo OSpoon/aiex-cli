@@ -81,6 +81,10 @@
       "required": ["type"],
       "additionalProperties": false,
       "properties": {
+        "description": {
+          "type": "string",
+          "description": "Description of the column."
+        },
         "type": {
           "$ref": "#/$defs/columnType",
           "description": "Column data type."

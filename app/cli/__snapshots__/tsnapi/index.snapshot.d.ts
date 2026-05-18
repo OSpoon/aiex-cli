@@ -39,6 +39,7 @@ export interface DoctorDiagnostics {
   };
 }
 export interface JsonSchemaProperty {
+  description?: string;
   type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array' | 'null';
   format?: string;
   primary?: boolean;

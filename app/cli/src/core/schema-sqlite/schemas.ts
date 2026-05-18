@@ -18,6 +18,7 @@ export const ForeignKeyRefSchema = z.object({
 })
 
 export const JsonSchemaPropertySchema: z.ZodType<JsonSchemaProperty> = z.lazy(() => z.object({
+  description: z.string().optional(),
   type: z.enum(['string', 'integer', 'number', 'boolean', 'object', 'array', 'null']),
   format: z.string().optional(),
   primary: z.boolean().optional(),
@@ -70,6 +71,7 @@ export interface ForeignKeyRef {
 }
 
 export interface JsonSchemaProperty {
+  description?: string
   type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array' | 'null'
   format?: string
   primary?: boolean
