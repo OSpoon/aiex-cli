@@ -213,7 +213,17 @@ async function main(): Promise<void> {
 
     try {
       const exports = await loadSchemaExports(schemaPath)
-      const prevSnapshot = await loadPrevSnapshot(migrationsPath)
+
+      // Check if database file exists — if missing, force full migration
+      let dbMissing = false
+      try {
+        await fs.access(dbPath)
+      }
+      catch {
+        dbMissing = true
+      }
+
+      const prevSnapshot = dbMissing ? null : await loadPrevSnapshot(migrationsPath)
       const currentSnapshot = await generateSQLiteDrizzleJson(exports, prevSnapshot?.id)
 
       const prev = prevSnapshot || EMPTY_SNAPSHOT

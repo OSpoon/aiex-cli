@@ -169,21 +169,6 @@ async function handleSave() {
   }
 }
 
-function handleReset() {
-  baseURL.value = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  timeout.value = 300
-  models.value = [
-    { name: "qwen-plus", capabilities: { vision: false, structuredOutput: true } },
-    { name: "qwen-vl-plus", capabilities: { vision: true, structuredOutput: true } }
-  ]
-  systemTemplate.value = defaultSystemTemplate
-  userTemplate.value = defaultUserTemplate
-  langfuseEnabled.value = false
-  langfusePublicKey.value = ""
-  langfuseSecretKey.value = ""
-  langfuseHost.value = ""
-}
-
 onMounted(() => {
   loadConfig()
 })
@@ -364,12 +349,9 @@ onUnmounted(() => {
     </div>
 
     <template #footer>
-      <div class="flex justify-between">
-        <Button label="Reset Defaults" icon="pi pi-replay" severity="secondary" text @click="handleReset" />
-        <div class="flex gap-2">
-          <Button label="Cancel" severity="secondary" text @click="visible = false" />
-          <Button label="Save" icon="pi pi-check" :loading="saving" :disabled="!canSave" @click="handleSave" />
-        </div>
+      <div class="flex justify-end gap-2">
+        <Button label="Cancel" severity="secondary" text @click="visible = false" />
+        <Button label="Save" icon="pi pi-check" :loading="saving" :disabled="!canSave" @click="handleSave" />
       </div>
     </template>
   </Dialog>
