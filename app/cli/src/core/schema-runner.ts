@@ -9,13 +9,8 @@ import {
   resolveHelperPath,
   resolveTsxPath,
 } from '@/core/schema-sqlite'
-import tableSchemaFile from '~/schemas/table-schema.json'
 
 const execFileAsync = promisify(execFile)
-
-export interface InitSchemaProjectResult {
-  scoreReportStatus: 'created' | 'skipped'
-}
 
 export interface GenerateSchemaResult {
   success: boolean
@@ -41,62 +36,6 @@ export interface SchemaSyncResult {
   tables: number
   relations: number
   migration?: MigrationResult
-}
-
-export const EXAMPLE_SCORE_REPORT_SCHEMA = {
-  $schema: (tableSchemaFile as { $id: string }).$id,
-  title: 'ScoreReport',
-  type: 'object',
-  table: { name: 'score_report', timestamps: true },
-  properties: {
-    name: { type: 'string', description: '姓名' },
-    reportNumber: { type: 'string', description: '报告编号' },
-    gender: { type: 'string', description: '性别' },
-    printDate: { type: 'string', format: 'date-time', description: '打印日期' },
-    examYear: { type: 'integer', description: '考试年份' },
-    examType: { type: 'string', description: '考试类型，如全国统考' },
-    examCategory: { type: 'string', description: '考试类别，如普通高考' },
-    province: { type: 'string', description: '考试省份' },
-    subjectCategory: { type: 'string', description: '科类，如艺术（文）' },
-    chinese: { type: 'integer', description: '语文成绩' },
-    chineseFull: { type: 'integer', description: '语文满分' },
-    math: { type: 'integer', description: '数学成绩' },
-    mathFull: { type: 'integer', description: '数学满分' },
-    foreignLang: { type: 'integer', description: '外语成绩' },
-    foreignLangFull: { type: 'integer', description: '外语满分' },
-    comprehensive: { type: 'integer', description: '综合成绩' },
-    comprehensiveFull: { type: 'integer', description: '综合满分' },
-    totalScore: { type: 'integer', description: '总分' },
-    totalFullScore: { type: 'integer', description: '总分满分' },
-    batchLineFirst: { type: 'integer', description: '本科第一批录取分数线' },
-    batchLineSecond: { type: 'integer', description: '本科第二批录取分数线' },
-  },
-  required: ['name', 'examYear', 'examType', 'province', 'totalScore'],
-}
-
-async function writeJsonIfAbsent(filePath: string, data: unknown): Promise<'created' | 'skipped'> {
-  try {
-    await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, { flag: 'wx' })
-    return 'created'
-  }
-  catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST')
-      return 'skipped'
-    throw error
-  }
-}
-
-export async function initSchemaProject(config: MigrationConfig): Promise<InitSchemaProjectResult> {
-  await fs.mkdir(config.schemaPath, { recursive: true })
-  await fs.mkdir(path.dirname(config.drizzleSchemaPath), { recursive: true })
-  await fs.mkdir(config.migrationsPath, { recursive: true })
-
-  const scoreReportStatus = await writeJsonIfAbsent(
-    path.join(config.schemaPath, 'score_report.json'),
-    EXAMPLE_SCORE_REPORT_SCHEMA,
-  )
-
-  return { scoreReportStatus }
 }
 
 export async function listSchemaFiles(schemaDir: string): Promise<string[]> {

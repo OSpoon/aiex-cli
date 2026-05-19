@@ -182,7 +182,7 @@ async function runInteractive(
 ): Promise<boolean> {
   const schemas = await listSchemas(aiexDir)
   if (schemas.length === 0) {
-    failCommand(`No schema files found in ${pc.cyan('.aiex/schema/')}. Run ${pc.cyan('aiex schema --init')} first, or add JSON Schema files.`)
+    failCommand(`No schema files found in ${pc.cyan('.aiex/schema/')}. Run ${pc.cyan('aiex web')} to create and configure schemas first.`)
     return false
   }
 

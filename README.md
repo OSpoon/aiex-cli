@@ -21,7 +21,7 @@ npm install -g aiex-cli
 ```
 
 ```bash
-aiex schema --init                      # set up .aiex/schema/ directory
+aiex web                                # configure schemas and AI settings in the browser
 aiex schema                             # generate SQLite from JSON Schema files
 aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into database
 ```
@@ -41,17 +41,7 @@ aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into d
 
 ## 🚀 Getting Started
 
-### 1. Initialize
-
-```bash
-aiex schema --init
-```
-
-Creates a `.aiex/` directory with example schemas to get you started.
-
-Add your own JSON Schema files to `.aiex/schema/` (one file per table), then run `aiex schema` to migrate them into the database.
-
-### 2. Visual Editor
+### 1. Configure In Web UI
 
 ```bash
 aiex web
@@ -59,7 +49,7 @@ aiex web
 
 Opens a browser UI where you can visually design and manage your schemas, configure AI settings, preview extraction prompts, and apply changes to the database.
 
-### 3. Generate Database
+### 2. Generate Database
 
 ```bash
 aiex schema
@@ -67,7 +57,7 @@ aiex schema
 
 Converts your JSON Schema files into a SQLite database with full migration support.
 
-### 4. Extract Data
+### 3. Extract Data
 
 ```bash
 aiex extract                              # interactive mode (prompts for schema & input)
@@ -97,7 +87,6 @@ By default, aiex automatically selects a model based on your input type (vision-
 
 | Command | Description |
 | --- | --- |
-| `aiex schema --init` | Scaffold `.aiex/` directory with example schemas |
 | `aiex schema` | Parse JSON Schema files and migrate to SQLite |
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
 | `aiex web` | Launch visual schema editor in browser |

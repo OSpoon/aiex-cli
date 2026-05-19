@@ -16,7 +16,7 @@ const mockCommands: Record<string, CommandDef> = {
   schema: {
     meta: { name: 'schema', description: 'Sync JSON Schema to SQLite' },
     args: {
-      init: { type: 'boolean', alias: 'i', description: 'Initialize', default: false },
+      generate: { type: 'boolean', alias: 'g', description: 'Generate only', default: false },
       name: { type: 'string', description: 'Migration name' },
     },
     run: async () => {},

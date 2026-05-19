@@ -6,7 +6,6 @@ import pc from 'picocolors'
 import { failCommand } from '@/commands/utils'
 import {
   generateSchemaFromFiles,
-  initSchemaProject,
   listSchemaFiles,
   runSchemaMigration,
 } from '@/core/schema-runner'
@@ -18,12 +17,6 @@ export const schemaCommand = defineCommand({
     description: 'Sync JSON Schema to SQLite database',
   },
   args: {
-    init: {
-      type: 'boolean',
-      alias: 'i',
-      description: 'Only initialize .aiex/ directory with example schema',
-      default: false,
-    },
     generate: {
       type: 'boolean',
       alias: 'g',
@@ -41,21 +34,10 @@ export const schemaCommand = defineCommand({
     const cwd = process.cwd()
     const config = createMigrationConfig(cwd)
 
-    if (args.init) {
-      const initResult = await initSchemaProject(config)
-
-      consola.success(`Initialized ${pc.cyan('.aiex/')} with example schemas`)
-      if (initResult.scoreReportStatus === 'skipped')
-        consola.warn(`${pc.cyan('.aiex/schema/score_report.json')} already exists, skipped`)
-      consola.info('Example includes: ScoreReport (college entrance exam score report)')
-      outro('Run: aiex schema')
-      return
-    }
-
     const schemaFiles = await listSchemaFiles(config.schemaPath)
 
     if (schemaFiles.length === 0) {
-      consola.info('Use --init to initialize with an example schema')
+      consola.info(`Run ${pc.cyan('aiex web')} to create and configure schemas in the Web UI`)
       failCommand(`No schema files found in ${pc.cyan('.aiex/schema/')}`)
       return
     }
