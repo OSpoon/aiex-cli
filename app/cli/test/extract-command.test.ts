@@ -43,9 +43,18 @@ vi.mock('better-sqlite3', () => {
 })
 const cmd = extractCommand as any
 const originalCwd = process.cwd()
+const cleanupDirs = new Set<string>()
+
+function cleanupDir(dir: string): void {
+  if (process.cwd() === dir)
+    process.chdir(originalCwd)
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  cleanupDirs.delete(dir)
+}
 
 function createProjectFixture(): string {
   const dir = `/tmp/test-extract-project-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  cleanupDirs.add(dir)
   fs.mkdirSync(path.join(dir, '.aiex', 'schema'), { recursive: true })
   fs.writeFileSync(path.join(dir, '.aiex', 'database.db'), '')
   fs.writeFileSync(path.join(dir, '.aiex', 'schema', 'test.json'), JSON.stringify({
@@ -95,6 +104,9 @@ describe('extractCommand.run', () => {
   afterEach(() => {
     process.exitCode = 0
     process.chdir(originalCwd)
+    for (const dir of [...cleanupDirs]) {
+      cleanupDir(dir)
+    }
     vi.clearAllMocks()
   })
 
@@ -117,7 +129,7 @@ describe('extractCommand.run', () => {
     await cmd.run({ args: { dir, schema: 'test' } })
     expect(process.exitCode).toBe(1)
 
-    fs.rmSync(dir, { recursive: true })
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   })
 
   it('should fail gracefully for nonexistent batch directory', async () => {
@@ -160,7 +172,7 @@ describe('extractCommand.run', () => {
     expect(extractStructuredData).toHaveBeenCalledTimes(2)
     expect(outro).toHaveBeenLastCalledWith('Done!')
 
-    fs.rmSync(projectDir, { recursive: true, force: true })
+    cleanupDir(projectDir)
   })
 
   it('should set exit code and avoid Done when batch has partial failures', async () => {
@@ -187,6 +199,6 @@ describe('extractCommand.run', () => {
     expect(outro).toHaveBeenLastCalledWith('Completed with failures (1 failed)')
     expect(outro).not.toHaveBeenCalledWith('Done!')
 
-    fs.rmSync(projectDir, { recursive: true, force: true })
+    cleanupDir(projectDir)
   })
 })
