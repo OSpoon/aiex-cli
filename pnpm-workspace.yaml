@@ -12,6 +12,7 @@ catalog:
   '@opentelemetry/sdk-trace-node': ^2.7.1
   '@primevue/themes': ^4.0.0
   '@tailwindcss/vite': ^4.0.0
+  '@types/jsonfile': ^6.1.4
   '@types/proper-lockfile': ^4.1.4
   '@types/update-notifier': ^6.0.8
   '@typescript-eslint/parser': ^8.59.3
@@ -37,6 +38,7 @@ catalog:
   execa: ^9.6.1
   hono: ^4.0.0
   json-source-map: ^0.6.1
+  jsonfile: ^6.2.1
   jsonrepair: ^3.14.0
   ky: ^2.0.2
   lucide-vue-next: ^0.400.0

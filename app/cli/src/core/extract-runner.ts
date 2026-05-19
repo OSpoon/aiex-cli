@@ -7,6 +7,7 @@ import path from 'node:path'
 import { spinner } from '@clack/prompts'
 import Database from 'better-sqlite3'
 import { consola } from 'consola'
+import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
 import { globSync } from 'tinyglobby'
 import { ZodError } from 'zod'
@@ -111,8 +112,7 @@ export function listSupportedFiles(dir: string, pattern?: string): string[] {
 export async function loadSchema(config: ReturnType<typeof createMigrationConfig>, schemaName: string): Promise<{ schema: any, error?: string }> {
   const schemaPath = path.join(config.schemaPath, `${schemaName}.json`)
   try {
-    const content = await fsp.readFile(schemaPath, 'utf-8')
-    const parsed = JSON.parse(content)
+    const parsed = await readJsonFile(schemaPath)
     const validated = JsonSchemaDefinitionSchema.parse(parsed)
     return { schema: validated }
   }

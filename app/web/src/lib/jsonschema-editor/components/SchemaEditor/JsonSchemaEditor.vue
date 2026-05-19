@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
+import { useDebounceFn } from "@vueuse/core"
 import { Maximize2 } from "lucide-vue-next"
 import TabPanel from "primevue/tabpanel"
 import { ref, watch } from "vue"
@@ -51,32 +52,29 @@ const t = useTranslation()
 // so the schema object is never deep-proxied by Vue.
 //
 // ANTI-LOOP DESIGN:
-// onChange defers the emit to a macrotask (setTimeout). This guarantees that
+// onChange defers the emit to a macrotask. This guarantees that
 // Vue's entire reactive flush (watchers + re-renders) completes BEFORE the
 // parent component receives the update. This makes it physically impossible
 // for a single schema change to circle back through the prop watcher.
 let skipNextWatch = false
-let pendingEmit: ReturnType<typeof setTimeout> | null = null
 let lastEmittedJson = JSON.stringify(props.schema)
+
+const emitSchemaUpdate = useDebounceFn((newSchema: JSONSchema) => {
+  emit("update:schema", newSchema)
+  // Reset the skip flag AFTER the next Vue flush processes the prop update
+  setTimeout(() => {
+    skipNextWatch = false
+  }, 0)
+}, 0)
 
 const store = createSchemaStore(props.schema, (newSchema) => {
   const json = JSON.stringify(newSchema)
   if (json === lastEmittedJson) return // no-op if structurally identical
   lastEmittedJson = json
 
-  // Cancel any pending emit — only the latest schema matters
-  if (pendingEmit !== null) clearTimeout(pendingEmit)
-
-  // Defer the emit to a macrotask — BREAKS the synchronous reactive cycle
+  // Defer the emit to a macrotask — BREAKS the synchronous reactive cycle.
   skipNextWatch = true
-  pendingEmit = setTimeout(() => {
-    pendingEmit = null
-    emit("update:schema", newSchema)
-    // Reset the skip flag AFTER the next Vue flush processes the prop update
-    setTimeout(() => {
-      skipNextWatch = false
-    }, 0)
-  }, 0)
+  emitSchemaUpdate(newSchema)
 })
 
 // Provide the store so all descendants can inject it.

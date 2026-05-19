@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useDebounceFn } from "@vueuse/core"
 import { stringify } from "csv-stringify/browser/esm/sync"
 import Button from "primevue/button"
-import { computed, onUnmounted, ref } from "vue"
+import { computed, ref } from "vue"
 import { VxeColumn, VxeTable } from "vxe-table"
 import "vxe-pc-ui/lib/style.css"
 import "vxe-table/lib/style.css"
@@ -44,23 +45,18 @@ const emit = defineEmits<{
 // ── search ──
 
 const searchInput = ref(props.searchQuery)
-let searchTimer: ReturnType<typeof setTimeout> | null = null
+const emitSearchChange = useDebounceFn(() => {
+  emit("searchChange", searchInput.value)
+}, 300)
 
 function onSearchInput() {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    emit("searchChange", searchInput.value)
-  }, 300)
+  emitSearchChange()
 }
 
 function clearSearch() {
   searchInput.value = ""
   emit("searchChange", "")
 }
-
-onUnmounted(() => {
-  if (searchTimer) clearTimeout(searchTimer)
-})
 
 // ── sort ──
 

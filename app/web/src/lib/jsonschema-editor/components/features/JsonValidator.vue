@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import type { ValidationResult } from "@/lib/jsonschema-editor/utils/jsonValidator"
+import { useDebounceFn } from "@vueuse/core"
 import { CheckCircle, Loader2, XCircle } from "lucide-vue-next"
 import { computed, ref, watch } from "vue"
 import Button from "@/lib/jsonschema-editor/components/ui/Button.vue"
@@ -32,8 +33,6 @@ const validationResult = ref<ValidationResult | null>(null)
 const isValidating = ref(false)
 const isDialog = ref(props.visible !== undefined)
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-
 const editorText = ref(
   JSON.stringify(
     {
@@ -52,10 +51,7 @@ function handleValidation() {
   isValidating.value = false
 }
 
-function debouncedValidate() {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(handleValidation, 500)
-}
+const debouncedValidate = useDebounceFn(handleValidation, 500)
 
 watch(
   () => props.visible,

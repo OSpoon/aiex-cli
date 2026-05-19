@@ -6,7 +6,7 @@
  * This wrapper COMPLETELY isolates Monaco from Vue's reactivity.
  * - Monaco instance is stored in a plain variable (NOT a ref).
  * - `modelValue` prop updates are applied via requestAnimationFrame.
- * - `onDidChangeModelContent` emits are debounced via setTimeout.
+ * - `onDidChangeModelContent` emits are debounced via VueUse.
  * - A `suppressChangeEvent` flag prevents re-entrant calls.
  *
  * ─── LAZY LOADING ───
@@ -22,6 +22,7 @@
  */
 
 import type * as MonacoNS from "monaco-editor"
+import { useDebounceFn } from "@vueuse/core"
 import { onMounted, onUnmounted, ref, watch } from "vue"
 import { useMonacoTheme } from "@/lib/jsonschema-editor/hooks/use-monaco-theme"
 
@@ -54,8 +55,14 @@ let monacoModule: typeof MonacoNS | null = null
 let editorInstance: MonacoNS.editor.IStandaloneCodeEditor | null = null
 let suppressChangeEvent = false
 let pendingRaf: number | null = null
-let pendingEmit: ReturnType<typeof setTimeout> | null = null
 let lastSetValue = ""
+
+const emitModelValue = useDebounceFn(() => {
+  const current = editorInstance?.getValue() || ""
+  if (current === lastSetValue) return
+  lastSetValue = current
+  emit("update:modelValue", current)
+}, 150)
 
 onMounted(async () => {
   if (!editorContainer.value) return
@@ -112,14 +119,7 @@ onMounted(async () => {
     if (value === lastSetValue) return
 
     // Debounce emit to prevent rapid-fire updates
-    if (pendingEmit) clearTimeout(pendingEmit)
-    pendingEmit = setTimeout(() => {
-      pendingEmit = null
-      const current = editorInstance?.getValue() || ""
-      if (current === lastSetValue) return
-      lastSetValue = current
-      emit("update:modelValue", current)
-    }, 150)
+    emitModelValue()
   })
 })
 
@@ -149,7 +149,6 @@ watch(
 
 onUnmounted(() => {
   if (pendingRaf !== null) cancelAnimationFrame(pendingRaf)
-  if (pendingEmit) clearTimeout(pendingEmit)
   editorInstance?.dispose()
   editorInstance = null
 })

@@ -2,6 +2,7 @@ import type { CommandDef } from 'citty'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { readFileSync as readJsonFileSync } from 'jsonfile'
 
 const LEADING_DASHES = /^-+/
 
@@ -36,8 +37,7 @@ function getFileCompletions(pattern: string): string[] {
 
 function getJsonModelNames(configPath: string): string[] {
   try {
-    const content = fs.readFileSync(configPath, 'utf-8')
-    const config = JSON.parse(content)
+    const config = readJsonFileSync(configPath)
     if (config.provider?.models)
       return config.provider.models.map((m: any) => m.name)
   }

@@ -8,6 +8,7 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { LangfuseSpanProcessor } from '@langfuse/otel'
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { generateText, jsonSchema, Output } from 'ai'
+import { writeFile as writeJsonFile } from 'jsonfile'
 import mime from 'mime'
 import { getErrorMessage } from '@/core/schema-sqlite'
 import { withRetry } from '@/utils/retry'
@@ -379,7 +380,7 @@ export async function extractStructuredData(input: {
     const outputFileName = `${schema.table.name}-${timestamp}.json`
     const outputPath = path.join(outputDir, outputFileName)
 
-    await fs.writeFile(outputPath, `${JSON.stringify(data, null, 2)}\n`)
+    await writeJsonFile(outputPath, data, { spaces: 2, EOL: '\n' })
 
     return {
       success: true,

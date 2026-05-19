@@ -6,6 +6,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
 import * as esbuild from 'esbuild'
+import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
 import lockfile from 'proper-lockfile'
 import { sanitizeMigrationName } from './migration-name'
 
@@ -65,14 +66,14 @@ async function loadPrevSnapshot(migrationsPath: string): Promise<DrizzleSQLiteSn
   const metaPath = path.join(migrationsPath, 'meta', '_journal.json')
 
   try {
-    const journal = JSON.parse(await fs.readFile(metaPath, 'utf-8'))
+    const journal = await readJsonFile(metaPath)
     if (!journal.entries?.length)
       return null
 
     const latestEntry = journal.entries[journal.entries.length - 1]
     const snapshotPath = path.join(migrationsPath, 'meta', `${latestEntry.tag}_snapshot.json`)
 
-    return JSON.parse(await fs.readFile(snapshotPath, 'utf-8'))
+    return await readJsonFile(snapshotPath)
   }
   catch {
     return null
@@ -91,7 +92,7 @@ async function saveSnapshot(
   let journal: { version: string, dialect: string, entries: Array<{ idx: number, version: string, when: number, tag: string, breakpoints: boolean }> }
 
   try {
-    journal = JSON.parse(await fs.readFile(journalPath, 'utf-8'))
+    journal = await readJsonFile(journalPath)
   }
   catch {
     journal = { version: '6', dialect: 'sqlite', entries: [] }
@@ -102,7 +103,7 @@ async function saveSnapshot(
   const tag = `${String(idx).padStart(4, '0')}_${suffix}`
 
   const snapshotPath = path.join(metaPath, `${tag}_snapshot.json`)
-  await fs.writeFile(snapshotPath, JSON.stringify(snapshot, null, 2))
+  await writeJsonFile(snapshotPath, snapshot, { spaces: 2, EOL: '\n' })
 
   journal.entries.push({
     idx,
@@ -111,7 +112,7 @@ async function saveSnapshot(
     tag,
     breakpoints: true,
   })
-  await fs.writeFile(journalPath, JSON.stringify(journal, null, 2))
+  await writeJsonFile(journalPath, journal, { spaces: 2, EOL: '\n' })
 
   return tag
 }

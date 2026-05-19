@@ -1,6 +1,7 @@
 import type { AIConfig } from './types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
 import { AIConfigSchema } from './schemas'
 import { DEFAULT_AI_CONFIG } from './types'
 
@@ -11,8 +12,7 @@ export async function readAIConfig(aiexDir: string): Promise<AIConfig | null> {
   const configPath = path.join(aiexDir, CONFIG_FILE_NAME)
 
   try {
-    const content = await fs.readFile(configPath, 'utf-8')
-    const parsed = JSON.parse(content)
+    const parsed = await readJsonFile(configPath)
     const validated = AIConfigSchema.parse(parsed)
     return validated
   }
@@ -28,7 +28,7 @@ export async function writeAIConfig(aiexDir: string, config: AIConfig): Promise<
   await fs.mkdir(aiexDir, { recursive: true })
 
   // Write config file
-  await fs.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`)
+  await writeJsonFile(configPath, config, { spaces: 2, EOL: '\n' })
 
   // Ensure ai-config.json is in .gitignore (for API key security)
   await addToGitignore(aiexDir, CONFIG_FILE_NAME)

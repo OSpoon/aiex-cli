@@ -4,6 +4,7 @@ import path from 'node:path'
 import { zValidator } from '@hono/zod-validator'
 import Database from 'better-sqlite3'
 import { Hono } from 'hono'
+import { readFile as readJsonFile } from 'jsonfile'
 import { z } from 'zod'
 
 const FILE_REGEX = /\.json$/
@@ -126,8 +127,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
 
       for (const file of schemaFiles) {
         try {
-          const content = await fs.readFile(path.join(schemaDir, file), 'utf-8')
-          const schema = JSON.parse(content)
+          const schema = await readJsonFile(path.join(schemaDir, file))
           const tableName = schema.table?.name
 
           if (!tableName)

@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
+import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
 import { z } from 'zod'
 import { savePromptSnapshot } from '@/core/ai-extraction'
 import { runSchemaSync } from '@/core/schema-runner'
@@ -53,8 +54,7 @@ export function schemaRoutes(config: MigrationConfig): Hono {
     const filePath = path.join(schemaDir, name)
 
     try {
-      const content = await fs.readFile(filePath, 'utf-8')
-      return c.json(JSON.parse(content))
+      return c.json(await readJsonFile(filePath))
     }
     catch {
       return c.json({ error: 'Schema not found' }, 404)
@@ -69,7 +69,7 @@ export function schemaRoutes(config: MigrationConfig): Hono {
     try {
       const body = await c.req.json()
       await ensureDir()
-      await fs.writeFile(filePath, `${JSON.stringify(body, null, 2)}\n`)
+      await writeJsonFile(filePath, body, { spaces: 2, EOL: '\n' })
 
       // Generate prompt snapshot for AI extraction
       const aiexDir = path.dirname(schemaDir)
@@ -112,8 +112,7 @@ export function schemaRoutes(config: MigrationConfig): Hono {
       // Read schema content before deleting to get table name for snapshot cleanup
       const aiexDir = path.dirname(schemaDir)
       try {
-        const content = await fs.readFile(filePath, 'utf-8')
-        const parsed = JsonSchemaDefinitionSchema.safeParse(JSON.parse(content))
+        const parsed = JsonSchemaDefinitionSchema.safeParse(await readJsonFile(filePath))
         if (parsed.success) {
           const tableName = parsed.data.table.name
           const snapshotPath = path.join(aiexDir, 'extracted', `${tableName}.prompt.md`)
