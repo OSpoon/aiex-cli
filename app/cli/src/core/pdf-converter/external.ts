@@ -4,6 +4,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { execa } from 'execa'
+import { glob } from 'tinyglobby'
 
 interface TemplateContext {
   input: string
@@ -33,20 +34,11 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 async function collectMarkdownFiles(dir: string): Promise<string[]> {
-  const entries = await fs.readdir(dir, { withFileTypes: true })
-  const files: string[] = []
-
-  for (const entry of entries) {
-    const entryPath = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      files.push(...await collectMarkdownFiles(entryPath))
-      continue
-    }
-    if (entry.isFile() && entry.name.toLowerCase().endsWith('.md'))
-      files.push(entryPath)
-  }
-
-  return files.sort()
+  return (await glob('**/*.md', {
+    cwd: dir,
+    absolute: true,
+    onlyFiles: true,
+  })).sort()
 }
 
 async function selectMarkdownFile(outputDir: string, basename: string): Promise<string> {

@@ -8,7 +8,7 @@ import { spinner } from '@clack/prompts'
 import Database from 'better-sqlite3'
 import { consola } from 'consola'
 import pc from 'picocolors'
-import picomatch from 'picomatch'
+import { globSync } from 'tinyglobby'
 import { ZodError } from 'zod'
 import { extractStructuredData, insertExtractedData } from '@/core/ai-extraction'
 import { createPdfConverter } from '@/core/pdf-converter'
@@ -41,6 +41,7 @@ const SUPPORTED_EXTENSIONS = new Set([
 ])
 
 const JSON_EXT_RE = /\.json$/
+const SUPPORTED_FILE_PATTERN = `*.{${[...SUPPORTED_EXTENSIONS].join(',')}}`
 
 export interface ExtractFileInput {
   text: string
@@ -92,20 +93,19 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
 }
 
 export function listSupportedFiles(dir: string, pattern?: string): string[] {
-  const entries = fs.readdirSync(dir, { withFileTypes: true })
-  const files: string[] = []
-  for (const entry of entries) {
-    if (entry.isDirectory())
-      continue
-    const ext = path.extname(entry.name).toLowerCase().replace('.', '')
-    if (!SUPPORTED_EXTENSIONS.has(ext))
-      continue
-    if (pattern && !picomatch.isMatch(entry.name, pattern))
-      continue
-    files.push(path.join(dir, entry.name))
-  }
+  if (!fs.statSync(dir).isDirectory())
+    throw new Error(`Not a directory: ${dir}`)
 
-  return files.sort()
+  return globSync(pattern ?? SUPPORTED_FILE_PATTERN, {
+    cwd: dir,
+    absolute: true,
+    onlyFiles: true,
+  })
+    .filter((file) => {
+      const ext = path.extname(file).toLowerCase().replace('.', '')
+      return SUPPORTED_EXTENSIONS.has(ext)
+    })
+    .sort()
 }
 
 export async function loadSchema(config: ReturnType<typeof createMigrationConfig>, schemaName: string): Promise<{ schema: any, error?: string }> {

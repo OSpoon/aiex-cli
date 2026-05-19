@@ -8,6 +8,7 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { LangfuseSpanProcessor } from '@langfuse/otel'
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { generateText, jsonSchema, Output } from 'ai'
+import mime from 'mime'
 import { getErrorMessage } from '@/core/schema-sqlite'
 import { withRetry } from '@/utils/retry'
 import { safeParseJSON } from './json-utils'
@@ -55,25 +56,8 @@ function initLangfuse(config: AIConfig): void {
 const SYSTEM_PROMPT_REGEX = /## System Prompt\n([\s\S]*?)(?=## User Prompt|$)/
 const USER_PROMPT_REGEX = /## User Prompt Template\n([\s\S]*)$/
 
-const MIME_TYPES: Record<string, string> = {
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  bmp: 'image/bmp',
-  svg: 'image/svg+xml',
-  pdf: 'application/pdf',
-  txt: 'text/plain',
-  csv: 'text/csv',
-  json: 'application/json',
-  md: 'text/markdown',
-  html: 'text/html',
-}
-
 function detectMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase().replace('.', '')
-  return MIME_TYPES[ext] || 'application/octet-stream'
+  return mime.getType(filePath) ?? 'application/octet-stream'
 }
 
 interface ImageContentPart { type: 'image', image: Uint8Array, mimeType?: string }

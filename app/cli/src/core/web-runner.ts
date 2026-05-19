@@ -1,13 +1,9 @@
 import type { MigrationConfig } from '@/core/schema-sqlite'
-import { execFile } from 'node:child_process'
 import path from 'node:path'
-import process from 'node:process'
-import { promisify } from 'node:util'
 import { serve } from '@hono/node-server'
+import open from 'open'
 import { resolvePackageRoot } from '@/core/schema-sqlite'
 import { createApp } from '@/server'
-
-const execFileAsync = promisify(execFile)
 
 export interface WebServerStartedInfo {
   url: string
@@ -19,17 +15,7 @@ export function resolveWebStaticDir(): string {
 }
 
 export async function openBrowser(url: string): Promise<void> {
-  if (process.platform === 'darwin') {
-    await execFileAsync('open', [url])
-    return
-  }
-
-  if (process.platform === 'win32') {
-    await execFileAsync('cmd', ['/c', 'start', '', url])
-    return
-  }
-
-  await execFileAsync('xdg-open', [url])
+  await open(url)
 }
 
 export async function startWebServer(input: {
