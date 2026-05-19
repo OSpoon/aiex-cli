@@ -1,16 +1,10 @@
-import { exec } from 'node:child_process'
-import path from 'node:path'
 import process from 'node:process'
-import { promisify } from 'node:util'
 import { intro, spinner } from '@clack/prompts'
-import { serve } from '@hono/node-server'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
-import { createMigrationConfig, resolvePackageRoot } from '@/core/schema-sqlite'
-import { createApp } from '@/server'
-
-const execAsync = promisify(exec)
+import { createMigrationConfig } from '@/core/schema-sqlite'
+import { startWebServer } from '@/core/web-runner'
 
 export const webCommand = defineCommand({
   meta: {
@@ -32,30 +26,20 @@ export const webCommand = defineCommand({
     const port = Number(args.port) || 13000
     const config = createMigrationConfig(cwd)
 
-    // Resolve static files from package root
-    const packageRoot = resolvePackageRoot()
-    const staticDir = path.join(packageRoot, 'dist/web')
-
     const s = spinner()
     s.start('Starting web server...')
 
-    const app = createApp(config, staticDir)
-
-    serve({
-      fetch: app.fetch,
+    await startWebServer({
+      config,
       port,
-    }, () => {
-      s.stop(`Server running at ${pc.cyan(`http://localhost:${port}`)}`)
-      consola.info(`Schema directory: ${pc.dim(config.schemaPath)}`)
-      consola.info('Press Ctrl+C to stop')
-
-      const url = `http://localhost:${port}`
-      const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-      execAsync(`${cmd} ${url}`).catch(() => {
+      onStarted(info) {
+        s.stop(`Server running at ${pc.cyan(info.url)}`)
+        consola.info(`Schema directory: ${pc.dim(info.schemaPath)}`)
+        consola.info('Press Ctrl+C to stop')
+      },
+      onOpenFailed(url) {
         consola.warn(`Could not open browser. Visit ${url} manually.`)
-      })
+      },
     })
-
-    await new Promise(() => {})
   },
 })

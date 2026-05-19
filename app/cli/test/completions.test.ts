@@ -1,6 +1,6 @@
 import type { CommandDef } from 'citty'
 import { describe, expect, it } from 'vitest'
-import { bashScript, fishScript, zshScript } from '@/commands/completion'
+import { bashScript, fishScript, zshScript } from '@/core/completion-scripts'
 import { getCompletions } from '@/core/completions'
 
 // ──────────── Fixtures ────────────

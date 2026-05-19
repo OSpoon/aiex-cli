@@ -11,16 +11,6 @@ export interface InsertResult {
   error?: string
 }
 
-function drizzleTypeToSql(type: string): string {
-  if (type.startsWith('text'))
-    return 'TEXT'
-  if (type.startsWith('integer'))
-    return 'INTEGER'
-  if (type.startsWith('real'))
-    return 'REAL'
-  return 'TEXT'
-}
-
 function extractDrizzleMode(column: ParsedColumn): string | undefined {
   return column.drizzleType.match(DRIZZLE_MODE_RE)?.[1]
 }
@@ -74,32 +64,6 @@ function buildInsertSql(table: ParsedTable, data: Record<string, unknown>): { sq
   const placeholders = values.map(() => '?').join(', ')
   const sql = `INSERT INTO ${table.name} (${columns.join(', ')}) VALUES (${placeholders})`
   return { sql, values }
-}
-
-function buildCreateTableSql(table: ParsedTable): string {
-  const parts: string[] = []
-
-  for (const col of table.columns) {
-    let sql = `${col.name} ${drizzleTypeToSql(col.drizzleType)}`
-
-    if (col.isPrimary)
-      sql += ' PRIMARY KEY'
-    if (col.isAutoIncrement)
-      sql += ' AUTOINCREMENT'
-    if (!col.isNullable && !col.isPrimary)
-      sql += ' NOT NULL'
-    if (col.isUnique)
-      sql += ' UNIQUE'
-    if (col.defaultValue !== undefined)
-      sql += ` DEFAULT ${col.defaultValue}`
-    if (col.isForeignKey && col.foreignKeyRef) {
-      sql += ` REFERENCES ${col.foreignKeyRef.table}(${col.foreignKeyRef.column})`
-    }
-
-    parts.push(sql)
-  }
-
-  return `CREATE TABLE IF NOT EXISTS ${table.name} (${parts.join(', ')})`
 }
 
 interface InsertTableParams {
@@ -248,13 +212,5 @@ export function insertExtractedData(
       tablesInserted: inserted,
       error: e instanceof Error ? e.message : String(e),
     }
-  }
-}
-
-export function createTablesFromSchema(db: Database.Database, schema: JsonSchemaDefinition): void {
-  const result = parseJsonSchema(schema)
-  for (const table of result.tables) {
-    const sql = buildCreateTableSql(table)
-    db.exec(sql)
   }
 }

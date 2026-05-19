@@ -5,6 +5,7 @@ import { intro, isCancel, outro, select, text } from '@clack/prompts'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
+import { failCommand } from '@/commands/utils'
 import { readAIConfig } from '@/core/ai-extraction'
 import {
   extractSingle,
@@ -15,13 +16,6 @@ import {
 import {
   createMigrationConfig,
 } from '@/core/schema-sqlite'
-
-function fail(message?: string): void {
-  if (message)
-    consola.error(message)
-  outro('Failed!')
-  process.exitCode = 1
-}
 
 export const extractCommand = defineCommand({
   meta: {
@@ -69,28 +63,28 @@ export const extractCommand = defineCommand({
 
     // ── Arg conflict validation ──
     if (args.dir && args.text) {
-      fail('Cannot combine -t/--text with -d/--dir')
+      failCommand('Cannot combine -t/--text with -d/--dir')
       return
     }
     if (args.dir && args.file) {
-      fail('Cannot combine -f/--file with -d/--dir')
+      failCommand('Cannot combine -f/--file with -d/--dir')
       return
     }
 
     // Read AI config early
     const aiConfig = await readAIConfig(aiexDir)
     if (!aiConfig) {
-      fail('AI configuration not found. Please run "aiex web" to configure AI settings first')
+      failCommand('AI configuration not found. Please run "aiex web" to configure AI settings first')
       return
     }
 
     if (!aiConfig.provider.apiKey) {
-      fail('API Key not configured. Please configure AI settings in the Web interface first')
+      failCommand('API Key not configured. Please configure AI settings in the Web interface first')
       return
     }
 
     if (!aiConfig.provider.models?.length) {
-      fail('No models configured. Please add at least one model in AI Settings')
+      failCommand('No models configured. Please add at least one model in AI Settings')
       return
     }
 
@@ -100,7 +94,7 @@ export const extractCommand = defineCommand({
       const matched = aiConfig.provider.models.find(m => m.name === args.model)
       if (!matched) {
         const available = aiConfig.provider.models.map(m => m.name).join(', ')
-        fail(`Model "${args.model}" not found in configuration. Available models: ${available}`)
+        failCommand(`Model "${args.model}" not found in configuration. Available models: ${available}`)
         return
       }
       modelOverride = matched
@@ -118,12 +112,12 @@ export const extractCommand = defineCommand({
     // ── Batch mode ──
     if (args.dir) {
       if (!args.schema) {
-        fail('Schema name (-s) is required in batch mode')
+        failCommand('Schema name (-s) is required in batch mode')
         return
       }
       const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride)
       if (!result.ok) {
-        fail(result.error)
+        failCommand(result.error)
         return
       }
       if (result.failCount > 0) {
@@ -138,17 +132,17 @@ export const extractCommand = defineCommand({
 
     // ── Single extraction mode ──
     if (!args.schema) {
-      fail('Please provide a schema name (-s) to extract from')
+      failCommand('Please provide a schema name (-s) to extract from')
       return
     }
 
     if (!args.text && !args.file) {
-      fail('Please provide text (-t) or a file (-f) to extract from')
+      failCommand('Please provide text (-t) or a file (-f) to extract from')
       return
     }
 
     if (args.text && args.file) {
-      fail('-t and -f cannot be used together')
+      failCommand('-t and -f cannot be used together')
       return
     }
 
@@ -162,7 +156,7 @@ export const extractCommand = defineCommand({
         filePath = input.filePath
       }
       catch (e) {
-        fail(`Cannot read file: ${args.file} — ${e instanceof Error ? e.message : String(e)}`)
+        failCommand(`Cannot read file: ${args.file} — ${e instanceof Error ? e.message : String(e)}`)
         return
       }
     }
@@ -172,7 +166,7 @@ export const extractCommand = defineCommand({
 
     const r = await extractSingle(aiexDir, config, aiConfig, args.schema as string, text, filePath, modelOverride)
     if (!r.success) {
-      fail()
+      failCommand()
       return
     }
 
@@ -188,7 +182,7 @@ async function runInteractive(
 ): Promise<boolean> {
   const schemas = await listSchemas(aiexDir)
   if (schemas.length === 0) {
-    fail(`No schema files found in ${pc.cyan('.aiex/schema/')}. Run ${pc.cyan('aiex schema --init')} first, or add JSON Schema files.`)
+    failCommand(`No schema files found in ${pc.cyan('.aiex/schema/')}. Run ${pc.cyan('aiex schema --init')} first, or add JSON Schema files.`)
     return false
   }
 
@@ -278,7 +272,7 @@ async function runInteractive(
 
     const result = await runBatchExtraction(aiexDir, config, aiConfig, schemaName as string, dirPath as string, undefined, modelOverride)
     if (!result.ok)
-      fail(result.error)
+      failCommand(result.error)
     return result.ok && result.failCount === 0
   }
 

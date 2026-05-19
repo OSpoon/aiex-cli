@@ -4,6 +4,7 @@ export {
   doctorDiagnosticsTableRows,
   formatDoctorDiagnosticsJson,
 } from '@/core/doctor'
+export { collectDoctorDiagnostics } from '@/core/doctor-collector'
 export {
   createMigrationConfig,
   generateDrizzleConfig,
@@ -18,5 +19,3 @@ export {
   parseJsonSchema,
   type ParseResult,
 } from '@/core/schema-sqlite'
-
-export { collectDoctorDiagnostics } from '@/doctor'

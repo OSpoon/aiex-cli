@@ -1,20 +1,14 @@
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
-import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import process from 'node:process'
-import { promisify } from 'node:util'
 import { Hono } from 'hono'
 import { savePromptSnapshot } from '@/core/ai-extraction'
+import { runSchemaSync } from '@/core/schema-runner'
 import {
   getErrorMessage,
   JsonSchemaDefinitionSchema,
-  parseAllSchemas,
-  resolveHelperPath,
-  resolveTsxPath,
 } from '@/core/schema-sqlite'
 
-const execFileAsync = promisify(execFile)
 const SCHEMA_FILE_RE = /^[\w.-]+\.json$/
 const TABLE_NAME_RE = /^[a-z][a-z0-9_]*$/
 
@@ -142,66 +136,19 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   app.post('/migrate', async (c) => {
     try {
       await ensureDir()
-      await fs.mkdir(path.dirname(config.drizzleSchemaPath), { recursive: true })
-
-      const files = await fs.readdir(schemaDir)
-      const jsonFiles = files.filter(f => f.endsWith('.json'))
-
-      if (jsonFiles.length === 0) {
-        return c.json({ success: false, error: 'No schema files found' }, 400)
-      }
-
-      const entries = await Promise.all(
-        jsonFiles.map(async (fileName) => {
-          const filePath = path.join(schemaDir, fileName)
-          const content = await fs.readFile(filePath, 'utf-8')
-          return { filePath, content }
-        }),
-      )
-
-      const parsedResult = parseAllSchemas(entries)
-      if (!parsedResult.success) {
-        return c.json({ success: false, error: parsedResult.error }, 400)
-      }
-
-      const { tables, relations, reverseRelations, warnings, drizzleCode } = parsedResult.data
-      await fs.writeFile(config.drizzleSchemaPath, drizzleCode)
-
-      // Run migration helper
-      const helperPath = resolveHelperPath()
-      const tsxPath = resolveTsxPath()
-
-      const { stdout, stderr } = await execFileAsync(
-        process.execPath,
-        [tsxPath, helperPath, config.drizzleSchemaPath, config.migrationsPath, config.databasePath],
-        { cwd: process.cwd() },
-      )
-
-      // Parse helper output
-      let migrationResult: { success: boolean, changes?: number, error?: string, tag?: string }
-      try {
-        const lines = stdout.trim().split('\n')
-        const jsonLine = lines.find(l => l.startsWith('{') && l.endsWith('}'))
-        if (!jsonLine) {
-          return c.json({ success: false, error: 'Migration helper did not return valid output' }, 500)
-        }
-        migrationResult = JSON.parse(jsonLine)
-      }
-      catch {
-        return c.json({ success: false, error: stderr || stdout || 'Migration helper failed' }, 500)
-      }
-
-      if (!migrationResult.success) {
-        return c.json({ success: false, error: migrationResult.error || 'Migration failed' }, 500)
+      const result = await runSchemaSync(config)
+      if (!result.success) {
+        const status = result.schemaCount === 0 ? 400 : 500
+        return c.json({ success: false, error: result.error || 'Migration failed' }, status)
       }
 
       return c.json({
         success: true,
-        changes: migrationResult.changes ?? 0,
-        tag: migrationResult.tag,
-        tables: tables.length,
-        relations: relations.length + reverseRelations.length,
-        warnings,
+        changes: result.migration?.changes ?? 0,
+        tag: result.migration?.tag,
+        tables: result.tables,
+        relations: result.relations,
+        warnings: result.warnings,
       })
     }
     catch (error: unknown) {

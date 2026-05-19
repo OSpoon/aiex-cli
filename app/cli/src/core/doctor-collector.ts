@@ -35,12 +35,10 @@ export async function collectDoctorDiagnostics(
   const cwd = process.cwd()
   const errors: string[] = []
 
-  // Project diagnostics
   const migConfig = createMigrationConfig(cwd)
   const aiexDir = path.dirname(migConfig.schemaPath)
   const dirExists = await fs.stat(aiexDir).then(s => s.isDirectory()).catch(() => false)
 
-  // Schema files
   let schemaFiles: string[] = []
   if (dirExists) {
     try {
@@ -53,7 +51,6 @@ export async function collectDoctorDiagnostics(
     }
   }
 
-  // AI config
   let aiConfig = false
   let aiApiKeySet = false
   let aiModelCount = 0
@@ -73,7 +70,6 @@ export async function collectDoctorDiagnostics(
     }
   }
 
-  // Database
   let dbExists = false
   if (dirExists) {
     try {
@@ -85,7 +81,6 @@ export async function collectDoctorDiagnostics(
     }
   }
 
-  // Migrations
   let migrationCount = 0
   if (dirExists) {
     try {

@@ -6,7 +6,7 @@ import {
   doctorDiagnosticsTableRows,
   formatDoctorDiagnosticsJson,
 } from '@/core/doctor'
-import { collectDoctorDiagnostics } from '@/doctor'
+import { collectDoctorDiagnostics } from '@/core/doctor-collector'
 
 export const doctorCommand = defineCommand({
   meta: {
