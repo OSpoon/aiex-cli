@@ -1,69 +1,26 @@
-import fs from 'node:fs/promises'
+import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
 import path from 'node:path'
 import process from 'node:process'
-import { intro, outro, spinner } from '@clack/prompts'
-import Database from 'better-sqlite3'
+import { intro, isCancel, outro, select, text } from '@clack/prompts'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
-import { ZodError } from 'zod'
-import { extractStructuredData, insertExtractedData, readAIConfig } from '@/core/ai-extraction'
-import { createPdfConverter } from '@/core/pdf-converter'
+import { readAIConfig } from '@/core/ai-extraction'
+import {
+  extractSingle,
+  listSchemas,
+  readExtractFileInput,
+  runBatchExtraction,
+} from '@/core/extract-runner'
 import {
   createMigrationConfig,
-  JsonSchemaDefinitionSchema,
-  parseJsonSchema,
 } from '@/core/schema-sqlite'
-
-const FILE_PART_EXTENSIONS = new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'webp',
-  'bmp',
-  'svg',
-])
-
-const PDF_CONVERTER = createPdfConverter()
 
 function fail(message?: string): void {
   if (message)
     consola.error(message)
   outro('Failed!')
   process.exitCode = 1
-}
-
-async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
-  try {
-    await fs.access(dbPath)
-  }
-  catch {
-    return `Database not found at ${pc.cyan('.aiex/database.db')}. Run ${pc.cyan('aiex schema')} first to create the database.`
-  }
-
-  try {
-    const result = parseJsonSchema(schema)
-    const db = new Database(dbPath)
-    try {
-      for (const table of result.tables) {
-        const row = db.prepare(
-          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
-        ).get(table.name)
-        if (!row) {
-          return `Table "${table.name}" not found in database. Run ${pc.cyan('aiex schema')} first to create tables.`
-        }
-      }
-    }
-    finally {
-      db.close()
-    }
-  }
-  catch (e) {
-    return `Cannot verify database: ${e instanceof Error ? e.message : String(e)}`
-  }
-
-  return null
 }
 
 export const extractCommand = defineCommand({
@@ -76,7 +33,6 @@ export const extractCommand = defineCommand({
       type: 'string',
       alias: 's',
       description: 'Schema name (without .json extension)',
-      required: true,
     },
     text: {
       type: 'string',
@@ -93,6 +49,16 @@ export const extractCommand = defineCommand({
       alias: 'm',
       description: 'AI model to use for extraction (overrides auto-selection)',
     },
+    dir: {
+      type: 'string',
+      alias: 'd',
+      description: 'Directory containing files to batch extract',
+    },
+    glob: {
+      type: 'string',
+      alias: 'g',
+      description: 'Glob pattern to filter files in batch mode (e.g. "*.pdf")',
+    },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex extract '))
@@ -101,20 +67,20 @@ export const extractCommand = defineCommand({
     const config = createMigrationConfig(cwd)
     const aiexDir = path.dirname(config.schemaPath)
 
-    if (!args.text && !args.file) {
-      fail('Please provide text (-t) or a file (-f) to extract from')
+    // ── Arg conflict validation ──
+    if (args.dir && args.text) {
+      fail('Cannot combine -t/--text with -d/--dir')
+      return
+    }
+    if (args.dir && args.file) {
+      fail('Cannot combine -f/--file with -d/--dir')
       return
     }
 
-    if (args.text && args.file) {
-      fail('-t and -f cannot be used together')
-      return
-    }
-
-    // Read AI config
+    // Read AI config early
     const aiConfig = await readAIConfig(aiexDir)
     if (!aiConfig) {
-      fail('AI configuration not found. Please configure AI settings in the Web interface first')
+      fail('AI configuration not found. Please run "aiex web" to configure AI settings first')
       return
     }
 
@@ -129,7 +95,7 @@ export const extractCommand = defineCommand({
     }
 
     // Resolve model override
-    let modelOverride
+    let modelOverride: AIModelConfig | undefined
     if (args.model) {
       const matched = aiConfig.provider.models.find(m => m.name === args.model)
       if (!matched) {
@@ -140,128 +106,187 @@ export const extractCommand = defineCommand({
       modelOverride = matched
     }
 
-    // Determine mode: text or file
+    // ── Interactive mode (when no args provided) ──
+    if (!args.schema && !args.text && !args.file && !args.dir) {
+      const ok = await runInteractive(aiexDir, config, aiConfig, modelOverride)
+      if (ok) {
+        outro('Done!')
+      }
+      return
+    }
+
+    // ── Batch mode ──
+    if (args.dir) {
+      if (!args.schema) {
+        fail('Schema name (-s) is required in batch mode')
+        return
+      }
+      const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride)
+      if (!result.ok) {
+        fail(result.error)
+        return
+      }
+      if (result.failCount > 0) {
+        process.exitCode = 1
+      }
+      if (result.failCount > 0)
+        outro(`Completed with failures (${result.failCount} failed)`)
+      else
+        outro('Done!')
+      return
+    }
+
+    // ── Single extraction mode ──
+    if (!args.schema) {
+      fail('Please provide a schema name (-s) to extract from')
+      return
+    }
+
+    if (!args.text && !args.file) {
+      fail('Please provide text (-t) or a file (-f) to extract from')
+      return
+    }
+
+    if (args.text && args.file) {
+      fail('-t and -f cannot be used together')
+      return
+    }
+
     let text = ''
     let filePath: string | undefined
 
     if (args.file) {
-      const ext = path.extname(args.file as string).toLowerCase().replace('.', '')
-      if (FILE_PART_EXTENSIONS.has(ext)) {
-        filePath = args.file as string
+      try {
+        const input = await readExtractFileInput(args.file as string)
+        text = input.text
+        filePath = input.filePath
       }
-      else if (ext === 'pdf') {
-        const buffer = await fs.readFile(args.file as string)
-        const result = await PDF_CONVERTER.convert(buffer)
-        text = result.text
-        consola.info(`Extracted ${result.pageCount} page(s) from PDF`)
-      }
-      else {
-        text = await fs.readFile(args.file as string, 'utf-8')
+      catch (e) {
+        fail(`Cannot read file: ${args.file} — ${e instanceof Error ? e.message : String(e)}`)
+        return
       }
     }
     else if (args.text) {
       text = args.text as string
     }
 
-    // Read and validate schema
-    const schemaName = args.schema as string
-    const schemaPath = path.join(config.schemaPath, `${schemaName}.json`)
-
-    let schema: any
-    try {
-      const content = await fs.readFile(schemaPath, 'utf-8')
-      schema = JSON.parse(content)
-    }
-    catch {
-      fail(`Cannot read schema file: ${schemaName}.json`)
-      return
-    }
-
-    try {
-      schema = JsonSchemaDefinitionSchema.parse(schema)
-    }
-    catch (e) {
-      if (e instanceof ZodError) {
-        consola.error(`Schema validation failed: ${schemaName}.json`)
-        for (const issue of e.issues) {
-          consola.error(`  - ${issue.path.join('.')}: ${issue.message}`)
-        }
-      }
+    const r = await extractSingle(aiexDir, config, aiConfig, args.schema as string, text, filePath, modelOverride)
+    if (!r.success) {
       fail()
       return
-    }
-
-    // Run extraction
-    const s = spinner()
-    s.start(filePath ? 'Extracting data from image...' : 'Extracting data...')
-
-    const result = await extractStructuredData({
-      config: aiConfig,
-      schema,
-      text,
-      aiexDir,
-      file: filePath,
-      modelOverride,
-      onRetry(info) {
-        s.message(`API responded with ${info.statusCode}, retrying in ${info.delayMs / 1000}s (${info.attempt}/${info.maxRetries})...`)
-      },
-    })
-
-    if (!result.success) {
-      s.stop('Extraction failed')
-      fail(result.error || 'Unknown error')
-      return
-    }
-
-    s.stop('Extraction complete')
-
-    if (result.outputPath) {
-      consola.success(`Result saved: ${pc.cyan(result.outputPath)}`)
-    }
-
-    if (result.tokensUsed) {
-      consola.info(
-        pc.gray(
-          `Token usage: prompt=${result.tokensUsed.prompt}, completion=${result.tokensUsed.completion}, total=${result.tokensUsed.total}`,
-        ),
-      )
-    }
-
-    if (result.data) {
-      const s2 = spinner()
-      s2.start('Inserting into database...')
-
-      const dbError = await ensureDatabaseReady(config.databasePath, schema)
-      if (dbError) {
-        s2.stop('Database not ready')
-        fail(dbError)
-        return
-      }
-
-      try {
-        const db = new Database(config.databasePath)
-        try {
-          const insertResult = insertExtractedData(db, schema, result.data as Record<string, unknown>)
-          if (insertResult.success) {
-            s2.stop(`Inserted into ${insertResult.tablesInserted.length} table(s)`)
-          }
-          else {
-            s2.stop('Database insert failed')
-            fail(insertResult.error || 'Unknown error')
-            return
-          }
-        }
-        finally {
-          db.close()
-        }
-      }
-      catch (e) {
-        s2.stop('Database insert failed')
-        fail(e instanceof Error ? e.message : String(e))
-        return
-      }
     }
 
     outro('Done!')
   },
 })
+
+async function runInteractive(
+  aiexDir: string,
+  config: ReturnType<typeof createMigrationConfig>,
+  aiConfig: AIConfig,
+  modelOverride: AIModelConfig | undefined,
+): Promise<boolean> {
+  const schemas = await listSchemas(aiexDir)
+  if (schemas.length === 0) {
+    fail(`No schema files found in ${pc.cyan('.aiex/schema/')}. Run ${pc.cyan('aiex schema --init')} first, or add JSON Schema files.`)
+    return false
+  }
+
+  const schemaName = await select({
+    message: 'Select a schema to extract data for:',
+    options: schemas.map(s => ({ label: s, value: s })),
+  })
+
+  if (isCancel(schemaName)) {
+    cancel('Cancelled')
+    return false
+  }
+
+  const inputSource = await select({
+    message: 'Choose input source:',
+    options: [
+      { label: 'Text content', value: 'text', hint: 'Paste or type text directly' },
+      { label: 'Single file', value: 'file', hint: 'Extract from a file (txt, pdf, image)' },
+      { label: 'Batch directory', value: 'dir', hint: 'Extract all supported files in a directory' },
+    ],
+  })
+
+  if (isCancel(inputSource)) {
+    cancel('Cancelled')
+    return false
+  }
+
+  if (inputSource === 'text') {
+    const textContent = await text({
+      message: 'Enter text content to extract:',
+      validate(value) {
+        if (!value || value.trim().length === 0)
+          return 'Please enter some text'
+        return undefined
+      },
+    })
+
+    if (isCancel(textContent)) {
+      cancel('Cancelled')
+      return false
+    }
+
+    const r = await extractSingle(aiexDir, config, aiConfig, schemaName as string, textContent as string, undefined, modelOverride)
+    return r.success
+  }
+  else if (inputSource === 'file') {
+    const filePathStr = await text({
+      message: 'Enter file path:',
+      validate(value) {
+        if (!value || value.trim().length === 0)
+          return 'Please enter a file path'
+        return undefined
+      },
+    })
+
+    if (isCancel(filePathStr)) {
+      cancel('Cancelled')
+      return false
+    }
+
+    const fp = filePathStr as string
+
+    try {
+      const input = await readExtractFileInput(fp)
+      const r = await extractSingle(aiexDir, config, aiConfig, schemaName as string, input.text, input.filePath, modelOverride)
+      return r.success
+    }
+    catch (e) {
+      consola.error(`Cannot read file: ${fp} — ${e instanceof Error ? e.message : String(e)}`)
+      return false
+    }
+  }
+  else if (inputSource === 'dir') {
+    const dirPath = await text({
+      message: 'Enter directory path:',
+      validate(value) {
+        if (!value || value.trim().length === 0)
+          return 'Please enter a directory path'
+        return undefined
+      },
+    })
+
+    if (isCancel(dirPath)) {
+      cancel('Cancelled')
+      return false
+    }
+
+    const result = await runBatchExtraction(aiexDir, config, aiConfig, schemaName as string, dirPath as string, undefined, modelOverride)
+    if (!result.ok)
+      fail(result.error)
+    return result.ok && result.failCount === 0
+  }
+
+  return false
+}
+
+function cancel(msg: string): void {
+  consola.info(msg)
+  outro('Cancelled')
+  process.exitCode = 0
+}

@@ -33,6 +33,8 @@ aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into d
 - **JSON Schema → SQLite** — Define tables as JSON Schema files, generate Drizzle ORM schema, and migrate to SQLite
 - **Visual Editor** — Browser-based UI for designing schemas without writing JSON by hand
 - **AI Extraction** — Extract structured data from text, images, and PDFs using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
+- **Interactive Mode** — Run `aiex extract` without arguments for a guided extraction workflow
+- **Batch Mode** — `aiex extract -d <dir>` processes entire directories with optional glob filtering
 - **Built-in Model Registry** — Knows capabilities of 2000+ models (vision, structured output) so you don't have to guess
 
 <br>
@@ -68,17 +70,22 @@ Converts your JSON Schema files into a SQLite database with full migration suppo
 ### 4. Extract Data
 
 ```bash
-aiex extract -s <schema> -f <file>     # from file (txt, pdf, png, jpg, ...)
-aiex extract -s <schema> -t <text>     # from text
-aiex extract -s <schema> -f <file> -m <model>  # specify AI model (overrides auto-selection)
+aiex extract                              # interactive mode (prompts for schema & input)
+aiex extract -s <schema> -f <file>        # from file (txt, pdf, png, jpg, ...)
+aiex extract -s <schema> -t <text>        # from text
+aiex extract -s <schema> -f <file> -m <model>     # specify AI model (overrides auto-selection)
+aiex extract -s <schema> -d <directory>           # batch extract all supported files in a directory
+aiex extract -s <schema> -d <dir> -g "*.pdf"      # batch with glob filter
 ```
 
 The AI reads your document and outputs structured JSON matching your schema.
 
 **Examples:**
 ```bash
+aiex extract                                      # interactive mode
 aiex extract -s paper -f research.pdf              # save result to .aiex/extracted/ and insert into database
 aiex extract -s paper -f research.pdf -m gpt-4o    # use a specific model
+aiex extract -s paper -d ./papers -g "*.pdf"        # batch extract PDFs from a directory
 ```
 Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema. Data is automatically inserted into the SQLite database.
 
@@ -94,8 +101,11 @@ By default, aiex automatically selects a model based on your input type (vision-
 | `aiex schema` | Parse JSON Schema files and migrate to SQLite |
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
 | `aiex web` | Launch visual schema editor in browser |
+| `aiex extract` | Interactive mode — prompts for schema and input source |
 | `aiex extract -s <name> -f <file>` | Extract structured data from documents and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
+| `aiex extract -s <name> -d <dir>` | Batch extract all supported files in a directory |
+| `aiex extract -s <name> -d <dir> -g "*.pdf"` | Batch extract with glob filter |
 | `aiex doctor` | System and configuration diagnostics |
 | `aiex completion bash\|zsh\|fish` | Generate shell completion scripts |
 
