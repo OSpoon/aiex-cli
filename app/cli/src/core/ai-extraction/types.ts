@@ -24,6 +24,22 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
+export type PdfConverterKind = 'unpdf' | 'mineru' | 'external'
+
+export interface ExternalPdfConverterConfig {
+  command: string
+  args: string[]
+  outputFile?: string
+  timeout?: number
+  fallbackToUnpdf?: boolean
+}
+
+export interface PdfConfig {
+  converter: PdfConverterKind
+  mineru?: ExternalPdfConverterConfig
+  external?: ExternalPdfConverterConfig
+}
+
 export interface LangfuseConfig {
   publicKey: string
   secretKey: string
@@ -34,6 +50,7 @@ export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
+  pdf?: PdfConfig
   langfuse?: LangfuseConfig
 }
 
@@ -82,8 +99,21 @@ export const DEFAULT_EXTRACTION_CONFIG: ExtractionConfig = {
   outputDir: '.aiex/extracted',
 }
 
+export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
+  command: 'mineru',
+  args: ['-p', '{input}', '-o', '{outputDir}'],
+  timeout: 600,
+  fallbackToUnpdf: true,
+}
+
+export const DEFAULT_PDF_CONFIG: PdfConfig = {
+  converter: 'unpdf',
+  mineru: DEFAULT_MINERU_CONFIG,
+}
+
 export const DEFAULT_AI_CONFIG: AIConfig = {
   provider: DEFAULT_PROVIDER_CONFIG,
   prompt: DEFAULT_PROMPT_CONFIG,
   extraction: DEFAULT_EXTRACTION_CONFIG,
+  pdf: DEFAULT_PDF_CONFIG,
 }

@@ -71,6 +71,7 @@
     "drizzle-orm": "catalog:",
     "es-toolkit": "catalog:",
     "esbuild": "catalog:",
+    "execa": "catalog:",
     "hono": "catalog:",
     "picocolors": "catalog:",
     "picomatch": "catalog:",

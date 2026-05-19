@@ -97,6 +97,22 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
+export type PdfConverterKind = "unpdf" | "mineru" | "external"
+
+export interface ExternalPdfConverterConfig {
+  command: string
+  args: string[]
+  outputFile?: string
+  timeout?: number
+  fallbackToUnpdf?: boolean
+}
+
+export interface PdfConfig {
+  converter: PdfConverterKind
+  mineru?: ExternalPdfConverterConfig
+  external?: ExternalPdfConverterConfig
+}
+
 export interface LangfuseConfig {
   publicKey: string
   secretKey: string
@@ -107,6 +123,7 @@ export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
+  pdf?: PdfConfig
   langfuse?: LangfuseConfig
 }
 
@@ -171,5 +188,4 @@ export async function getExtraction(name: string): Promise<ExtractionDetail> {
   const res = await fetch(`/api/data/${encodeURIComponent(name)}`)
   return res.json() as Promise<ExtractionDetail>
 }
-
 

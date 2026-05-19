@@ -35,7 +35,7 @@ export async function writeAIConfig(aiexDir: string, config: AIConfig): Promise<
 }
 
 export function getDefaultAIConfig(): AIConfig {
-  return { ...DEFAULT_AI_CONFIG }
+  return structuredClone(DEFAULT_AI_CONFIG)
 }
 
 export function maskApiKey(apiKey: string): string {

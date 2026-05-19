@@ -2,13 +2,31 @@ import type { PdfConversionResult, PdfConverter } from '@/core/pdf-converter'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { createPdfConverter, registerPdfConverter, UnpdfConverter } from '@/core/pdf-converter'
+import { execa } from 'execa'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPdfConverter, ExternalCommandPdfConverter, registerPdfConverter, UnpdfConverter } from '@/core/pdf-converter'
+
+vi.mock('execa', () => ({
+  execa: vi.fn(),
+}))
 
 const DEMO_PDF = path.resolve(import.meta.dirname, 'demo.pdf')
 
 async function getPdfBuffer(): Promise<Uint8Array> {
   return await fs.readFile(DEMO_PDF)
+}
+
+async function writeMockMarkdown(args: readonly string[], content = '# Converted markdown'): Promise<void> {
+  const outputIndex = args.indexOf('-o')
+  if (outputIndex < 0)
+    throw new Error('missing -o argument')
+
+  const inputIndex = args.indexOf('-p')
+  const inputPath = inputIndex >= 0 ? args[inputIndex + 1] : 'input.pdf'
+  const basename = path.basename(inputPath, path.extname(inputPath))
+  const outputDir = args[outputIndex + 1]
+  await fs.mkdir(outputDir, { recursive: true })
+  await fs.writeFile(path.join(outputDir, `${basename}.md`), content)
 }
 
 // ─── type safety ──────────────────────────────────────────────
@@ -44,6 +62,70 @@ describe('pdfConverter interface', () => {
       }),
     }
     expect(converter.name).toBe('test')
+  })
+})
+
+// ─── ExternalCommandPdfConverter ──────────────────────────────
+
+describe('externalCommandPdfConverter', () => {
+  beforeEach(() => {
+    vi.mocked(execa as any).mockReset()
+  })
+
+  it('runs command with templated args and reads markdown output', async () => {
+    vi.mocked(execa as any).mockImplementation(async (_command: string, args: string[]) => {
+      await writeMockMarkdown(args as string[], '# MinerU output')
+      return {} as any
+    })
+
+    const converter = new ExternalCommandPdfConverter('mineru', {
+      command: 'mineru',
+      args: ['-p', '{input}', '-o', '{outputDir}'],
+      timeout: 600,
+    })
+
+    const result = await converter.convert(new Uint8Array([1, 2, 3]), '/tmp/sample.pdf')
+
+    expect(result.text).toBe('# MinerU output')
+    expect(result.metadata?.converter).toBe('mineru')
+    expect(execa).toHaveBeenCalledWith(
+      'mineru',
+      ['-p', '/tmp/sample.pdf', '-o', expect.stringContaining('aiex-pdf-')],
+      expect.objectContaining({ shell: false, timeout: 600000 }),
+    )
+  })
+
+  it('supports explicit outputFile template', async () => {
+    vi.mocked(execa as any).mockImplementation(async (_command: string, args: string[]) => {
+      const outputDir = (args as string[])[(args as string[]).indexOf('--output_dir') + 1]
+      await fs.mkdir(outputDir, { recursive: true })
+      await fs.writeFile(path.join(outputDir, 'custom.md'), 'custom markdown')
+      return {} as any
+    })
+
+    const converter = new ExternalCommandPdfConverter('external', {
+      command: 'marker_single',
+      args: ['{input}', '--output_dir', '{outputDir}'],
+      outputFile: '{outputDir}/custom.md',
+    })
+
+    const result = await converter.convert(new Uint8Array([1, 2, 3]), '/tmp/source.pdf')
+
+    expect(result.text).toBe('custom markdown')
+  })
+
+  it('surfaces command failures with stderr', async () => {
+    const error = new Error('failed') as Error & { exitCode: number, stderr: string }
+    error.exitCode = 2
+    error.stderr = 'mineru failed'
+    vi.mocked(execa as any).mockRejectedValue(error)
+
+    const converter = new ExternalCommandPdfConverter('mineru', {
+      command: 'mineru',
+      args: ['-p', '{input}', '-o', '{outputDir}'],
+    })
+
+    await expect(converter.convert(new Uint8Array([1]), '/tmp/bad.pdf')).rejects.toThrow(/mineru failed/)
   })
 })
 
@@ -122,6 +204,21 @@ describe('createPdfConverter', () => {
   it('returns an UnpdfConverter when type is "unpdf"', () => {
     const converter = createPdfConverter('unpdf')
     expect(converter).toBeInstanceOf(UnpdfConverter)
+  })
+
+  it('creates a mineru converter from pdf config', () => {
+    const converter = createPdfConverter({
+      converter: 'mineru',
+      mineru: {
+        command: 'mineru',
+        args: ['-p', '{input}', '-o', '{outputDir}'],
+      },
+    })
+    expect(converter.name).toBe('mineru')
+  })
+
+  it('rejects external converter without command config', () => {
+    expect(() => createPdfConverter({ converter: 'external' })).toThrow(/no external command/i)
   })
 
   it('returns the singleton instance on repeated calls', () => {

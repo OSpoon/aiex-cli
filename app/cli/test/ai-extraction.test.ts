@@ -286,6 +286,34 @@ describe('ai config schema', () => {
     expect(result.provider.models[0].name).toEqual(expect.any(String))
   })
 
+  it('accepts mineru pdf converter config', () => {
+    const result = AIConfigSchema.parse({
+      ...validConfig,
+      pdf: {
+        converter: 'mineru',
+        mineru: {
+          command: 'mineru',
+          args: ['-p', '{input}', '-o', '{outputDir}'],
+          timeout: 600,
+          fallbackToUnpdf: true,
+        },
+      },
+    })
+
+    expect(result.pdf?.converter).toBe('mineru')
+    expect(result.pdf?.mineru?.args).toEqual(['-p', '{input}', '-o', '{outputDir}'])
+  })
+
+  it('rejects empty mineru command', () => {
+    expect(() => AIConfigSchema.parse({
+      ...validConfig,
+      pdf: {
+        converter: 'mineru',
+        mineru: { command: '', args: [] },
+      },
+    })).toThrow()
+  })
+
   it('accepts config with single model', () => {
     const result = AIConfigSchema.parse({
       ...validConfig,

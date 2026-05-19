@@ -28,6 +28,20 @@ export const ExtractionConfigSchema = z.object({
   outputDir: z.string().min(1),
 })
 
+export const ExternalPdfConverterConfigSchema = z.object({
+  command: z.string().min(1),
+  args: z.array(z.string()),
+  outputFile: z.string().min(1).optional(),
+  timeout: z.number().int().positive().default(600).optional(),
+  fallbackToUnpdf: z.boolean().optional(),
+})
+
+export const PdfConfigSchema = z.object({
+  converter: z.enum(['unpdf', 'mineru', 'external']),
+  mineru: ExternalPdfConverterConfigSchema.optional(),
+  external: ExternalPdfConverterConfigSchema.optional(),
+})
+
 export const LangfuseConfigSchema = z.object({
   publicKey: z.string(),
   secretKey: z.string(),
@@ -38,5 +52,6 @@ export const AIConfigSchema = z.object({
   provider: AIProviderConfigSchema,
   prompt: PromptConfigSchema,
   extraction: ExtractionConfigSchema,
+  pdf: PdfConfigSchema.optional(),
   langfuse: LangfuseConfigSchema.optional(),
 })

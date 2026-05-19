@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { AIConfig, AIModelConfig, ModelCapabilities } from "@/api-client"
+import type { AIConfig, AIModelConfig, ModelCapabilities, PdfConverterKind } from "@/api-client"
 import Button from "primevue/button"
 import Checkbox from "primevue/checkbox"
 import Dialog from "primevue/dialog"
 import InputText from "primevue/inputtext"
 import Password from "primevue/password"
+import Select from "primevue/select"
 import Textarea from "primevue/textarea"
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import { toast } from "vue-sonner"
@@ -25,6 +26,13 @@ const timeout = ref(300)
 const models = ref<AIModelConfig[]>([])
 const systemTemplate = ref("")
 const userTemplate = ref("")
+
+const pdfConverter = ref<PdfConverterKind>("unpdf")
+const mineruCommand = ref("mineru")
+const mineruArgs = ref("-p\n{input}\n-o\n{outputDir}")
+const mineruOutputFile = ref("")
+const mineruTimeout = ref(600)
+const mineruFallbackToUnpdf = ref(true)
 
 const langfuseEnabled = ref(false)
 const langfusePublicKey = ref("")
@@ -95,7 +103,13 @@ const canSave = computed(() =>
   && !userSchemaError.value
   && !loading.value
   && models.value.length > 0
+  && (pdfConverter.value !== "mineru" || !!mineruCommand.value.trim())
 )
+
+const pdfConverterOptions = [
+  { label: "Built-in text extraction", value: "unpdf" },
+  { label: "MinerU command", value: "mineru" }
+]
 
 const defaultSystemTemplate = `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
 
@@ -120,6 +134,12 @@ async function loadConfig() {
     models.value = config.provider.models ?? []
     systemTemplate.value = config.prompt.systemTemplate
     userTemplate.value = config.prompt.userTemplate
+    pdfConverter.value = config.pdf?.converter ?? "unpdf"
+    mineruCommand.value = config.pdf?.mineru?.command ?? "mineru"
+    mineruArgs.value = (config.pdf?.mineru?.args ?? ["-p", "{input}", "-o", "{outputDir}"]).join("\n")
+    mineruOutputFile.value = config.pdf?.mineru?.outputFile ?? ""
+    mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
+    mineruFallbackToUnpdf.value = config.pdf?.mineru?.fallbackToUnpdf ?? true
     langfuseEnabled.value = !!config.langfuse
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
@@ -151,6 +171,16 @@ async function handleSave() {
       },
       extraction: {
         outputDir: ".aiex/extracted"
+      },
+      pdf: {
+        converter: pdfConverter.value,
+        mineru: {
+          command: mineruCommand.value,
+          args: mineruArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+          outputFile: mineruOutputFile.value || undefined,
+          timeout: mineruTimeout.value,
+          fallbackToUnpdf: mineruFallbackToUnpdf.value
+        }
       },
       langfuse: langfuseEnabled.value
         ? {
@@ -290,6 +320,53 @@ onUnmounted(() => {
             size="small"
             @click="addingModel = true"
           />
+        </div>
+      </section>
+
+      <!-- PDF Conversion -->
+      <section>
+        <h3 class="text-sm font-semibold mb-3 text-foreground">
+          PDF Conversion
+        </h3>
+        <div class="space-y-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">Converter</label>
+            <Select
+              v-model="pdfConverter"
+              :options="pdfConverterOptions"
+              option-label="label"
+              option-value="value"
+              size="small"
+            />
+          </div>
+
+          <div v-if="pdfConverter === 'mineru'" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Command</label>
+              <InputText v-model="mineruCommand" size="small" placeholder="mineru" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Arguments</label>
+              <Textarea v-model="mineruArgs" rows="4" auto-resize class="text-xs font-mono" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Output File (optional)</label>
+              <InputText v-model="mineruOutputFile" size="small" placeholder="{outputDir}/{basename}.md" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <InputText :value="String(mineruTimeout)" type="number" size="small" placeholder="600" :min="1" @input="mineruTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="mineruFallbackToUnpdf" :binary="true" input-id="mineru-fallback" />
+              <label for="mineru-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+            </div>
+            <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              <code class="bg-secondary px-1 rounded">{outputDir}</code>,
+              <code class="bg-secondary px-1 rounded">{basename}</code>
+            </div>
+          </div>
         </div>
       </section>
 

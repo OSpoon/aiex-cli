@@ -42,8 +42,6 @@ const SUPPORTED_EXTENSIONS = new Set([
 
 const JSON_EXT_RE = /\.json$/
 
-const PDF_CONVERTER = createPdfConverter()
-
 export interface ExtractFileInput {
   text: string
   filePath?: string
@@ -152,14 +150,15 @@ export function isImageFile(filePath: string): boolean {
   return FILE_PART_EXTENSIONS.has(ext)
 }
 
-export async function readExtractFileInput(filePath: string): Promise<ExtractFileInput> {
+export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig): Promise<ExtractFileInput> {
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   if (FILE_PART_EXTENSIONS.has(ext)) {
     return { text: '', filePath }
   }
   if (ext === 'pdf') {
     const buffer = await fsp.readFile(filePath)
-    const result = await PDF_CONVERTER.convert(buffer)
+    const converter = createPdfConverter(aiConfig?.pdf)
+    const result = await converter.convert(buffer, filePath)
     consola.info(`Extracted ${result.pageCount} page(s) from PDF`)
     return { text: result.text }
   }
@@ -279,7 +278,7 @@ async function processOneFile(
   modelOverride: AIModelConfig | undefined,
 ): Promise<boolean> {
   try {
-    const input = await readExtractFileInput(filePath)
+    const input = await readExtractFileInput(filePath, aiConfig)
 
     const r = await extractSingle(
       aiexDir,
