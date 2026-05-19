@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { outro } from '@clack/prompts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -46,14 +47,14 @@ const originalCwd = process.cwd()
 const cleanupDirs = new Set<string>()
 
 function cleanupDir(dir: string): void {
-  if (process.cwd() === dir)
+  if (path.resolve(process.cwd()).toLowerCase() === path.resolve(dir).toLowerCase())
     process.chdir(originalCwd)
   fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   cleanupDirs.delete(dir)
 }
 
 function createProjectFixture(): string {
-  const dir = `/tmp/test-extract-project-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const dir = path.join(os.tmpdir(), `test-extract-project-${Date.now()}-${Math.random().toString(36).slice(2)}`)
   cleanupDirs.add(dir)
   fs.mkdirSync(path.join(dir, '.aiex', 'schema'), { recursive: true })
   fs.writeFileSync(path.join(dir, '.aiex', 'database.db'), '')
@@ -111,17 +112,17 @@ describe('extractCommand.run', () => {
   })
 
   it('should fail when combining --dir and --file', async () => {
-    await cmd.run({ args: { dir: '/tmp', file: '/tmp/test.txt' } })
+    await cmd.run({ args: { dir: os.tmpdir(), file: path.join(os.tmpdir(), 'test.txt') } })
     expect(process.exitCode).toBe(1)
   })
 
   it('should fail when combining --dir and --text', async () => {
-    await cmd.run({ args: { dir: '/tmp', text: 'hello' } })
+    await cmd.run({ args: { dir: os.tmpdir(), text: 'hello' } })
     expect(process.exitCode).toBe(1)
   })
 
   it('should fail without crash for empty batch directory', async () => {
-    const dir = `/tmp/test-extract-empty-${Date.now()}`
+    const dir = path.join(os.tmpdir(), `test-extract-empty-${Date.now()}`)
     fs.mkdirSync(dir, { recursive: true })
 
     mockAIConfig()
@@ -133,7 +134,7 @@ describe('extractCommand.run', () => {
   })
 
   it('should fail gracefully for nonexistent batch directory', async () => {
-    const dir = `/tmp/test-extract-nonexistent-${Date.now()}`
+    const dir = path.join(os.tmpdir(), `test-extract-nonexistent-${Date.now()}`)
 
     mockAIConfig()
 
