@@ -7,6 +7,7 @@ catalog:
   '@ai-sdk/openai-compatible': ^2.0.47
   '@clack/prompts': ^1.2.0
   '@hono/node-server': ^1.0.0
+  '@hono/zod-validator': ^0.8.0
   '@langfuse/otel': ^5.3.0
   '@opentelemetry/sdk-trace-node': ^2.7.1
   '@primevue/themes': ^4.0.0
@@ -36,6 +37,7 @@ catalog:
   execa: ^9.6.1
   hono: ^4.0.0
   json-source-map: ^0.6.1
+  jsonrepair: ^3.14.0
   ky: ^2.0.2
   lucide-vue-next: ^0.400.0
   mime: ^4.1.0

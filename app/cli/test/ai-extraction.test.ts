@@ -558,6 +558,14 @@ describe('safeParseJSON', () => {
     expect(result).toEqual({ name: 'Bob', age: 25 })
   })
 
+  it('repairs common non-strict JSON from model output', () => {
+    const result = safeParseJSON(`{
+      name: 'Bob',
+      age: 25,
+    }`)
+    expect(result).toEqual({ name: 'Bob', age: 25 })
+  })
+
   it('throws on completely invalid text', () => {
     expect(() => safeParseJSON('not json at all')).toThrow(/Failed to parse JSON/)
   })

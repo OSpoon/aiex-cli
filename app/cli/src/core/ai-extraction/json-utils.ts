@@ -1,3 +1,17 @@
+import { jsonrepair } from 'jsonrepair'
+
+function parseJsonLike(text: string): unknown {
+  const trimmed = text.trim()
+  try {
+    return JSON.parse(trimmed)
+  }
+  catch {
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('['))
+      throw new SyntaxError('JSON candidate must start with an object or array')
+    return JSON.parse(jsonrepair(trimmed))
+  }
+}
+
 function stripFences(text: string): string | null {
   const trimmed = text.trim()
   if (!trimmed.startsWith('```'))
@@ -51,7 +65,7 @@ export function safeParseJSON(text: string): unknown {
   const fromFence = stripFences(cleaned)
   if (fromFence) {
     try {
-      return JSON.parse(fromFence)
+      return parseJsonLike(fromFence)
     }
     catch {
       // not valid JSON inside fences
@@ -61,7 +75,7 @@ export function safeParseJSON(text: string): unknown {
   const extracted = extractFirstJSON(cleaned)
   if (extracted) {
     try {
-      return JSON.parse(extracted)
+      return parseJsonLike(extracted)
     }
     catch {
       // still not valid

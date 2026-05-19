@@ -1,14 +1,43 @@
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { zValidator } from '@hono/zod-validator'
 import Database from 'better-sqlite3'
 import { Hono } from 'hono'
+import { z } from 'zod'
 
 const FILE_REGEX = /\.json$/
-const EXTRACTION_FILE_RE = /^[\w.-]+\.json$/
-const TABLE_NAME_RE = /^[a-z][a-z0-9_]*$/
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
 const TIMESTAMP_TZ = /(\d{3})Z/
+
+const tableParamSchema = z.object({
+  name: z.string().regex(/^[a-z][a-z0-9_]*$/),
+})
+
+const extractionFileParamSchema = z.object({
+  name: z
+    .string()
+    .regex(/^[\w.-]+\.json$/)
+    .refine(name => name === path.basename(name) && !name.includes('..')),
+})
+
+const tableQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).catch(1),
+  pageSize: z.coerce.number().int().min(1).max(500).catch(50),
+  search: z.string().catch(''),
+  sortField: z.string().optional(),
+  sortOrder: z.preprocess(
+    value => typeof value === 'string' ? value.toLowerCase() : value,
+    z.enum(['asc', 'desc']).catch('asc'),
+  ),
+})
+
+function invalidParamResponse(message: string) {
+  return (result: { success: boolean }, c: any) => {
+    if (!result.success)
+      return c.json({ error: message }, 400)
+  }
+}
 
 interface ExtractionRecord {
   name: string
@@ -120,92 +149,87 @@ export function dataRoutes(config: MigrationConfig): Hono {
     }
   })
 
-  app.get('/data/tables/:name', async (c) => {
-    const tableName = c.req.param('name')
-    if (!TABLE_NAME_RE.test(tableName)) {
-      return c.json({ error: 'Invalid table name' }, 400)
-    }
-    const sortField = c.req.query('sortField')
-    const sortOrder = c.req.query('sortOrder') || 'asc'
-    const page = Math.max(1, Number.parseInt(c.req.query('page') || '1', 10) || 1)
-    const pageSize = Math.min(500, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10) || 50))
-    const search = c.req.query('search') || ''
+  app.get(
+    '/data/tables/:name',
+    zValidator('param', tableParamSchema, invalidParamResponse('Invalid table name')),
+    zValidator('query', tableQuerySchema),
+    async (c) => {
+      const { name: tableName } = c.req.valid('param')
+      const { page, pageSize, search, sortField, sortOrder } = c.req.valid('query')
 
-    let db: Database.Database
-    try {
-      db = new Database(config.databasePath, { readonly: true })
-    }
-    catch {
-      return c.json({ error: 'Database not found. Run `aiex schema` first.' }, 400)
-    }
-
-    try {
-      const tableExists = db.prepare(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
-      ).get(tableName)
-
-      if (!tableExists) {
-        db.close()
-        return c.json({ error: `Table "${tableName}" not found in database` }, 404)
+      let db: Database.Database
+      try {
+        db = new Database(config.databasePath, { readonly: true })
+      }
+      catch {
+        return c.json({ error: 'Database not found. Run `aiex schema` first.' }, 400)
       }
 
-      const columns = db.prepare(`PRAGMA table_info(\`${tableName}\`)`).all().map((col: any) => ({
-        name: col.name,
-        type: col.type,
-        notNull: !!col.notnull,
-        pk: !!col.pk,
-      }))
+      try {
+        const tableExists = db.prepare(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
+        ).get(tableName)
 
-      let orderClause = ''
-      if (sortField && columns.some((c: any) => c.name === sortField)) {
-        const dir = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC'
-        orderClause = ` ORDER BY \`${sortField}\` ${dir}`
-      }
+        if (!tableExists) {
+          db.close()
+          return c.json({ error: `Table "${tableName}" not found in database` }, 404)
+        }
 
-      let whereClause = ''
-      const queryParams: string[] = []
-      if (search) {
-        const conditions = columns.map((col: any) => {
-          queryParams.push(`%${search}%`)
-          return `\`${col.name}\` LIKE ?`
+        const columns = db.prepare(`PRAGMA table_info(\`${tableName}\`)`).all().map((col: any) => ({
+          name: col.name,
+          type: col.type,
+          notNull: !!col.notnull,
+          pk: !!col.pk,
+        }))
+
+        let orderClause = ''
+        if (sortField && columns.some((c: any) => c.name === sortField)) {
+          const dir = sortOrder === 'desc' ? 'DESC' : 'ASC'
+          orderClause = ` ORDER BY \`${sortField}\` ${dir}`
+        }
+
+        let whereClause = ''
+        const queryParams: string[] = []
+        if (search) {
+          const conditions = columns.map((col: any) => {
+            queryParams.push(`%${search}%`)
+            return `\`${col.name}\` LIKE ?`
+          })
+          whereClause = ` WHERE ${conditions.join(' OR ')}`
+        }
+
+        const countRow = db.prepare(
+          `SELECT COUNT(*) as count FROM \`${tableName}\`${whereClause}`,
+        ).get(...queryParams) as any
+        const total = countRow.count
+
+        const offset = (page - 1) * pageSize
+        const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+        const rows = db.prepare(
+          `SELECT * FROM \`${tableName}\`${whereClause}${orderClause} LIMIT ? OFFSET ?`,
+        ).all(...queryParams, pageSize, offset)
+
+        return c.json({
+          columns,
+          rows,
+          total,
+          page,
+          pageSize,
+          totalPages,
         })
-        whereClause = ` WHERE ${conditions.join(' OR ')}`
       }
+      catch (error: unknown) {
+        return c.json({ error: error instanceof Error ? error.message : String(error) }, 500)
+      }
+      finally {
+        db.close()
+      }
+    },
+  )
 
-      const countRow = db.prepare(
-        `SELECT COUNT(*) as count FROM \`${tableName}\`${whereClause}`,
-      ).get(...queryParams) as any
-      const total = countRow.count
-
-      const offset = (page - 1) * pageSize
-      const totalPages = Math.max(1, Math.ceil(total / pageSize))
-
-      const rows = db.prepare(
-        `SELECT * FROM \`${tableName}\`${whereClause}${orderClause} LIMIT ? OFFSET ?`,
-      ).all(...queryParams, pageSize, offset)
-
-      return c.json({
-        columns,
-        rows,
-        total,
-        page,
-        pageSize,
-        totalPages,
-      })
-    }
-    catch (error: unknown) {
-      return c.json({ error: error instanceof Error ? error.message : String(error) }, 500)
-    }
-    finally {
-      db.close()
-    }
-  })
-
-  app.get('/data/:name', async (c) => {
-    const name = c.req.param('name')
-    if (name !== path.basename(name) || !EXTRACTION_FILE_RE.test(name) || name.includes('..')) {
-      return c.json({ error: 'Invalid extraction file name' }, 400)
-    }
+  app.get('/data/:name', zValidator('param', extractionFileParamSchema, invalidParamResponse('Invalid extraction file name')), async (c) => {
+    const { name } = c.req.valid('param')
     const filePath = path.join(extractedDir, name)
 
     try {

@@ -1,7 +1,9 @@
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
+import { z } from 'zod'
 import { savePromptSnapshot } from '@/core/ai-extraction'
 import { runSchemaSync } from '@/core/schema-runner'
 import {
@@ -9,14 +11,24 @@ import {
   JsonSchemaDefinitionSchema,
 } from '@/core/schema-sqlite'
 
-const SCHEMA_FILE_RE = /^[\w.-]+\.json$/
-const TABLE_NAME_RE = /^[a-z][a-z0-9_]*$/
+const schemaFileNameSchema = z
+  .string()
+  .regex(/^[\w.-]+\.json$/)
+  .refine(name => name === path.basename(name) && !name.includes('..'))
 
-function resolveSchemaFile(schemaDir: string, name: string): string | null {
-  if (name !== path.basename(name) || !SCHEMA_FILE_RE.test(name) || name.includes('..')) {
-    return null
+const schemaFileParamSchema = z.object({
+  name: schemaFileNameSchema,
+})
+
+const tableNameParamSchema = z.object({
+  name: z.string().regex(/^[a-z][a-z0-9_]*$/),
+})
+
+function invalidParamResponse(message: string) {
+  return (result: { success: boolean }, c: any) => {
+    if (!result.success)
+      return c.json({ error: message }, 400)
   }
-  return path.join(schemaDir, name)
 }
 
 export function schemaRoutes(config: MigrationConfig): Hono {
@@ -36,12 +48,9 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   })
 
   // Get a specific schema
-  app.get('/schema/:name', async (c) => {
-    const name = c.req.param('name')
-    const filePath = resolveSchemaFile(schemaDir, name)
-    if (!filePath) {
-      return c.json({ error: 'Invalid schema file name' }, 400)
-    }
+  app.get('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse('Invalid schema file name')), async (c) => {
+    const { name } = c.req.valid('param')
+    const filePath = path.join(schemaDir, name)
 
     try {
       const content = await fs.readFile(filePath, 'utf-8')
@@ -53,12 +62,9 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   })
 
   // Save a schema
-  app.post('/schema/:name', async (c) => {
-    const name = c.req.param('name')
-    const filePath = resolveSchemaFile(schemaDir, name)
-    if (!filePath) {
-      return c.json({ error: 'Invalid schema file name' }, 400)
-    }
+  app.post('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse('Invalid schema file name')), async (c) => {
+    const { name } = c.req.valid('param')
+    const filePath = path.join(schemaDir, name)
 
     try {
       const body = await c.req.json()
@@ -83,11 +89,8 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   })
 
   // Get prompt snapshot for a schema
-  app.get('/prompt-snapshot/:name', async (c) => {
-    const name = c.req.param('name')
-    if (!TABLE_NAME_RE.test(name)) {
-      return c.json({ success: false, error: 'Invalid table name' }, 400)
-    }
+  app.get('/prompt-snapshot/:name', zValidator('param', tableNameParamSchema, invalidParamResponse('Invalid table name')), async (c) => {
+    const { name } = c.req.valid('param')
     const aiexDir = path.dirname(schemaDir)
     const snapshotPath = path.join(aiexDir, 'extracted', `${name}.prompt.md`)
 
@@ -101,12 +104,9 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   })
 
   // Delete a schema
-  app.delete('/schema/:name', async (c) => {
-    const name = c.req.param('name')
-    const filePath = resolveSchemaFile(schemaDir, name)
-    if (!filePath) {
-      return c.json({ error: 'Invalid schema file name' }, 400)
-    }
+  app.delete('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse('Invalid schema file name')), async (c) => {
+    const { name } = c.req.valid('param')
+    const filePath = path.join(schemaDir, name)
 
     try {
       // Read schema content before deleting to get table name for snapshot cleanup
