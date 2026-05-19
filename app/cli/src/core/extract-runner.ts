@@ -162,8 +162,12 @@ export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig
     const buffer = await fsp.readFile(filePath)
     const converter = createPdfConverter(aiConfig?.pdf)
     const result = await converter.convert(buffer, filePath)
-    const converterLabel = result.metadata?.fallback === 'true' ? `${converter.name} (fallback: unpdf)` : converter.name
-    consola.info(`Converted PDF via ${converterLabel}, ${result.pageCount} page(s)`)
+    if (result.metadata?.fallback === 'true') {
+      consola.info(`Fell back to unpdf — ${result.pageCount} page(s) extracted`)
+    }
+    else {
+      consola.info(`Converted PDF via ${converter.name}, ${result.pageCount} page(s)`)
+    }
     // Save markdown alongside source PDF for reference
     const mdPath = filePath.replace(PDF_EXT_RE, '.md')
     try {

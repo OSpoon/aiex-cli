@@ -23,8 +23,9 @@ class FallbackPdfConverter implements PdfConverter {
     try {
       return await this.primary.convert(input, filePath)
     }
-    catch {
-      consola.warn(`${this.primary.name} failed, falling back to ${this.fallback.name}`)
+    catch (err) {
+      consola.warn(`${this.primary.name} failed: ${err instanceof Error ? err.message : String(err)}`)
+      consola.info(`Falling back to ${this.fallback.name}`)
       const result = await this.fallback.convert(input, filePath)
       return {
         ...result,
