@@ -79,7 +79,7 @@ export class ExternalCommandPdfConverter implements PdfConverter {
   }
 
   async convert(input: Uint8Array, filePath?: string): Promise<PdfConversionResult> {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'aiex-pdf-'))
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'aiex-mineru-'))
     const outputDir = path.join(tempRoot, 'output')
     await fs.mkdir(outputDir, { recursive: true })
 

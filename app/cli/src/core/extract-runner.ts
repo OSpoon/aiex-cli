@@ -3,6 +3,7 @@ import type { createMigrationConfig } from '@/core/schema-sqlite'
 import type { RetryInfo } from '@/utils/retry'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import { spinner } from '@clack/prompts'
 import Database from 'better-sqlite3'
@@ -40,6 +41,8 @@ const SUPPORTED_EXTENSIONS = new Set([
   'yaml',
   'yml',
 ])
+
+const PDF_EXT_RE = /\.pdf$/i
 
 const JSON_EXT_RE = /\.json$/
 const SUPPORTED_FILE_PATTERN = `*.{${[...SUPPORTED_EXTENSIONS].join(',')}}`
@@ -160,6 +163,18 @@ export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig
     const converter = createPdfConverter(aiConfig?.pdf)
     const result = await converter.convert(buffer, filePath)
     consola.info(`Extracted ${result.pageCount} page(s) from PDF`)
+    // Save markdown alongside source PDF for reference
+    const mdPath = filePath.replace(PDF_EXT_RE, '.md')
+    try {
+      await fsp.writeFile(mdPath, result.text)
+      consola.info(`Markdown saved: ${mdPath}`)
+    }
+    catch {
+      // Fallback: save to temp when source dir is not writable
+      const fallbackMd = path.join(os.tmpdir(), `${path.basename(filePath, '.pdf')}.md`)
+      await fsp.writeFile(fallbackMd, result.text)
+      consola.info(`Markdown saved: ${fallbackMd}`)
+    }
     return { text: result.text }
   }
   return { text: await fsp.readFile(filePath, 'utf-8') }

@@ -33,7 +33,7 @@ const mineruArgs = ref("-p\n{input}\n-o\n{outputDir}")
 const mineruOutputFile = ref("")
 const mineruTimeout = ref(600)
 const mineruFallbackToUnpdf = ref(true)
-const mineruKeepOutput = ref(false)
+const mineruKeepOutput = ref(true)
 
 const langfuseEnabled = ref(false)
 const langfusePublicKey = ref("")
@@ -141,7 +141,7 @@ async function loadConfig() {
     mineruOutputFile.value = config.pdf?.mineru?.outputFile ?? ""
     mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
     mineruFallbackToUnpdf.value = config.pdf?.mineru?.fallbackToUnpdf ?? true
-    mineruKeepOutput.value = config.pdf?.mineru?.keepOutput ?? false
+    mineruKeepOutput.value = config.pdf?.mineru?.keepOutput ?? true
     langfuseEnabled.value = !!config.langfuse
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""

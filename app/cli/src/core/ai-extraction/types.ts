@@ -105,6 +105,7 @@ export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
   args: ['-p', '{input}', '-o', '{outputDir}'],
   timeout: 600,
   fallbackToUnpdf: true,
+  keepOutput: true,
 }
 
 export const DEFAULT_PDF_CONFIG: PdfConfig = {

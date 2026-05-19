@@ -90,7 +90,7 @@ describe('externalCommandPdfConverter', () => {
     expect(result.metadata?.converter).toBe('mineru')
     expect(execa).toHaveBeenCalledWith(
       'mineru',
-      ['-p', '/tmp/sample.pdf', '-o', expect.stringContaining('aiex-pdf-')],
+      ['-p', '/tmp/sample.pdf', '-o', expect.stringContaining('aiex-mineru-')],
       expect.objectContaining({ shell: false, timeout: 600000 }),
     )
   })
