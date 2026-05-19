@@ -76,6 +76,7 @@
     "hono": "catalog:",
     "jsonfile": "catalog:",
     "jsonrepair": "catalog:",
+    "kysely": "catalog:",
     "mime": "catalog:",
     "open": "catalog:",
     "p-retry": "catalog:",

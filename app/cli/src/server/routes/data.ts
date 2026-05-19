@@ -5,6 +5,7 @@ import { zValidator } from '@hono/zod-validator'
 import Database from 'better-sqlite3'
 import { Hono } from 'hono'
 import { readFile as readJsonFile } from 'jsonfile'
+import { Kysely, sql, SqliteDialect } from 'kysely'
 import { z } from 'zod'
 
 const FILE_REGEX = /\.json$/
@@ -46,6 +47,30 @@ interface ExtractionRecord {
   timestamp: string
   fileSize: number
   modifiedAt: string
+}
+
+interface SqliteTableInfoRow {
+  name: string
+  type: string
+  notnull: number
+  pk: number
+}
+
+interface TableColumn {
+  name: string
+  type: string
+  notNull: boolean
+  pk: boolean
+}
+
+type DynamicDatabase = Record<string, Record<string, unknown>>
+
+function createReadonlyQueryDb(databasePath: string): Kysely<DynamicDatabase> {
+  return new Kysely<DynamicDatabase>({
+    dialect: new SqliteDialect({
+      database: new Database(databasePath, { readonly: true }),
+    }),
+  })
 }
 
 export function dataRoutes(config: MigrationConfig): Hono {
@@ -110,17 +135,21 @@ export function dataRoutes(config: MigrationConfig): Hono {
         schemaFiles = []
       }
 
-      let db: Database.Database | null = null
+      let db: Kysely<DynamicDatabase> | null = null
       let dbTables: string[] = []
       try {
-        db = new Database(config.databasePath, { readonly: true })
-        dbTables = db.prepare(
-          `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_%' ORDER BY name`,
-        ).all().map((r: any) => r.name)
+        db = createReadonlyQueryDb(config.databasePath)
+        const tablesResult = await sql<{ name: string }>`
+          select name
+          from sqlite_master
+          where type = 'table' and name not like 'sqlite_%' and name not like '_%'
+          order by name
+        `.execute(db)
+        dbTables = tablesResult.rows.map(row => row.name)
       }
       catch { /* db not ready */ }
       finally {
-        db?.close()
+        await db?.destroy()
       }
 
       const tables: Array<{ name: string, title: string, hasData: boolean }> = []
@@ -157,62 +186,67 @@ export function dataRoutes(config: MigrationConfig): Hono {
       const { name: tableName } = c.req.valid('param')
       const { page, pageSize, search, sortField, sortOrder } = c.req.valid('query')
 
-      let db: Database.Database
+      let db: Kysely<DynamicDatabase>
       try {
-        db = new Database(config.databasePath, { readonly: true })
+        db = createReadonlyQueryDb(config.databasePath)
       }
       catch {
         return c.json({ error: 'Database not found. Run `aiex schema` first.' }, 400)
       }
 
       try {
-        const tableExists = db.prepare(
-          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
-        ).get(tableName)
+        const tableExists = await sql<{ name: string }>`
+          select name
+          from sqlite_master
+          where type = 'table' and name = ${tableName}
+        `.execute(db)
 
-        if (!tableExists) {
-          db.close()
+        if (tableExists.rows.length === 0)
           return c.json({ error: `Table "${tableName}" not found in database` }, 404)
-        }
 
-        const columns = db.prepare(`PRAGMA table_info(\`${tableName}\`)`).all().map((col: any) => ({
+        const tableInfo = await sql<SqliteTableInfoRow>`
+          pragma table_info(${sql.table(tableName)})
+        `.execute(db)
+
+        const columns: TableColumn[] = tableInfo.rows.map(col => ({
           name: col.name,
           type: col.type,
           notNull: !!col.notnull,
           pk: !!col.pk,
         }))
 
-        let orderClause = ''
-        if (sortField && columns.some((c: any) => c.name === sortField)) {
-          const dir = sortOrder === 'desc' ? 'DESC' : 'ASC'
-          orderClause = ` ORDER BY \`${sortField}\` ${dir}`
-        }
+        const searchConditions = columns.map(col => sql`${sql.ref(col.name)} like ${`%${search}%`}`)
+        const searchCondition = search
+          ? sql`where ${sql.join(searchConditions, sql` or `)}`
+          : sql``
 
-        let whereClause = ''
-        const queryParams: string[] = []
-        if (search) {
-          const conditions = columns.map((col: any) => {
-            queryParams.push(`%${search}%`)
-            return `\`${col.name}\` LIKE ?`
-          })
-          whereClause = ` WHERE ${conditions.join(' OR ')}`
-        }
+        const sortColumn = columns.find(col => col.name === sortField)
+        const orderBy = sortColumn
+          ? sql`order by ${sql.ref(sortColumn.name)} ${sql.raw(sortOrder === 'desc' ? 'desc' : 'asc')}`
+          : sql``
 
-        const countRow = db.prepare(
-          `SELECT COUNT(*) as count FROM \`${tableName}\`${whereClause}`,
-        ).get(...queryParams) as any
-        const total = countRow.count
+        const countResult = await sql<{ count: number }>`
+          select count(*) as count
+          from ${sql.table(tableName)}
+          ${searchCondition}
+        `.execute(db)
+        const total = countResult.rows[0]?.count ?? 0
 
         const offset = (page - 1) * pageSize
         const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
-        const rows = db.prepare(
-          `SELECT * FROM \`${tableName}\`${whereClause}${orderClause} LIMIT ? OFFSET ?`,
-        ).all(...queryParams, pageSize, offset)
+        const result = await sql<Record<string, unknown>>`
+          select *
+          from ${sql.table(tableName)}
+          ${searchCondition}
+          ${orderBy}
+          limit ${pageSize}
+          offset ${offset}
+        `.execute(db)
 
         return c.json({
           columns,
-          rows,
+          rows: result.rows,
           total,
           page,
           pageSize,
@@ -223,7 +257,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
         return c.json({ error: error instanceof Error ? error.message : String(error) }, 500)
       }
       finally {
-        db.close()
+        await db.destroy()
       }
     },
   )
