@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExtractionRecord } from "@/api-client"
+import type { ExtractionRecord, TableData, TableInfo } from "@/api-client"
 import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import tableSchemaMeta from "@aiex/table-schema"
 import { useEventListener } from "@vueuse/core"
@@ -7,7 +7,8 @@ import Button from "primevue/button"
 import Dialog from "primevue/dialog"
 import { computed, defineAsyncComponent, onMounted, ref } from "vue"
 import { toast, Toaster } from "vue-sonner"
-import { deleteSchema, getPromptSnapshot, getSchema, listExtractions, listSchemas, migrateSchema, saveSchema } from "@/api-client"
+import { deleteSchema, getPromptSnapshot, getSchema, getTableData, listDataTables, listExtractions, listSchemas, migrateSchema, saveSchema } from "@/api-client"
+import { cloneJson, isDeepEqual } from "@/lib/jsonschema-editor/lib/object-utils"
 import { useTheme } from "@/lib/jsonschema-editor/themes/useTheme"
 
 const { darkMode, toggleDarkMode } = useTheme()
@@ -19,25 +20,6 @@ const ExtractionViewer = defineAsyncComponent(() => import("@/components/Extract
 const currentView = ref<"editor" | "data">("editor")
 
 // Data browser state
-interface ColumnInfo {
-  name: string
-  type: string
-  notNull: boolean
-  pk: boolean
-}
-interface TableData {
-  columns: ColumnInfo[]
-  rows: Record<string, unknown>[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-}
-interface TableInfo {
-  name: string
-  title: string
-  hasData: boolean
-}
 const tables = ref<TableInfo[]>([])
 const selectedTable = ref<string | null>(null)
 const selectedTableData = ref<TableData | null>(null)
@@ -58,9 +40,7 @@ const extractionsLoading = ref(false)
 
 async function loadTables() {
   try {
-    const res = await fetch("/api/data/tables")
-    if (!res.ok) throw new Error("Failed to load tables")
-    tables.value = await res.json()
+    tables.value = await listDataTables()
   } catch {
     toast.error("Failed to load tables")
   }
@@ -88,25 +68,16 @@ async function loadTableData(
   selectedTable.value = tableName
   tableDataLoading.value = true
 
-  const params = new URLSearchParams()
-  params.set("page", String(page ?? currentDataPage.value))
-  params.set("pageSize", String(pageSize ?? currentPageSize.value))
-  if (search !== undefined) params.set("search", search)
-  else if (currentSearch.value) params.set("search", currentSearch.value)
-  if (sortField) params.set("sortField", sortField)
-  if (sortOrder) params.set("sortOrder", sortOrder)
-
   try {
-    const res = await fetch(`/api/data/tables/${encodeURIComponent(tableName)}?${params}`)
-    if (!res.ok) {
-      const err = await res.json()
-      toast.error(err.error || "Failed to load data")
-      selectedTableData.value = null
-      return
-    }
-    selectedTableData.value = await res.json()
-  } catch {
-    toast.error("Failed to load table data")
+    selectedTableData.value = await getTableData(tableName, {
+      page: page ?? currentDataPage.value,
+      pageSize: pageSize ?? currentPageSize.value,
+      search: search !== undefined ? search : currentSearch.value,
+      sortField,
+      sortOrder
+    })
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Failed to load table data")
     selectedTableData.value = null
   }
   tableDataLoading.value = false
@@ -230,7 +201,7 @@ const promptPreviewContent = ref("")
 const promptPreviewLoading = ref(false)
 
 const hasUnsavedChanges = computed(() => {
-  return JSON.stringify(schema.value) !== JSON.stringify(originalSchema.value)
+  return !isDeepEqual(schema.value, originalSchema.value)
 })
 
 useEventListener(window, "beforeunload", (event) => {
@@ -260,7 +231,7 @@ async function loadSchema(name: string) {
   try {
     const data = await getSchema(name)
     schema.value = data as JSONSchema
-    originalSchema.value = JSON.parse(JSON.stringify(data))
+    originalSchema.value = cloneJson(data as JSONSchema)
   } catch {
     toast.error(`Failed to load ${name}`)
   }
@@ -280,7 +251,7 @@ async function handleSave() {
   loading.value = true
   try {
     await saveSchema(fileName, schema.value)
-    originalSchema.value = JSON.parse(JSON.stringify(schema.value))
+    originalSchema.value = cloneJson(schema.value)
     await loadSchemaList()
   } catch {
     toast.error(`Failed to save ${fileName}`)
@@ -303,7 +274,7 @@ async function handleSaveAndMigrate() {
 
   try {
     await saveSchema(fileName, schema.value)
-    originalSchema.value = JSON.parse(JSON.stringify(schema.value))
+    originalSchema.value = cloneJson(schema.value)
     await loadSchemaList()
 
     loading.value = false
@@ -351,7 +322,7 @@ function resetEditor() {
     table: { name: "" },
     properties: {}
   }
-  originalSchema.value = JSON.parse(JSON.stringify(schema.value))
+  originalSchema.value = cloneJson(schema.value)
 }
 
 function newSchema() {
@@ -369,8 +340,8 @@ function loadExample() {
     if (!confirm("You have unsaved changes. Loading example will discard them. Continue?"))
       return
   }
-  schema.value = JSON.parse(JSON.stringify(ECOMMERCE_EXAMPLE))
-  originalSchema.value = JSON.parse(JSON.stringify(ECOMMERCE_EXAMPLE))
+  schema.value = cloneJson(ECOMMERCE_EXAMPLE)
+  originalSchema.value = cloneJson(ECOMMERCE_EXAMPLE)
 }
 
 async function handlePreviewPrompt(name: string) {

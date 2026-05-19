@@ -1,5 +1,5 @@
+import type { PdfConversionResult, PdfConverter } from './types'
 import type { ExternalPdfConverterConfig, PdfConfig } from '@/core/ai-extraction/types'
-import type { PdfConverter } from './types'
 import { DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
 import { ExternalCommandPdfConverter } from './external'
 import { UnpdfConverter } from './unpdf'
@@ -18,7 +18,7 @@ class FallbackPdfConverter implements PdfConverter {
     this.name = primary.name
   }
 
-  async convert(input: Uint8Array, filePath?: string) {
+  async convert(input: Uint8Array, filePath?: string): Promise<PdfConversionResult> {
     try {
       return await this.primary.convert(input, filePath)
     }

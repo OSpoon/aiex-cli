@@ -1,4 +1,5 @@
 import type { JSONSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
+import { isDeepEqual } from '@/lib/jsonschema-editor/lib/object-utils'
 import { asObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
 
 // Static regex patterns for semantic detection
@@ -23,7 +24,7 @@ function mergeSchemas(schema1: JSONSchema, schema2: JSONSchema): JSONSchema {
   const s2 = asObjectSchema(schema2)
 
   // Deep comparison for equality
-  if (JSON.stringify(s1) === JSON.stringify(s2)) {
+  if (isDeepEqual(s1, s2)) {
     return schema1
   }
 
@@ -40,7 +41,7 @@ function mergeSchemas(schema1: JSONSchema, schema2: JSONSchema): JSONSchema {
   // Avoid adding duplicate schemas to oneOf
   if (
     !existingOneOf.some(
-      s => JSON.stringify(s) === JSON.stringify(newSchemaToAdd),
+      s => isDeepEqual(s, newSchemaToAdd),
     )
   ) {
     const mergedOneOf = [...existingOneOf, newSchemaToAdd]

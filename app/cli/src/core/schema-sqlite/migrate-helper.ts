@@ -6,6 +6,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
 import * as esbuild from 'esbuild'
+import lockfile from 'proper-lockfile'
 import { sanitizeMigrationName } from './migration-name'
 
 const require = createRequire(import.meta.url)
@@ -147,51 +148,25 @@ function applyMigrationWithTransaction(dbPath: string, sqlStatements: string[]):
   }
 }
 
-// Simple file lock mechanism
 const LOCK_FILE = '.migrate.lock'
 
-async function acquireLock(aiexDir: string): Promise<void> {
-  const lockPath = path.join(aiexDir, LOCK_FILE)
+async function acquireMigrationLock(aiexDir: string): Promise<() => Promise<void>> {
   await fs.mkdir(aiexDir, { recursive: true })
 
-  // Try to create lock file atomically using exclusive write
   try {
-    const fd = await fs.open(lockPath, 'wx') // 'wx' = exclusive write, fails if exists
-    await fd.write(`${process.pid}\n${Date.now()}`)
-    await fd.close()
+    return await lockfile.lock(aiexDir, {
+      lockfilePath: path.join(aiexDir, LOCK_FILE),
+      realpath: false,
+      stale: 300000,
+      update: 10000,
+      retries: 0,
+    })
   }
-  catch (e: any) {
-    if (e.code === 'EEXIST') {
-      // Lock exists, read it and check if it's stale
-      try {
-        const content = await fs.readFile(lockPath, 'utf-8')
-        const [pidStr, timestampStr] = content.split('\n')
-        const lockPid = Number.parseInt(pidStr, 10)
-        const lockTime = Number.parseInt(timestampStr, 10)
-
-        // Check if lock is stale (> 5 minutes old) or process is dead
-        const lockAge = Date.now() - lockTime
-        if (lockAge > 300000) {
-          // Lock is stale, remove it and retry
-          await fs.unlink(lockPath)
-          return acquireLock(aiexDir)
-        }
-
-        throw new Error(`Migration is already running (PID ${lockPid}, started ${Math.round(lockAge / 1000)}s ago). Wait for it to complete or remove ${lockPath} if stale.`)
-      }
-      catch {
-        // Can't read lock file, it might be corrupted - remove and retry
-        await fs.unlink(lockPath).catch(() => {})
-        return acquireLock(aiexDir)
-      }
-    }
-    throw e
+  catch (error) {
+    const lockPath = path.join(aiexDir, LOCK_FILE)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Migration is already running or the lock could not be acquired. Wait for it to complete or remove ${lockPath} if stale. ${message}`)
   }
-}
-
-async function releaseLock(aiexDir: string): Promise<void> {
-  const lockPath = path.join(aiexDir, LOCK_FILE)
-  await fs.unlink(lockPath).catch(() => {})
 }
 
 async function main(): Promise<void> {
@@ -209,7 +184,7 @@ async function main(): Promise<void> {
   try {
     // Acquire lock to prevent concurrent migrations
     const aiexDir = path.dirname(path.dirname(migrationsPath))
-    await acquireLock(aiexDir)
+    const releaseLock = await acquireMigrationLock(aiexDir)
 
     try {
       const exports = await loadSchemaExports(schemaPath)
@@ -247,7 +222,7 @@ async function main(): Promise<void> {
       console.log(JSON.stringify({ success: true, changes: sqlStatements.length, tag }))
     }
     finally {
-      await releaseLock(aiexDir)
+      await releaseLock()
     }
   }
   catch (error: unknown) {

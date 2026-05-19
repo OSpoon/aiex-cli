@@ -3,6 +3,7 @@ import type {
   NewField,
   ObjectJSONSchema,
 } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
+import { cloneJson } from '@/lib/jsonschema-editor/lib/object-utils'
 import { isBooleanSchema, isObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
 
 // Static regex for field name validation
@@ -15,7 +16,7 @@ export interface Property {
 }
 
 export function copySchema<T extends JSONSchema>(schema: T): T {
-  return JSON.parse(JSON.stringify(schema))
+  return cloneJson(schema)
 }
 
 /**

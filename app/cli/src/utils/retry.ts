@@ -1,4 +1,5 @@
 import { APICallError } from 'ai'
+import pRetry from 'p-retry'
 
 export interface RetryInfo {
   attempt: number
@@ -12,25 +13,28 @@ export async function withRetry<T>(
   onRetry?: (info: RetryInfo) => void,
   maxRetries = 5,
 ): Promise<T> {
-  let lastError: Error | undefined
+  return pRetry(
+    async () => fn(),
+    {
+      retries: maxRetries,
+      factor: 2,
+      minTimeout: 1000,
+      randomize: true,
+      onFailedAttempt({ error, attemptNumber, retriesLeft }) {
+        if (!(error instanceof APICallError) || !error.isRetryable || retriesLeft <= 0)
+          return
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn()
-    }
-    catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error))
-      lastError = err
-
-      const shouldRetry = err instanceof APICallError && err.isRetryable && attempt < maxRetries
-      if (!shouldRetry)
-        throw err
-
-      const delayMs = 1000 * 2 ** attempt + Math.round(Math.random() * 500)
-      onRetry?.({ attempt: attempt + 1, maxRetries, delayMs, statusCode: err.statusCode })
-      await new Promise(resolve => setTimeout(resolve, delayMs))
-    }
-  }
-
-  throw lastError ?? new Error('Retry failed after all attempts')
+        const baseDelayMs = 1000 * 2 ** (attemptNumber - 1)
+        onRetry?.({
+          attempt: attemptNumber,
+          maxRetries,
+          delayMs: baseDelayMs,
+          statusCode: error.statusCode,
+        })
+      },
+      shouldRetry({ error }) {
+        return error instanceof APICallError && error.isRetryable
+      },
+    },
+  )
 }

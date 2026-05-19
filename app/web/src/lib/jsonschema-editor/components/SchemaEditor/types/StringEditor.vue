@@ -7,6 +7,7 @@ import { computed, ref, useId } from "vue"
 import Button from "@/lib/jsonschema-editor/components/ui/Button.vue"
 import InputField from "@/lib/jsonschema-editor/components/ui/InputField.vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
+import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
 import {
   isBooleanSchema,
   withObjectSchema
@@ -73,17 +74,18 @@ const showStringConstraints = computed(() => !columnTypeChanged.value)
 function handleValidationChange(property: Property, value: unknown) {
   const baseSchema = isBooleanSchema(props.schema)
     ? { type: "string" as const }
-    : JSON.parse(JSON.stringify(props.schema))
+    : cloneJson(props.schema)
   const { type: _, description: __, ...validationProps } = baseSchema
 
   // Handle drizzle mode — clear format and string constraints when mode changes column type
   if (property === "drizzle") {
+    const mode = value as "none" | NonNullable<ObjectJSONSchema["drizzle"]>["mode"]
     const updatedValidation: ObjectJSONSchema = {
       ...validationProps,
       type: "string",
-      drizzle: value === "none" ? undefined : { mode: value }
+      drizzle: mode === "none" ? undefined : { mode }
     }
-    if (value !== "none") {
+    if (mode !== "none") {
       delete updatedValidation.format
       delete updatedValidation.minLength
       delete updatedValidation.maxLength
@@ -95,10 +97,11 @@ function handleValidationChange(property: Property, value: unknown) {
 
   // Handle format — clear drizzle and string constraints when format changes column type
   if (property === "format") {
+    const format = value === "none" ? undefined : String(value)
     const updatedValidation: ObjectJSONSchema = {
       ...validationProps,
       type: "string",
-      format: value === "none" ? undefined : value
+      format
     }
     if (value === "date-time" || value === "json") {
       delete updatedValidation.drizzle
@@ -132,7 +135,7 @@ function handleRemoveEnumValue(index: number) {
   if (newEnumValues.length === 0) {
     const baseSchema = isBooleanSchema(props.schema)
       ? { type: "string" as const }
-      : JSON.parse(JSON.stringify(props.schema))
+      : cloneJson(props.schema)
     if (!isBooleanSchema(baseSchema) && "enum" in baseSchema) {
       const { enum: _, ...rest } = baseSchema
       emit("change", rest as ObjectJSONSchema)

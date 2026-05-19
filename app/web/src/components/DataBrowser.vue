@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { stringify } from "csv-stringify/browser/esm/sync"
 import Button from "primevue/button"
 import { computed, onUnmounted, ref } from "vue"
 import { VxeColumn, VxeTable } from "vxe-table"
@@ -125,24 +126,22 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
   URL.revokeObjectURL(url)
 }
 
-function escapeCsvValue(val: unknown): string {
-  if (val === null || val === undefined) return ""
-  const str = typeof val === "object" ? JSON.stringify(val) : String(val)
-  if (str.includes(",") || str.includes("\"") || str.includes("\n") || str.includes("\r")) {
-    return `"${str.replace(/"/g, "\"\"")}"`
-  }
-  return str
-}
-
 function exportCSV() {
   if (!props.tableData) return
   const { columns, rows } = props.tableData
-  const header = columns.map(c => escapeCsvValue(c.name)).join(",")
-  const body = rows.map(row =>
-    columns.map(c => escapeCsvValue(row[c.name])).join(",")
-  ).join("\n")
+  const records = rows.map(row =>
+    columns.map((column) => {
+      const value = row[column.name]
+      return typeof value === "object" && value !== null ? JSON.stringify(value) : value
+    })
+  )
+  const csv = stringify(records, {
+    bom: true,
+    header: true,
+    columns: columns.map(column => column.name)
+  })
   const bom = "\uFEFF"
-  downloadBlob(`${bom + header}\n${body}`, `${props.tableName}.csv`, "text/csv;charset=utf-8")
+  downloadBlob(csv.startsWith(bom) ? csv : `${bom}${csv}`, `${props.tableName}.csv`, "text/csv;charset=utf-8")
 }
 
 function exportJSON() {

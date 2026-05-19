@@ -1,5 +1,5 @@
-import type { ExternalPdfConverterConfig } from '@/core/ai-extraction/types'
 import type { PdfConversionResult, PdfConverter } from './types'
+import type { ExternalPdfConverterConfig } from '@/core/ai-extraction/types'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'

@@ -5,6 +5,7 @@ import { computed, ref } from "vue"
 import ButtonToggle from "@/lib/jsonschema-editor/components/ui/ButtonToggle.vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
 import { useSchemaStore } from "@/lib/jsonschema-editor/hooks/useSchemaStore"
+import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
 import { getSchemaProperties } from "@/lib/jsonschema-editor/lib/schemaEditor"
 import { isBooleanSchema, withObjectSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import AddFieldButton from "../AddFieldButton.vue"
@@ -49,7 +50,7 @@ function handleAdditionalPropertiesToggle() {
   const current = store.getAtPath(props.path)
   if (!current || isBooleanSchema(current)) return
 
-  const plain = JSON.parse(JSON.stringify(current))
+  const plain = cloneJson(current)
   if (plain.additionalProperties !== false) {
     plain.additionalProperties = false
   } else {
@@ -78,7 +79,7 @@ function updateSchemaWithNested() {
   if (emit) {
     const base = isBooleanSchema(props.schema)
       ? {}
-      : JSON.parse(JSON.stringify(props.schema))
+      : cloneJson(props.schema)
     const updated: ObjectJSONSchema = {
       type: "object",
       ...base,

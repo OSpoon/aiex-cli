@@ -1,36 +1,46 @@
-export async function listSchemas(): Promise<string[]> {
-  const res = await fetch('/api/schema')
-  if (!res.ok) {
-    throw new Error('Failed to list schemas')
+import ky, { HTTPError } from 'ky'
+
+const api = ky.create({
+  retry: 0,
+})
+
+async function getErrorMessage(error: unknown, fallback: string): Promise<string> {
+  if (error instanceof HTTPError) {
+    try {
+      const data = await error.response.json() as { error?: string }
+      return data.error || fallback
+    }
+    catch {
+      return fallback
+    }
   }
-  return res.json() as Promise<string[]>
+
+  return error instanceof Error ? error.message : fallback
+}
+
+export async function listSchemas(): Promise<string[]> {
+  return api.get('api/schema').json<string[]>()
 }
 
 export async function getSchema(name: string): Promise<unknown> {
-  const res = await fetch(`/api/schema/${encodeURIComponent(name)}`)
-  if (!res.ok) {
-    throw new Error(`Failed to get schema: ${name}`)
-  }
-  return res.json()
+  return api.get(`api/schema/${encodeURIComponent(name)}`).json()
 }
 
 export async function saveSchema(name: string, schema: unknown): Promise<void> {
-  const res = await fetch(`/api/schema/${encodeURIComponent(name)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(schema, null, 2),
-  })
-  if (!res.ok) {
-    throw new Error(`Failed to save schema: ${name}`)
+  try {
+    await api.post(`api/schema/${encodeURIComponent(name)}`, { json: schema })
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, `Failed to save schema: ${name}`))
   }
 }
 
 export async function deleteSchema(name: string): Promise<void> {
-  const res = await fetch(`/api/schema/${encodeURIComponent(name)}`, {
-    method: 'DELETE',
-  })
-  if (!res.ok) {
-    throw new Error(`Failed to delete schema: ${name}`)
+  try {
+    await api.delete(`api/schema/${encodeURIComponent(name)}`)
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, `Failed to delete schema: ${name}`))
   }
 }
 
@@ -45,9 +55,8 @@ export interface MigrateResult {
 }
 
 export async function migrateSchema(): Promise<MigrateResult> {
-  const res = await fetch('/api/migrate', { method: 'POST' })
-  const data = await res.json() as MigrateResult
-  if (!res.ok || !data.success) {
+  const data = await api.post('api/migrate').json<MigrateResult>()
+  if (!data.success) {
     throw new Error(data.error || 'Migration failed')
   }
   return data
@@ -62,8 +71,7 @@ export interface PromptSnapshotResult {
 }
 
 export async function getPromptSnapshot(tableName: string): Promise<PromptSnapshotResult> {
-  const res = await fetch(`/api/prompt-snapshot/${encodeURIComponent(tableName)}`)
-  return res.json() as Promise<PromptSnapshotResult>
+  return api.get(`api/prompt-snapshot/${encodeURIComponent(tableName)}`).json<PromptSnapshotResult>()
 }
 
 // AI Configuration API
@@ -128,33 +136,20 @@ export interface AIConfig {
 }
 
 export async function getAIConfig(): Promise<AIConfig> {
-  const res = await fetch('/api/ai/config')
-  if (!res.ok) {
-    throw new Error('Failed to get AI config')
-  }
-  return res.json() as Promise<AIConfig>
+  return api.get('api/ai/config').json<AIConfig>()
 }
 
 export async function saveAIConfig(config: AIConfig): Promise<void> {
-  const res = await fetch('/api/ai/config', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(config, null, 2),
-  })
-  if (!res.ok) {
-    const data = await res.json() as { error?: string }
-    throw new Error(data.error || 'Failed to save AI config')
+  try {
+    await api.put('api/ai/config', { json: config })
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, 'Failed to save AI config'))
   }
 }
 
 export async function registryLookup(modelName: string): Promise<ModelCapabilities | null> {
-  const res = await fetch('/api/ai/registry-lookup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ modelName }),
-  })
-  if (!res.ok) return null
-  const data = await res.json()
+  const data = await api.post('api/ai/registry-lookup', { json: { modelName } }).json<Partial<ModelCapabilities>>().catch(() => null)
   if (!data || typeof data.vision !== 'boolean') return null
   return data as ModelCapabilities
 }
@@ -169,12 +164,58 @@ export interface ExtractionRecord {
   modifiedAt: string
 }
 
+export interface ColumnInfo {
+  name: string
+  type: string
+  notNull: boolean
+  pk: boolean
+}
+
+export interface TableData {
+  columns: ColumnInfo[]
+  rows: Record<string, unknown>[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface TableInfo {
+  name: string
+  title: string
+  hasData: boolean
+}
+
+export interface TableDataParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  sortField?: string
+  sortOrder?: string
+}
+
 export async function listExtractions(): Promise<ExtractionRecord[]> {
-  const res = await fetch('/api/data')
-  if (!res.ok) {
-    throw new Error('Failed to list extractions')
-  }
-  return res.json() as Promise<ExtractionRecord[]>
+  return api.get('api/data').json<ExtractionRecord[]>()
+}
+
+export async function listDataTables(): Promise<TableInfo[]> {
+  return api.get('api/data/tables').json<TableInfo[]>()
+}
+
+export async function getTableData(tableName: string, params: TableDataParams = {}): Promise<TableData> {
+  const searchParams = new URLSearchParams()
+  if (params.page !== undefined)
+    searchParams.set('page', String(params.page))
+  if (params.pageSize !== undefined)
+    searchParams.set('pageSize', String(params.pageSize))
+  if (params.search)
+    searchParams.set('search', params.search)
+  if (params.sortField)
+    searchParams.set('sortField', params.sortField)
+  if (params.sortOrder)
+    searchParams.set('sortOrder', params.sortOrder)
+
+  return api.get(`api/data/tables/${encodeURIComponent(tableName)}`, { searchParams }).json<TableData>()
 }
 
 export interface ExtractionDetail {
@@ -185,7 +226,5 @@ export interface ExtractionDetail {
 }
 
 export async function getExtraction(name: string): Promise<ExtractionDetail> {
-  const res = await fetch(`/api/data/${encodeURIComponent(name)}`)
-  return res.json() as Promise<ExtractionDetail>
+  return api.get(`api/data/${encodeURIComponent(name)}`).json<ExtractionDetail>()
 }
-

@@ -12,9 +12,11 @@ import ButtonToggle from "@/lib/jsonschema-editor/components/ui/ButtonToggle.vue
 import InputField from "@/lib/jsonschema-editor/components/ui/InputField.vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
 import { useSchemaStore } from "@/lib/jsonschema-editor/hooks/useSchemaStore"
+import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
 import { cn } from "@/lib/jsonschema-editor/lib/utils"
 import {
   getSchemaDescription,
+  isObjectSchema,
   withObjectSchema
 } from "@/lib/jsonschema-editor/types/jsonSchema"
 import TypeDropdown from "./TypeDropdown.vue"
@@ -53,6 +55,10 @@ const tempName = ref("")
 const tempDesc = ref("")
 const tempDefault = ref("")
 
+function editableObjectSchema(schema: JSONSchema | undefined): ObjectJSONSchema {
+  return cloneJson(schema && isObjectSchema(schema) ? schema : { type: "object" })
+}
+
 function type() {
   return withObjectSchema(
     props.schema,
@@ -86,9 +92,7 @@ function handleDescSubmit() {
   if (trimmedDesc !== getSchemaDescription(props.schema)) {
     // Update the property schema with the new description
     const currentSchema = store.getAtPath([...props.path, props.name])
-    const plain = JSON.parse(
-      JSON.stringify(currentSchema ?? { type: "object" })
-    )
+    const plain = editableObjectSchema(currentSchema)
     plain.description = trimmedDesc || undefined
     store.updateProperty(props.path, props.name, plain)
   } else {
@@ -104,7 +108,7 @@ function startEditingDefault() {
 
 function handleDefaultSubmit() {
   const currentSchema = store.getAtPath([...props.path, props.name])
-  const plain = JSON.parse(JSON.stringify(currentSchema ?? { type: "object" }))
+  const plain = editableObjectSchema(currentSchema)
   // Try to parse as JSON for objects/arrays, otherwise use as string
   let parsedDefault: unknown
   try {
@@ -121,7 +125,7 @@ function handleSchemaUpdate(updatedSchema: ObjectJSONSchema) {
   // Preserve the description and default from the current property
   const description = getSchemaDescription(props.schema)
   const defaultVal = withObjectSchema(props.schema, s => s.default, undefined)
-  const plain = JSON.parse(JSON.stringify(updatedSchema))
+  const plain = cloneJson(updatedSchema)
   plain.description = description || undefined
   if (defaultVal !== undefined) {
     plain.default = defaultVal
@@ -131,7 +135,7 @@ function handleSchemaUpdate(updatedSchema: ObjectJSONSchema) {
 
 function handleTypeChange(newType: SchemaType) {
   const currentSchema = store.getAtPath([...props.path, props.name])
-  const plain = JSON.parse(JSON.stringify(currentSchema ?? { type: "object" }))
+  const plain = editableObjectSchema(currentSchema)
   plain.type = newType
   store.updateProperty(props.path, props.name, plain)
 }

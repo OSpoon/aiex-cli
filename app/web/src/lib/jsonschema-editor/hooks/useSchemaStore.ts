@@ -11,6 +11,7 @@ import {
 
   shallowRef,
 } from 'vue'
+import { cloneJson } from '@/lib/jsonschema-editor/lib/object-utils'
 import { isObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export const SchemaStoreKey: InjectionKey<SchemaStore> = Symbol('SchemaStore')
 
 /** Deep-clone a schema. Always produces a plain JS object. */
 function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value))
+  return cloneJson(value)
 }
 
 /**

@@ -10,6 +10,7 @@ import { computed, ref, useId } from "vue"
 import Label from "@/lib/jsonschema-editor/components/ui/Label.vue"
 import Switch from "@/lib/jsonschema-editor/components/ui/Switch.vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
+import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
 import { getArrayItemsSchema } from "@/lib/jsonschema-editor/lib/schemaEditor"
 import {
   isBooleanSchema,
@@ -79,7 +80,7 @@ function buildValidationProps(overrides: {
 } = {}) {
   const base = isBooleanSchema(props.schema)
     ? {}
-    : JSON.parse(JSON.stringify(props.schema))
+    : cloneJson(props.schema)
   const validationProps: ObjectJSONSchema = {
     type: "array",
     ...base,
@@ -106,7 +107,7 @@ function handleValidationChange() {
 function handleItemSchemaChange(updatedItemSchema: ObjectJSONSchema) {
   const base = isBooleanSchema(props.schema)
     ? {}
-    : JSON.parse(JSON.stringify(props.schema))
+    : cloneJson(props.schema)
   emit("change", {
     type: "array",
     ...base,
@@ -118,7 +119,7 @@ function handleItemTypeChange(newType: SchemaType) {
   const currentItems = itemsSchema.value as JSONSchema
   const plain = isBooleanSchema(currentItems)
     ? { type: newType }
-    : JSON.parse(JSON.stringify(currentItems))
+    : cloneJson(currentItems)
   plain.type = newType
   // Clear nested when type changes away from object
   if (newType !== "object") {
@@ -141,7 +142,7 @@ function updateItemsNested() {
   const currentItems = itemsSchema.value as JSONSchema
   const plain = isBooleanSchema(currentItems)
     ? {}
-    : JSON.parse(JSON.stringify(currentItems))
+    : cloneJson(currentItems)
   if (nestedEnabled.value) {
     plain.nested = { enabled: true as const, relation: nestedRelation.value }
   } else {
