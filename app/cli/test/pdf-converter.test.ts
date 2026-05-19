@@ -467,6 +467,64 @@ describe('createPdfConverter', () => {
   })
 })
 
+describe('converter metadata', () => {
+  it('includes converter name in UnpdfConverter result', async () => {
+    const buffer = await getPdfBuffer()
+    const converter = new UnpdfConverter()
+    const result = await converter.convert(buffer)
+
+    expect(result.metadata).toBeDefined()
+    expect(result.metadata!.converter).toBe('unpdf')
+  })
+
+  it('marks fallback in metadata when primary converter fails', async () => {
+    vi.mocked(execa as any).mockReset()
+    vi.mocked(execa as any).mockRejectedValue(new Error('mineru crashed'))
+
+    const converter = createPdfConverter({
+      converter: 'mineru',
+      mineru: {
+        command: 'mineru',
+        args: ['-p', '{input}', '-o', '{outputDir}'],
+        fallbackToUnpdf: true,
+      },
+    })
+
+    const buffer = await getPdfBuffer()
+    const result = await converter.convert(new Uint8Array(buffer), '/tmp/fallback.pdf')
+
+    expect(result.text).toBeTruthy()
+    expect(result.metadata?.fallback).toBe('true')
+    expect(result.metadata?.converter).toBe('unpdf')
+  })
+
+  it('does not mark fallback when primary converter succeeds', async () => {
+    vi.mocked(execa as any).mockReset()
+    vi.mocked(execa as any).mockImplementation(async (_command: string, args: string[]) => {
+      const outputIndex = args.indexOf('-o')
+      const outputDir = args[outputIndex + 1]
+      await fs.mkdir(outputDir, { recursive: true })
+      await fs.writeFile(path.join(outputDir, 'demo.md'), '# mineru success')
+      return {} as any
+    })
+
+    const converter = createPdfConverter({
+      converter: 'mineru',
+      mineru: {
+        command: 'mineru',
+        args: ['-p', '{input}', '-o', '{outputDir}'],
+        fallbackToUnpdf: true,
+      },
+    })
+
+    const buffer = await getPdfBuffer()
+    const result = await converter.convert(new Uint8Array(buffer), '/tmp/success.pdf')
+
+    expect(result.metadata?.converter).toBe('mineru')
+    expect(result.metadata?.fallback).toBeUndefined()
+  })
+})
+
 describe('registerPdfConverter', () => {
   it('allows registering and retrieving a custom converter', () => {
     const custom: PdfConverter = {

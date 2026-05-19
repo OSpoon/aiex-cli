@@ -15,11 +15,14 @@ export class UnpdfConverter implements PdfConverter {
     return {
       text: textResult.text,
       pageCount: textResult.totalPages,
-      metadata: meta?.info
-        ? Object.fromEntries(
-            Object.entries(meta.info).map(([k, v]) => [k, String(v)]),
-          )
-        : undefined,
+      metadata: {
+        converter: this.name,
+        ...(meta?.info
+          ? Object.fromEntries(
+              Object.entries(meta.info).map(([k, v]) => [k, String(v)]),
+            )
+          : {}),
+      },
     }
   }
 }

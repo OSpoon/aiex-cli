@@ -1,5 +1,6 @@
 import type { PdfConversionResult, PdfConverter } from './types'
 import type { ExternalPdfConverterConfig, PdfConfig } from '@/core/ai-extraction/types'
+import { consola } from 'consola'
 import { DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
 import { ExternalCommandPdfConverter } from './external'
 import { UnpdfConverter } from './unpdf'
@@ -23,7 +24,15 @@ class FallbackPdfConverter implements PdfConverter {
       return await this.primary.convert(input, filePath)
     }
     catch {
-      return await this.fallback.convert(input, filePath)
+      consola.warn(`${this.primary.name} failed, falling back to ${this.fallback.name}`)
+      const result = await this.fallback.convert(input, filePath)
+      return {
+        ...result,
+        metadata: {
+          ...result.metadata,
+          fallback: 'true',
+        },
+      }
     }
   }
 }
