@@ -33,6 +33,7 @@ const mineruArgs = ref("-p\n{input}\n-o\n{outputDir}")
 const mineruOutputFile = ref("")
 const mineruTimeout = ref(600)
 const mineruFallbackToUnpdf = ref(true)
+const mineruKeepOutput = ref(false)
 
 const langfuseEnabled = ref(false)
 const langfusePublicKey = ref("")
@@ -140,6 +141,7 @@ async function loadConfig() {
     mineruOutputFile.value = config.pdf?.mineru?.outputFile ?? ""
     mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
     mineruFallbackToUnpdf.value = config.pdf?.mineru?.fallbackToUnpdf ?? true
+    mineruKeepOutput.value = config.pdf?.mineru?.keepOutput ?? false
     langfuseEnabled.value = !!config.langfuse
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
@@ -179,7 +181,8 @@ async function handleSave() {
           args: mineruArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
           outputFile: mineruOutputFile.value || undefined,
           timeout: mineruTimeout.value,
-          fallbackToUnpdf: mineruFallbackToUnpdf.value
+          fallbackToUnpdf: mineruFallbackToUnpdf.value,
+          keepOutput: mineruKeepOutput.value || undefined
         }
       },
       langfuse: langfuseEnabled.value
@@ -360,6 +363,10 @@ onUnmounted(() => {
             <div class="flex items-center gap-2">
               <Checkbox v-model="mineruFallbackToUnpdf" :binary="true" input-id="mineru-fallback" />
               <label for="mineru-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="mineruKeepOutput" :binary="true" input-id="mineru-keep-output" />
+              <label for="mineru-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
               Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,

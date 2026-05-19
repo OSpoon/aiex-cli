@@ -296,12 +296,14 @@ describe('ai config schema', () => {
           args: ['-p', '{input}', '-o', '{outputDir}'],
           timeout: 600,
           fallbackToUnpdf: true,
+          keepOutput: false,
         },
       },
     })
 
     expect(result.pdf?.converter).toBe('mineru')
     expect(result.pdf?.mineru?.args).toEqual(['-p', '{input}', '-o', '{outputDir}'])
+    expect(result.pdf?.mineru?.keepOutput).toBe(false)
   })
 
   it('rejects empty mineru command', () => {

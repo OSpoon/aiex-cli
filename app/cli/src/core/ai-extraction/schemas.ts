@@ -34,6 +34,7 @@ export const ExternalPdfConverterConfigSchema = z.object({
   outputFile: z.string().min(1).optional(),
   timeout: z.number().int().positive().default(600).optional(),
   fallbackToUnpdf: z.boolean().optional(),
+  keepOutput: z.boolean().optional(),
 })
 
 export const PdfConfigSchema = z.object({

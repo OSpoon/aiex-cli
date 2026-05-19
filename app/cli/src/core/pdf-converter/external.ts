@@ -113,6 +113,7 @@ export class ExternalCommandPdfConverter implements PdfConverter {
         metadata: {
           converter: this.name,
           outputPath,
+          ...(this.config.keepOutput ? { outputDir } : {}),
         },
       }
     }
@@ -120,7 +121,9 @@ export class ExternalCommandPdfConverter implements PdfConverter {
       throw formatCommandError(error, `${this.config.command} ${args.join(' ')}`)
     }
     finally {
-      await fs.rm(tempRoot, { recursive: true, force: true })
+      if (!this.config.keepOutput) {
+        await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => {})
+      }
     }
   }
 }

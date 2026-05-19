@@ -32,6 +32,7 @@ export interface ExternalPdfConverterConfig {
   outputFile?: string
   timeout?: number
   fallbackToUnpdf?: boolean
+  keepOutput?: boolean
 }
 
 export interface PdfConfig {
