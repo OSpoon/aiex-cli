@@ -10,6 +10,14 @@ vi.mock('execa', () => ({
   execa: vi.fn(),
 }))
 
+vi.mock('unpdf', async (importOriginal) => {
+  const actual = await importOriginal() as typeof import('unpdf')
+  return {
+    ...actual,
+    getDocumentProxy: vi.fn().mockResolvedValue({ numPages: 5 }),
+  }
+})
+
 const DEMO_PDF = path.resolve(import.meta.dirname, 'demo.pdf')
 
 async function getPdfBuffer(): Promise<Uint8Array> {

@@ -30,7 +30,6 @@ const userTemplate = ref("")
 const pdfConverter = ref<PdfConverterKind>("unpdf")
 const mineruCommand = ref("mineru")
 const mineruArgs = ref("-p\n{input}\n-o\n{outputDir}")
-const mineruOutputFile = ref("")
 const mineruTimeout = ref(600)
 const mineruFallbackToUnpdf = ref(true)
 const mineruKeepOutput = ref(true)
@@ -138,7 +137,6 @@ async function loadConfig() {
     pdfConverter.value = config.pdf?.converter ?? "unpdf"
     mineruCommand.value = config.pdf?.mineru?.command ?? "mineru"
     mineruArgs.value = (config.pdf?.mineru?.args ?? ["-p", "{input}", "-o", "{outputDir}"]).join("\n")
-    mineruOutputFile.value = config.pdf?.mineru?.outputFile ?? ""
     mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
     mineruFallbackToUnpdf.value = config.pdf?.mineru?.fallbackToUnpdf ?? true
     mineruKeepOutput.value = config.pdf?.mineru?.keepOutput ?? true
@@ -179,7 +177,6 @@ async function handleSave() {
         mineru: {
           command: mineruCommand.value,
           args: mineruArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-          outputFile: mineruOutputFile.value || undefined,
           timeout: mineruTimeout.value,
           fallbackToUnpdf: mineruFallbackToUnpdf.value,
           keepOutput: mineruKeepOutput.value || undefined
@@ -351,10 +348,6 @@ onUnmounted(() => {
             <div class="flex flex-col gap-1">
               <label class="text-xs text-muted-foreground">Arguments</label>
               <Textarea v-model="mineruArgs" rows="4" auto-resize class="text-xs font-mono" />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Output File (optional)</label>
-              <InputText v-model="mineruOutputFile" size="small" placeholder="{outputDir}/{basename}.md" />
             </div>
             <div class="flex flex-col gap-1">
               <label class="text-xs text-muted-foreground">Timeout (seconds)</label>

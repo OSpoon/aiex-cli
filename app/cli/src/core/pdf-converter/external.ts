@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execa } from 'execa'
 import { glob } from 'tinyglobby'
+import { getDocumentProxy } from 'unpdf'
 
 interface TemplateContext {
   input: string
@@ -68,6 +69,16 @@ function formatCommandError(error: unknown, command: string): Error {
   return new Error(details.join('\n'))
 }
 
+async function countPdfPages(input: Uint8Array): Promise<number> {
+  try {
+    const proxy = await getDocumentProxy(input)
+    return proxy.numPages
+  }
+  catch {
+    return 0
+  }
+}
+
 export class ExternalCommandPdfConverter implements PdfConverter {
   readonly name: string
 
@@ -86,6 +97,8 @@ export class ExternalCommandPdfConverter implements PdfConverter {
     const inputPath = filePath ?? path.join(tempRoot, 'input.pdf')
     if (!filePath)
       await fs.writeFile(inputPath, input)
+
+    const pageCount = await countPdfPages(input)
 
     const basename = path.basename(inputPath, path.extname(inputPath))
     const context = { input: inputPath, outputDir, basename }
@@ -109,7 +122,7 @@ export class ExternalCommandPdfConverter implements PdfConverter {
 
       return {
         text: await fs.readFile(outputPath, 'utf-8'),
-        pageCount: 0,
+        pageCount,
         metadata: {
           converter: this.name,
           outputPath,
