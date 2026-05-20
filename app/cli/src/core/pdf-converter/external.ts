@@ -1,5 +1,6 @@
 import type { PdfConversionResult, PdfConverter } from './types'
 import type { ExternalPdfConverterConfig } from '@/core/ai-extraction/types'
+import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -71,7 +72,8 @@ function formatCommandError(error: unknown, command: string): Error {
 
 async function countPdfPages(input: Uint8Array): Promise<number> {
   try {
-    const proxy = await getDocumentProxy(input)
+    const data = Buffer.isBuffer(input) ? new Uint8Array(input) : input
+    const proxy = await getDocumentProxy(data)
     return proxy.numPages
   }
   catch {

@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { execa } from 'execa'
+import { getDocumentProxy } from 'unpdf'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPdfConverter, ExternalCommandPdfConverter, registerPdfConverter, UnpdfConverter } from '@/core/pdf-converter'
 
@@ -101,6 +102,27 @@ describe('externalCommandPdfConverter', () => {
       ['-p', '/tmp/sample.pdf', '-o', expect.stringContaining('aiex-mineru-')],
       expect.objectContaining({ shell: false, timeout: 600000 }),
     )
+  })
+
+  it('counts pages from Buffer inputs without passing Buffer directly to unpdf', async () => {
+    vi.mocked(execa as any).mockImplementation(async (_command: string, args: string[]) => {
+      await writeMockMarkdown(args as string[], '# MinerU output')
+      return {} as any
+    })
+
+    const converter = new ExternalCommandPdfConverter('mineru', {
+      command: 'mineru',
+      args: ['-p', '{input}', '-o', '{outputDir}'],
+      timeout: 600,
+    })
+    const buffer = Buffer.from([1, 2, 3])
+
+    const result = await converter.convert(buffer, '/tmp/sample.pdf')
+    const countedInput = vi.mocked(getDocumentProxy).mock.calls.at(-1)?.[0]
+
+    expect(result.pageCount).toBe(5)
+    expect(Buffer.isBuffer(countedInput)).toBe(false)
+    expect(countedInput).toBeInstanceOf(Uint8Array)
   })
 
   it('supports explicit outputFile template', async () => {
