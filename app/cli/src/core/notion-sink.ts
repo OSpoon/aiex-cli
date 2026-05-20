@@ -104,6 +104,22 @@ function asStringArray(value: unknown): string[] {
   return text ? [text] : []
 }
 
+function getValueAtPath(data: Record<string, unknown>, path: string): { found: boolean, value: unknown } {
+  if (!path.includes('.'))
+    return Object.hasOwn(data, path) ? { found: true, value: data[path] } : { found: false, value: undefined }
+
+  let current: unknown = data
+  for (const part of path.split('.')) {
+    if (!current || typeof current !== 'object' || Array.isArray(current))
+      return { found: false, value: undefined }
+    const record = current as Record<string, unknown>
+    if (!Object.hasOwn(record, part))
+      return { found: false, value: undefined }
+    current = record[part]
+  }
+  return { found: true, value: current }
+}
+
 function buildPropertyValue(type: string, value: unknown): unknown {
   const text = truncateText(stringifyValue(value))
 
@@ -312,14 +328,19 @@ export async function writeNotionPage(
   const databaseProperties = resolved.properties
   const fieldMap = schemaConfig.fieldMap ?? {}
   const properties: Record<string, any> = {}
+  const sourceFields = new Set([...Object.keys(data), ...Object.keys(fieldMap)])
 
-  for (const [sourceField, sourceValue] of Object.entries(data)) {
+  for (const sourceField of sourceFields) {
+    const source = getValueAtPath(data, sourceField)
+    if (!source.found)
+      continue
+
     const notionPropertyName = fieldMap[sourceField] ?? sourceField
     const notionProperty = databaseProperties[notionPropertyName]
     if (!notionProperty)
       continue
 
-    const propertyValue = buildPropertyValue(notionProperty.type, sourceValue)
+    const propertyValue = buildPropertyValue(notionProperty.type, source.value)
     if (propertyValue)
       properties[notionPropertyName] = propertyValue
   }

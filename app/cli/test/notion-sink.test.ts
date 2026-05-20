@@ -207,4 +207,50 @@ describe('notion sink', () => {
       },
     })
   })
+
+  it('writes nested object fields through dot-path field mappings', async () => {
+    notionMock.dataSourcesRetrieve
+      .mockRejectedValueOnce(new Error('not a data source'))
+      .mockResolvedValueOnce({
+        object: 'data_source',
+        id: 'source-1',
+        properties: {
+          名称: { type: 'title' },
+          studentName: { type: 'rich_text' },
+          chinese: { type: 'number' },
+        },
+      })
+    notionMock.databasesRetrieve.mockResolvedValueOnce({
+      object: 'database',
+      id: 'database-1',
+      data_sources: [{ id: 'source-1', name: 'AIEX Notion Test' }],
+    })
+    notionMock.pagesCreate.mockResolvedValueOnce({ id: 'page-1' })
+
+    await writeNotionPage({
+      enabled: true,
+      token: 'token',
+      schemas: {
+        score_report: {
+          databaseId: 'database-1',
+          fieldMap: {
+            'student.name': 'studentName',
+            'scores.chinese': 'chinese',
+          },
+        },
+      },
+    }, 'score_report', {
+      student: { name: 'Alice' },
+      scores: { chinese: '132' },
+    })
+
+    expect(notionMock.pagesCreate).toHaveBeenCalledWith({
+      parent: { data_source_id: 'source-1' },
+      properties: {
+        名称: { title: [{ text: { content: 'score_report' } }] },
+        studentName: { rich_text: [{ text: { content: 'Alice' } }] },
+        chinese: { number: 132 },
+      },
+    })
+  })
 })

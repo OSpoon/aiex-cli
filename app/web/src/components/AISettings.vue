@@ -172,19 +172,28 @@ function parseNotionFieldMap(): Record<string, string> | undefined {
   return Object.keys(filtered).length > 0 ? filtered : undefined
 }
 
-function extractTopLevelSchemaFields(schema: any): string[] {
+function extractNotionSchemaFields(schema: any): string[] {
   if (!schema?.properties || typeof schema.properties !== "object")
     return []
 
-  return Object.entries(schema.properties)
-    .filter(([, property]: [string, any]) => {
-      if (property?.nested?.enabled)
-        return false
-      if (property?.type === "array" && property?.items?.nested?.enabled)
-        return false
-      return true
-    })
-    .map(([name]) => name)
+  const fields: string[] = []
+
+  function visitProperties(properties: Record<string, any>, prefix = "") {
+    for (const [name, property] of Object.entries(properties)) {
+      const fieldName = prefix ? `${prefix}.${name}` : name
+      if (property?.type === "object" && property?.properties && typeof property.properties === "object") {
+        visitProperties(property.properties, fieldName)
+        continue
+      }
+      if (property?.type === "array" && property?.items?.type === "object")
+        continue
+
+      fields.push(fieldName)
+    }
+  }
+
+  visitProperties(schema.properties)
+  return fields
 }
 
 function formatFieldMapForEditing(savedFieldMap?: Record<string, string>): string {
@@ -250,7 +259,7 @@ async function loadSelectedNotionSchemaFields() {
     return
   }
   try {
-    notionSchemaFields.value = extractTopLevelSchemaFields(await getSchema(`${schemaName}.json`))
+    notionSchemaFields.value = extractNotionSchemaFields(await getSchema(`${schemaName}.json`))
   } catch {
     notionSchemaFields.value = []
   }
@@ -712,7 +721,7 @@ onUnmounted(() => {
               </p>
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-              Selecting a schema fills the left-side keys. Fill the values with Notion property names, or test to auto-map matching properties.
+              Selecting a schema fills the left-side keys. Nested objects use dot paths such as <code class="bg-secondary px-1 rounded">student.name</code>. Object arrays are skipped; model them as separate Notion data sources later if needed.
             </div>
           </div>
         </div>

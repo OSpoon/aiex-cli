@@ -18,19 +18,28 @@ function extractSchemaFields(schema: any): Array<{ name: string, title?: string,
   if (!schema?.properties || typeof schema.properties !== 'object')
     return []
 
-  return Object.entries(schema.properties)
-    .filter(([, property]: [string, any]) => {
-      if (property?.nested?.enabled)
-        return false
-      if (property?.type === 'array' && property?.items?.nested?.enabled)
-        return false
-      return true
-    })
-    .map(([name, property]: [string, any]) => ({
-      name,
-      title: typeof property?.title === 'string' ? property.title : undefined,
-      description: typeof property?.description === 'string' ? property.description : undefined,
-    }))
+  const fields: Array<{ name: string, title?: string, description?: string }> = []
+
+  function visitProperties(properties: Record<string, any>, prefix = ''): void {
+    for (const [name, property] of Object.entries(properties)) {
+      const fieldName = prefix ? `${prefix}.${name}` : name
+      if (property?.type === 'object' && property?.properties && typeof property.properties === 'object') {
+        visitProperties(property.properties, fieldName)
+        continue
+      }
+      if (property?.type === 'array' && property?.items?.type === 'object')
+        continue
+
+      fields.push({
+        name: fieldName,
+        title: typeof property?.title === 'string' ? property.title : undefined,
+        description: typeof property?.description === 'string' ? property.description : undefined,
+      })
+    }
+  }
+
+  visitProperties(schema.properties)
+  return fields
 }
 
 async function loadSchemaFields(config: MigrationConfig, schemaName: string): Promise<Array<{ name: string, title?: string, description?: string }>> {
