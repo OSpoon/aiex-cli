@@ -1,9 +1,10 @@
 import type { NotionConfig } from '@/core/ai-extraction'
-import { Client } from '@notionhq/client'
+import { Client, extractNotionId } from '@notionhq/client'
 
 export interface NotionWriteResult {
   pageId: string
   databaseId: string
+  dataSourceId?: string
 }
 
 export interface NotionSchemaField {
@@ -19,6 +20,7 @@ export interface NotionDatabaseProperty {
 
 export interface NotionDatabaseInfo {
   databaseId: string
+  dataSourceId?: string
   titleProperty?: string
   properties: NotionDatabaseProperty[]
   suggestedFieldMap: Record<string, string>
@@ -27,7 +29,18 @@ export interface NotionDatabaseInfo {
 const RICH_TEXT_LIMIT = 2000
 const UUID_RE = /^[0-9a-f]{32}$/i
 const HYPHENATED_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const UUID_IN_TEXT_RE = /[0-9a-f]{32}/i
+interface ResolvedNotionDataSource {
+  databaseId: string
+  dataSourceId?: string
+  properties: Record<string, any>
+  parent: { database_id: string } | { data_source_id: string }
+}
+
+interface NotionObjectWithProperties {
+  id?: string
+  parent?: { database_id?: string }
+  properties: Record<string, any>
+}
 
 function truncateText(value: string): string {
   return value.length > RICH_TEXT_LIMIT ? value.slice(0, RICH_TEXT_LIMIT) : value
@@ -142,14 +155,14 @@ export function parseNotionDatabaseId(value: string): string {
   const input = value.trim()
   if (!input)
     return ''
+  const extracted = extractNotionId(input)
+  if (extracted)
+    return extracted
   if (HYPHENATED_UUID_RE.test(input))
     return input
   if (UUID_RE.test(input))
     return hyphenateDatabaseId(input)
-
-  const normalized = input.replace(/-/g, '')
-  const match = normalized.match(UUID_IN_TEXT_RE)
-  return match ? hyphenateDatabaseId(match[0]) : input
+  return input
 }
 
 function normalizeFieldName(value: string): string {
@@ -188,6 +201,68 @@ function suggestFieldMap(
   return fieldMap
 }
 
+function hasProperties(value: unknown): value is NotionObjectWithProperties {
+  return !!value && typeof value === 'object' && !!(value as any).properties && typeof (value as any).properties === 'object'
+}
+
+function firstDataSourceId(database: any): string | undefined {
+  const dataSources = Array.isArray(database?.data_sources) ? database.data_sources : []
+  return dataSources.find((source: any) => typeof source?.id === 'string' && source.id.trim())?.id
+}
+
+async function resolveNotionDataSource(
+  notion: Client,
+  inputId: string,
+): Promise<ResolvedNotionDataSource> {
+  const id = parseNotionDatabaseId(inputId)
+  if (!id)
+    throw new Error('Notion database or data source URL/ID is required.')
+
+  try {
+    const dataSource = await notion.dataSources.retrieve({ data_source_id: id }) as any
+    if (hasProperties(dataSource)) {
+      const parentDatabaseId = typeof dataSource.parent?.database_id === 'string'
+        ? dataSource.parent.database_id
+        : id
+      return {
+        databaseId: parentDatabaseId,
+        dataSourceId: dataSource.id ?? id,
+        properties: dataSource.properties,
+        parent: { data_source_id: dataSource.id ?? id },
+      }
+    }
+  }
+  catch {
+    // Fall through and try the ID as a database container for Notion's data source model.
+  }
+
+  const database = await notion.databases.retrieve({ database_id: id }) as any
+  if (hasProperties(database)) {
+    return {
+      databaseId: database.id ?? id,
+      properties: database.properties,
+      parent: { database_id: database.id ?? id },
+    }
+  }
+
+  const dataSourceId = firstDataSourceId(database)
+  if (!dataSourceId) {
+    throw new Error('No data source found for this Notion database. Copy the data source link from Notion, or share the source database with the integration.')
+  }
+
+  const dataSource = await notion.dataSources.retrieve({ data_source_id: dataSourceId }) as any
+  if (!hasProperties(dataSource)) {
+    throw new Error('Notion data source did not return properties. Make sure it is shared with the integration and is not a linked data source.')
+  }
+
+  return {
+    databaseId: database.id ?? id,
+    dataSourceId: dataSource.id ?? dataSourceId,
+    properties: dataSource.properties,
+    parent: { data_source_id: dataSource.id ?? dataSourceId },
+  }
+}
+
 export async function inspectNotionDatabase(input: {
   token: string
   databaseId: string
@@ -196,17 +271,18 @@ export async function inspectNotionDatabase(input: {
   if (!input.token.trim())
     throw new Error('Notion integration token is required.')
 
-  const databaseId = parseNotionDatabaseId(input.databaseId)
-  if (!databaseId)
-    throw new Error('Notion database URL or ID is required.')
+  const id = parseNotionDatabaseId(input.databaseId)
+  if (!id)
+    throw new Error('Notion database or data source URL/ID is required.')
 
   const notion = new Client({ auth: input.token })
-  const database = await notion.databases.retrieve({ database_id: databaseId }) as any
-  const databaseProperties = database.properties as Record<string, any>
+  const resolved = await resolveNotionDataSource(notion, id)
+  const databaseProperties = resolved.properties
   const titleProperty = findTitleProperty(databaseProperties) ?? undefined
 
   return {
-    databaseId,
+    databaseId: resolved.databaseId,
+    dataSourceId: resolved.dataSourceId,
     titleProperty,
     properties: Object.entries(databaseProperties)
       .map(([name, property]) => ({ name, type: property?.type ?? 'unknown' }))
@@ -240,8 +316,8 @@ export async function writeNotionPage(
     throw new Error(`Notion database ID is required for schema "${schemaName}".`)
 
   const notion = new Client({ auth: notionConfig.token })
-  const database = await notion.databases.retrieve({ database_id: schemaConfig.databaseId }) as any
-  const databaseProperties = database.properties as Record<string, any>
+  const resolved = await resolveNotionDataSource(notion, schemaConfig.databaseId)
+  const databaseProperties = resolved.properties
   const fieldMap = schemaConfig.fieldMap ?? {}
   const properties: Record<string, any> = {}
 
@@ -266,12 +342,13 @@ export async function writeNotionPage(
     throw new Error('No extracted fields matched Notion database properties.')
 
   const page = await notion.pages.create({
-    parent: { database_id: schemaConfig.databaseId },
+    parent: resolved.parent,
     properties,
   }) as any
 
   return {
     pageId: page.id,
-    databaseId: schemaConfig.databaseId,
+    databaseId: resolved.databaseId,
+    dataSourceId: resolved.dataSourceId,
   }
 }

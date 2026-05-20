@@ -385,7 +385,7 @@ async function handleInspectNotion() {
     return
   }
   if (!notionDatabaseId.value.trim()) {
-    toast.error("Enter a Notion database URL or ID")
+    toast.error("Enter a Notion database or data source URL/ID")
     return
   }
   if (notionFieldMapError.value) {
@@ -401,8 +401,8 @@ async function handleInspectNotion() {
       schemaName: selectedNotionSchema.value
     })
 
-    if (result.databaseId)
-      notionDatabaseId.value = result.databaseId
+    if (result.dataSourceId || result.databaseId)
+      notionDatabaseId.value = result.dataSourceId ?? result.databaseId ?? ""
     if (!notionTitleProperty.value && result.titleProperty)
       notionTitleProperty.value = result.titleProperty
 
@@ -678,7 +678,7 @@ onUnmounted(() => {
               />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Database URL or ID</label>
+              <label class="text-xs text-muted-foreground">Database/Data Source URL or ID</label>
               <InputText v-model="notionDatabaseId" size="small" placeholder="https://www.notion.so/... or xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
             </div>
             <div class="flex flex-col gap-1">

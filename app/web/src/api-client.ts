@@ -150,6 +150,7 @@ export interface InspectNotionDatabaseResult {
   success: boolean
   error?: string
   databaseId?: string
+  dataSourceId?: string
   titleProperty?: string
   properties?: NotionDatabaseProperty[]
   suggestedFieldMap?: Record<string, string>
