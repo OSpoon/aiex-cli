@@ -10,6 +10,7 @@ import {
 } from '@/core/extract-runner'
 import {
   createExtractionAuditRecord,
+  getExtractionAuditPath,
   listExtractionAuditRecords,
   readExtractionAuditRecord,
   updateExtractionAuditRecord,
@@ -46,6 +47,11 @@ function getFormFile(value: BodyValue | BodyValue[] | undefined): File | null {
 function safeUploadName(name: string): string {
   const base = path.basename(name).replace(/[^\w.-]/g, '_')
   return base || 'upload.txt'
+}
+
+function isPathInside(childPath: string, parentPath: string): boolean {
+  const relative = path.relative(parentPath, childPath)
+  return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative)
 }
 
 async function saveUploadToFile(file: File, uploadsDir: string, id: string): Promise<string> {
@@ -257,7 +263,10 @@ export function extractRoutes(config: MigrationConfig): Hono {
     if (!record) {
       return c.json({ success: false, error: 'Extraction record not found' }, 404)
     }
-    await fs.unlink(path.join(aiexDir, 'extracted', '_audit', `${id}.json`)).catch(() => {})
+    if (record.source.type === 'file' && record.source.filePath && isPathInside(record.source.filePath, uploadsDir)) {
+      await fs.unlink(record.source.filePath).catch(() => {})
+    }
+    await fs.unlink(getExtractionAuditPath(aiexDir, id)).catch(() => {})
     return c.json({ success: true })
   })
 

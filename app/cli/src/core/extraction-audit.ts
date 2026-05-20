@@ -3,8 +3,9 @@ import path from 'node:path'
 import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
 
 const AUDIT_ID_RE = /^[\w.-]+$/
+const STALE_AFTER_MS = 30 * 60 * 1000
 
-export type ExtractionAuditStatus = 'running' | 'succeeded' | 'failed'
+export type ExtractionAuditStatus = 'running' | 'succeeded' | 'failed' | 'stale'
 
 export interface ExtractionAuditRecord {
   id: string
@@ -44,6 +45,10 @@ function auditDir(aiexDir: string): string {
 
 function auditPath(aiexDir: string, id: string): string {
   return path.join(auditDir(aiexDir), `${id}.json`)
+}
+
+export function getExtractionAuditPath(aiexDir: string, id: string): string {
+  return auditPath(aiexDir, id)
 }
 
 function createAuditId(schemaName: string): string {
@@ -107,6 +112,27 @@ export async function readExtractionAuditRecord(
   }
 }
 
+function isStale(record: ExtractionAuditRecord): boolean {
+  if (record.status !== 'running')
+    return false
+  const updated = Date.parse(record.updatedAt)
+  return !Number.isNaN(updated) && Date.now() - updated > STALE_AFTER_MS
+}
+
+async function markStaleIfNeeded(aiexDir: string, record: ExtractionAuditRecord): Promise<ExtractionAuditRecord> {
+  if (!isStale(record))
+    return record
+
+  const staleRecord: ExtractionAuditRecord = {
+    ...record,
+    status: 'stale',
+    error: record.error ?? 'Extraction did not finish. It may have been interrupted.',
+    updatedAt: new Date().toISOString(),
+  }
+  await writeJsonFile(auditPath(aiexDir, staleRecord.id), staleRecord, { spaces: 2, EOL: '\n' })
+  return staleRecord
+}
+
 export async function listExtractionAuditRecords(aiexDir: string): Promise<ExtractionAuditRecord[]> {
   try {
     const dir = auditDir(aiexDir)
@@ -116,7 +142,8 @@ export async function listExtractionAuditRecords(aiexDir: string): Promise<Extra
         .filter(file => file.endsWith('.json'))
         .map(async (file) => {
           try {
-            return await readJsonFile(path.join(dir, file)) as ExtractionAuditRecord
+            const record = await readJsonFile(path.join(dir, file)) as ExtractionAuditRecord
+            return await markStaleIfNeeded(aiexDir, record)
           }
           catch {
             return null

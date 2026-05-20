@@ -178,7 +178,7 @@ export interface RunExtractionResult {
   }
 }
 
-export type ExtractionAuditStatus = "running" | "succeeded" | "failed"
+export type ExtractionAuditStatus = "running" | "succeeded" | "failed" | "stale"
 
 export interface ExtractionAuditRecord {
   id: string
@@ -239,6 +239,15 @@ export async function retryExtractionRun(id: string): Promise<RunExtractionResul
   }
   catch (error) {
     throw new Error(await getErrorMessage(error, 'Retry failed'))
+  }
+}
+
+export async function deleteExtractionRun(id: string): Promise<void> {
+  try {
+    await api.delete(`api/extract/records/${encodeURIComponent(id)}`)
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, 'Failed to delete extraction record'))
   }
 }
 

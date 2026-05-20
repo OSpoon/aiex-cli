@@ -146,4 +146,56 @@ describe('extract routes', () => {
     expect(body.success).toBe(false)
     expect(body.error).toBe('Extraction record not found')
   })
+
+  it('marks interrupted running records as stale when listing records', async () => {
+    const auditDir = path.join(tempDir, 'extracted', '_audit')
+    await fs.mkdir(auditDir, { recursive: true })
+    await writeJsonFile(path.join(auditDir, 'old-run.json'), {
+      id: 'old-run',
+      status: 'running',
+      schemaName: 'person',
+      source: { type: 'text', text: 'Alice is 30' },
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    })
+
+    const app = extractRoutes(config)
+    const response = await app.request('/extract/records')
+    const records = await response.json() as AuditRecordResponse[]
+
+    expect(response.status).toBe(200)
+    expect(records[0]).toMatchObject({
+      id: 'old-run',
+      status: 'stale',
+      error: 'Extraction did not finish. It may have been interrupted.',
+    })
+  })
+
+  it('deletes audit records and their cached upload files', async () => {
+    const auditDir = path.join(tempDir, 'extracted', '_audit')
+    const uploadsDir = path.join(tempDir, 'uploads')
+    const uploadPath = path.join(uploadsDir, 'run-1-source.txt')
+    await fs.mkdir(auditDir, { recursive: true })
+    await fs.mkdir(uploadsDir, { recursive: true })
+    await fs.writeFile(uploadPath, 'Alice is 30')
+    await writeJsonFile(path.join(auditDir, 'run-1.json'), {
+      id: 'run-1',
+      status: 'failed',
+      schemaName: 'person',
+      source: { type: 'file', filePath: uploadPath, fileName: 'source.txt' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+
+    const app = extractRoutes(config)
+    const response = await app.request('/extract/records/run-1', {
+      method: 'DELETE',
+    })
+    const body = await response.json() as { success: boolean }
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+    await expect(fs.stat(path.join(auditDir, 'run-1.json'))).rejects.toThrow()
+    await expect(fs.stat(uploadPath)).rejects.toThrow()
+  })
 })
