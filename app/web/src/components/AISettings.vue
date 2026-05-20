@@ -699,16 +699,6 @@ onUnmounted(() => {
                 {{ notionProperties.length }} properties loaded
               </span>
             </div>
-            <div v-if="notionProperties.length > 0" class="max-h-28 overflow-auto rounded border border-border divide-y divide-border">
-              <div
-                v-for="property in notionProperties"
-                :key="property.name"
-                class="flex items-center justify-between gap-3 px-2 py-1.5 text-xs"
-              >
-                <span class="text-foreground truncate">{{ property.name }}</span>
-                <span class="text-muted-foreground shrink-0">{{ property.type }}</span>
-              </div>
-            </div>
             <div class="flex flex-col gap-1">
               <div class="flex items-center justify-between gap-2">
                 <label class="text-xs text-muted-foreground">Field Map JSON (optional)</label>
