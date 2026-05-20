@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExtractionRecord, TableData, TableInfo } from "@/api-client"
+import type { AIModelConfig, ExtractionRecord, RunExtractionResult, TableData, TableInfo } from "@/api-client"
 import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import tableSchemaMeta from "@aiex/table-schema"
 import { useEventListener } from "@vueuse/core"
@@ -7,17 +7,19 @@ import Button from "primevue/button"
 import Dialog from "primevue/dialog"
 import { computed, defineAsyncComponent, onMounted, ref } from "vue"
 import { toast, Toaster } from "vue-sonner"
-import { deleteSchema, getPromptSnapshot, getSchema, getTableData, listDataTables, listExtractions, listSchemas, migrateSchema, saveSchema } from "@/api-client"
+import { deleteSchema, getAIConfig, getPromptSnapshot, getSchema, getTableData, listDataTables, listExtractions, listSchemas, migrateSchema, saveSchema } from "@/api-client"
 import { cloneJson, isDeepEqual } from "@/lib/jsonschema-editor/lib/object-utils"
 import { useTheme } from "@/lib/jsonschema-editor/themes/useTheme"
 
 const { darkMode, toggleDarkMode } = useTheme()
 const AISettings = defineAsyncComponent(() => import("@/components/AISettings.vue"))
 const DataBrowser = defineAsyncComponent(() => import("@/components/DataBrowser.vue"))
+const ExtractRunner = defineAsyncComponent(() => import("@/components/ExtractRunner.vue"))
 const JsonSchemaEditor = defineAsyncComponent(() => import("@/lib/jsonschema-editor/components/SchemaEditor/JsonSchemaEditor.vue"))
 const ExtractionViewer = defineAsyncComponent(() => import("@/components/ExtractionViewer.vue"))
 
-const currentView = ref<"editor" | "data">("editor")
+const currentView = ref<"editor" | "extract" | "data">("editor")
+const aiModels = ref<AIModelConfig[]>([])
 
 // Data browser state
 const tables = ref<TableInfo[]>([])
@@ -116,6 +118,11 @@ function switchToData() {
   currentView.value = "data"
   loadTables()
   loadExtractions()
+}
+
+async function switchToExtract() {
+  currentView.value = "extract"
+  await loadAIModels()
 }
 
 function selectTable(name: string) {
@@ -365,9 +372,27 @@ async function handlePreviewPrompt(name: string) {
   promptPreviewLoading.value = false
 }
 
+async function loadAIModels() {
+  try {
+    const config = await getAIConfig()
+    aiModels.value = config.provider.models ?? []
+  } catch {
+    aiModels.value = []
+  }
+}
+
+async function handleExtractionCompleted(result: RunExtractionResult) {
+  await loadTables()
+  await loadExtractions()
+  if (result.outputName) {
+    selectedExtraction.value = result.outputName
+  }
+}
+
 onMounted(() => {
   loadSchemaList()
   loadTables()
+  loadAIModels()
 })
 </script>
 
@@ -414,14 +439,21 @@ onMounted(() => {
     <div class="row-start-2 flex flex-col min-h-0 bg-card border border-border rounded-xl p-3">
       <div class="flex mb-3 shrink-0 bg-muted rounded-lg p-0.5">
         <button
-          class="flex-1 px-3 py-1.5 text-sm rounded-md transition-colors"
+          class="flex-1 px-2 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'editor' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
           @click="currentView = 'editor'"
         >
           Editor
         </button>
         <button
-          class="flex-1 px-3 py-1.5 text-sm rounded-md transition-colors"
+          class="flex-1 px-2 py-1.5 text-sm rounded-md transition-colors"
+          :class="currentView === 'extract' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+          @click="switchToExtract"
+        >
+          Extract
+        </button>
+        <button
+          class="flex-1 px-2 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'data' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
           @click="switchToData"
         >
@@ -450,6 +482,22 @@ onMounted(() => {
           <Button class="w-full" label="New" icon="pi pi-plus" severity="secondary" size="small" @click="newSchema" />
           <Button class="w-full" label="Load Example" icon="pi pi-box" severity="help" size="small" outlined @click="loadExample" />
         </div>
+      </template>
+
+      <template v-if="currentView === 'extract'">
+        <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
+          Schemas
+        </h3>
+        <ul class="list-none p-0 m-0 flex-1 min-h-0 overflow-y-auto">
+          <li
+            v-for="name in savedSchemas"
+            :key="name"
+            class="p-2 rounded text-sm text-foreground truncate"
+            :title="name"
+          >
+            {{ name.replace('.json', '') }}
+          </li>
+        </ul>
       </template>
 
       <template v-if="currentView === 'data'">
@@ -522,6 +570,12 @@ onMounted(() => {
         :migrating="migrating"
         @save="handleSave"
         @save-and-migrate="handleSaveAndMigrate"
+      />
+      <ExtractRunner
+        v-else-if="currentView === 'extract'"
+        :schemas="savedSchemas"
+        :models="aiModels"
+        @completed="handleExtractionCompleted"
       />
       <DataBrowser
         v-else-if="currentView === 'data' && dataSubView === 'table'"

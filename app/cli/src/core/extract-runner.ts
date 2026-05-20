@@ -55,6 +55,13 @@ export interface ExtractFileInput {
 export interface ExtractResult {
   success: boolean
   error?: string
+  outputPath?: string
+  tablesInserted?: Array<{ table: string, rowId: number }>
+  tokensUsed?: {
+    prompt: number
+    completion: number
+    total: number
+  }
 }
 
 export interface BatchExtractionResult {
@@ -266,6 +273,12 @@ export async function extractSingle(
           if (!options?.quiet) {
             s2.stop(`Inserted into ${insertResult.tablesInserted.length} table(s)`)
           }
+          return {
+            success: true,
+            outputPath: result.outputPath,
+            tablesInserted: insertResult.tablesInserted,
+            tokensUsed: result.tokensUsed,
+          }
         }
         else {
           if (!options?.quiet)
@@ -286,7 +299,11 @@ export async function extractSingle(
     }
   }
 
-  return { success: true }
+  return {
+    success: true,
+    outputPath: result.outputPath,
+    tokensUsed: result.tokensUsed,
+  }
 }
 
 async function processOneFile(

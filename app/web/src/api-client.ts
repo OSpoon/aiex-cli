@@ -155,6 +155,49 @@ export async function registryLookup(modelName: string): Promise<ModelCapabiliti
   return data as ModelCapabilities
 }
 
+// Extraction API
+
+export interface RunExtractionInput {
+  schema: string
+  text?: string
+  file?: File | null
+  model?: string
+}
+
+export interface RunExtractionResult {
+  success: boolean
+  error?: string
+  outputPath?: string
+  outputName?: string
+  tablesInserted?: Array<{ table: string, rowId: number }>
+  tokensUsed?: {
+    prompt: number
+    completion: number
+    total: number
+  }
+}
+
+export async function runExtraction(input: RunExtractionInput): Promise<RunExtractionResult> {
+  const form = new FormData()
+  form.set('schema', input.schema)
+  if (input.text)
+    form.set('text', input.text)
+  if (input.file)
+    form.set('file', input.file)
+  if (input.model)
+    form.set('model', input.model)
+
+  try {
+    const data = await api.post('api/extract', { body: form }).json<RunExtractionResult>()
+    if (!data.success)
+      throw new Error(data.error || 'Extraction failed')
+    return data
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, 'Extraction failed'))
+  }
+}
+
 // Data Browser API
 
 export interface ExtractionRecord {

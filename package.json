@@ -20,7 +20,7 @@
     "dev:web": "pnpm --filter aiex-web dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm --dir app/cli typecheck && pnpm --dir app/web typecheck",
     "release": "cd app/cli && bumpp --push --tag",
     "prepare": "simple-git-hooks"
   },
