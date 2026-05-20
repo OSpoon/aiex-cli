@@ -60,6 +60,7 @@ export interface ExtractResult {
   success: boolean
   error?: string
   outputPath?: string
+  data?: unknown
   tablesInserted?: Array<{ table: string, rowId: number }>
   tokensUsed?: {
     prompt: number
@@ -280,6 +281,7 @@ export async function extractSingle(
           return {
             success: true,
             outputPath: result.outputPath,
+            data: result.data,
             tablesInserted: insertResult.tablesInserted,
             tokensUsed: result.tokensUsed,
           }
@@ -306,6 +308,7 @@ export async function extractSingle(
   return {
     success: true,
     outputPath: result.outputPath,
+    data: result.data,
     tokensUsed: result.tokensUsed,
   }
 }

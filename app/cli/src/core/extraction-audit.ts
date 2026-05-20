@@ -22,6 +22,7 @@ export interface ExtractionAuditRecord {
   outputName?: string
   outputPath?: string
   tablesInserted?: Array<{ table: string, rowId: number }>
+  notionPages?: Array<{ databaseId: string, pageId: string }>
   tokensUsed?: {
     prompt: number
     completion: number

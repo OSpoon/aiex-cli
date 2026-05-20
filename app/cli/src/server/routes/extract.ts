@@ -15,6 +15,7 @@ import {
   readExtractionAuditRecord,
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
+import { writeNotionPage } from '@/core/notion-sink'
 
 interface ExtractResponse {
   success: boolean
@@ -22,6 +23,7 @@ interface ExtractResponse {
   outputPath?: string
   outputName?: string
   tablesInserted?: Array<{ table: string, rowId: number }>
+  notionPages?: Array<{ databaseId: string, pageId: string }>
   tokensUsed?: {
     prompt: number
     completion: number
@@ -65,6 +67,7 @@ async function executeAuditedExtraction(input: {
   text: string
   filePath?: string
   modelName?: string
+  syncNotion?: boolean
 }): Promise<Response> {
   const aiConfig = await readAIConfig(input.aiexDir)
   if (!aiConfig) {
@@ -143,11 +146,39 @@ async function executeAuditedExtraction(input: {
     })
   }
 
+  const notionPages: Array<{ databaseId: string, pageId: string }> = []
+  if (input.syncNotion) {
+    try {
+      if (!result.data || typeof result.data !== 'object' || Array.isArray(result.data))
+        throw new Error('Extraction result is not an object and cannot be written to Notion.')
+      notionPages.push(await writeNotionPage(
+        aiConfig.notion,
+        input.schemaName,
+        result.data as Record<string, unknown>,
+      ))
+    }
+    catch (error) {
+      const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
+        status: 'failed',
+        outputPath: result.outputPath,
+        outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
+        tablesInserted: result.tablesInserted,
+        tokensUsed: result.tokensUsed,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+  }
+
   const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
     status: 'succeeded',
     outputPath: result.outputPath,
     outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
     tablesInserted: result.tablesInserted,
+    notionPages: notionPages.length > 0 ? notionPages : undefined,
     tokensUsed: result.tokensUsed,
   })
 
@@ -156,6 +187,7 @@ async function executeAuditedExtraction(input: {
     outputPath: record.outputPath,
     outputName: record.outputName,
     tablesInserted: record.tablesInserted,
+    notionPages: record.notionPages,
     tokensUsed: record.tokensUsed,
     auditId: record.id,
   }), {
@@ -179,6 +211,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
       const schemaName = getFormString(body.schema)
       const text = getFormString(body.text)
       const modelName = getFormString(body.model)
+      const syncNotion = getFormString(body.notion) === 'true'
       const file = getFormFile(body.file)
 
       if (!schemaName) {
@@ -217,6 +250,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
         text,
         filePath,
         modelName,
+        syncNotion,
       })
     }
     catch (error: unknown) {

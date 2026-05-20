@@ -48,12 +48,25 @@ export interface LangfuseConfig {
   host?: string
 }
 
+export interface NotionSchemaConfig {
+  databaseId: string
+  titleProperty?: string
+  fieldMap?: Record<string, string>
+}
+
+export interface NotionConfig {
+  enabled: boolean
+  token: string
+  schemas: Record<string, NotionSchemaConfig>
+}
+
 export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
   pdf?: PdfConfig
   langfuse?: LangfuseConfig
+  notion?: NotionConfig
 }
 
 export const PLACEHOLDER_SCHEMA = '{schema}'

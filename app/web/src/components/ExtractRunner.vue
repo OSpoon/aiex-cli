@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AIModelConfig, ExtractionAuditRecord, RunExtractionResult } from "@/api-client"
 import Button from "primevue/button"
+import Checkbox from "primevue/checkbox"
 import Dialog from "primevue/dialog"
 import { computed, onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
@@ -9,6 +10,8 @@ import { deleteExtractionRun, listExtractionRuns, retryExtractionRun, runExtract
 const props = defineProps<{
   schemas: string[]
   models: AIModelConfig[]
+  notionEnabled: boolean
+  notionSchemaNames: string[]
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +23,7 @@ const selectedModel = ref("")
 const inputMode = ref<"text" | "file">("text")
 const textInput = ref("")
 const fileInput = ref<File | null>(null)
+const syncNotion = ref(false)
 const running = ref(false)
 const lastResult = ref<RunExtractionResult | null>(null)
 const records = ref<ExtractionAuditRecord[]>([])
@@ -30,6 +34,7 @@ const selectedRecord = ref<ExtractionAuditRecord | null>(null)
 const showDetails = ref(false)
 
 const schemaOptions = computed(() => props.schemas.map(name => name.replace(".json", "")))
+const selectedSchemaHasNotion = computed(() => props.notionEnabled && props.notionSchemaNames.includes(selectedSchema.value))
 const selectedRecordJson = computed(() => selectedRecord.value ? JSON.stringify(selectedRecord.value, null, 2) : "")
 
 watch(schemaOptions, (schemas) => {
@@ -84,7 +89,8 @@ async function handleRun() {
       schema: selectedSchema.value,
       text: inputMode.value === "text" ? text : undefined,
       file: inputMode.value === "file" ? fileInput.value : null,
-      model: selectedModel.value || undefined
+      model: selectedModel.value || undefined,
+      notion: selectedSchemaHasNotion.value && syncNotion.value
     })
     lastResult.value = result
     toast.success("Extraction complete")
@@ -273,6 +279,22 @@ onMounted(loadRecords)
               </div>
             </div>
           </section>
+
+          <section v-if="selectedRecord.notionPages">
+            <h4 class="m-0 mb-2 text-xs font-semibold text-muted-foreground">
+              Notion Pages
+            </h4>
+            <div class="rounded-md border border-border overflow-hidden">
+              <div
+                v-for="page in selectedRecord.notionPages"
+                :key="page.pageId"
+                class="flex items-center justify-between gap-3 px-3 py-2 text-sm border-b border-border last:border-b-0"
+              >
+                <span class="text-foreground truncate">{{ page.databaseId }}</span>
+                <span class="text-muted-foreground truncate">{{ page.pageId }}</span>
+              </div>
+            </div>
+          </section>
         </div>
 
         <div v-if="selectedRecord.error" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -358,6 +380,11 @@ onMounted(loadRecords)
         :disabled="schemaOptions.length === 0"
         @click="handleRun"
       />
+
+      <label class="flex h-9 items-center gap-2 text-sm text-foreground">
+        <Checkbox v-model="syncNotion" :binary="true" input-id="sync-notion" :disabled="!selectedSchemaHasNotion" />
+        <span :class="selectedSchemaHasNotion ? 'text-foreground' : 'text-muted-foreground'">Notion</span>
+      </label>
     </div>
 
     <div v-if="schemaOptions.length === 0" class="flex-1 flex flex-col items-center justify-center text-muted-foreground">
@@ -393,6 +420,7 @@ onMounted(loadRecords)
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span v-if="lastResult.outputName">Saved: {{ lastResult.outputName }}</span>
           <span v-if="lastResult.tablesInserted">Inserted: {{ lastResult.tablesInserted.length }} table(s)</span>
+          <span v-if="lastResult.notionPages">Notion: {{ lastResult.notionPages.length }} page(s)</span>
           <span v-if="lastResult.tokensUsed">Tokens: {{ lastResult.tokensUsed.total }}</span>
         </div>
       </div>

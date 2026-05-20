@@ -129,12 +129,39 @@ export interface LangfuseConfig {
   host?: string
 }
 
+export interface NotionSchemaConfig {
+  databaseId: string
+  titleProperty?: string
+  fieldMap?: Record<string, string>
+}
+
+export interface NotionConfig {
+  enabled: boolean
+  token: string
+  schemas: Record<string, NotionSchemaConfig>
+}
+
+export interface NotionDatabaseProperty {
+  name: string
+  type: string
+}
+
+export interface InspectNotionDatabaseResult {
+  success: boolean
+  error?: string
+  databaseId?: string
+  titleProperty?: string
+  properties?: NotionDatabaseProperty[]
+  suggestedFieldMap?: Record<string, string>
+}
+
 export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
   pdf?: PdfConfig
   langfuse?: LangfuseConfig
+  notion?: NotionConfig
 }
 
 export async function getAIConfig(): Promise<AIConfig> {
@@ -156,6 +183,22 @@ export async function registryLookup(modelName: string): Promise<ModelCapabiliti
   return data as ModelCapabilities
 }
 
+export async function inspectNotionDatabase(input: {
+  token: string
+  databaseId: string
+  schemaName: string
+}): Promise<InspectNotionDatabaseResult> {
+  try {
+    const data = await api.post('api/ai/notion/inspect', { json: input }).json<InspectNotionDatabaseResult>()
+    if (!data.success)
+      throw new Error(data.error || 'Notion connection failed')
+    return data
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, 'Notion connection failed'))
+  }
+}
+
 // Extraction API
 
 export interface RunExtractionInput {
@@ -163,6 +206,7 @@ export interface RunExtractionInput {
   text?: string
   file?: File | null
   model?: string
+  notion?: boolean
 }
 
 export interface RunExtractionResult {
@@ -172,6 +216,7 @@ export interface RunExtractionResult {
   outputPath?: string
   outputName?: string
   tablesInserted?: Array<{ table: string, rowId: number }>
+  notionPages?: Array<{ databaseId: string, pageId: string }>
   tokensUsed?: {
     prompt: number
     completion: number
@@ -196,6 +241,7 @@ export interface ExtractionAuditRecord {
   outputName?: string
   outputPath?: string
   tablesInserted?: Array<{ table: string, rowId: number }>
+  notionPages?: Array<{ databaseId: string, pageId: string }>
   tokensUsed?: {
     prompt: number
     completion: number
@@ -215,6 +261,8 @@ export async function runExtraction(input: RunExtractionInput): Promise<RunExtra
     form.set('file', input.file)
   if (input.model)
     form.set('model', input.model)
+  if (input.notion)
+    form.set('notion', 'true')
 
   try {
     const data = await api.post('api/extract', { body: form }).json<RunExtractionResult>()

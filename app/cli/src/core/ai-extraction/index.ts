@@ -8,7 +8,7 @@ export type { InsertResult } from './inserter'
 export { safeParseJSON } from './json-utils'
 export { getRegistrySize, lookupModel } from './model-registry'
 export { generateExtractionPrompt, generatePromptSnapshot, schemaToDescription } from './prompt-generator'
-export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, LangfuseConfigSchema, PdfConfigSchema } from './schemas'
+export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, LangfuseConfigSchema, NotionConfigSchema, NotionSchemaConfigSchema, PdfConfigSchema } from './schemas'
 export { savePromptSnapshot } from './snapshot'
 export type {
   AIConfig,
@@ -18,6 +18,8 @@ export type {
   ExtractionConfig,
   ExtractionResult,
   LangfuseConfig,
+  NotionConfig,
+  NotionSchemaConfig,
   PdfConfig,
   PdfConverterKind,
   PromptConfig,

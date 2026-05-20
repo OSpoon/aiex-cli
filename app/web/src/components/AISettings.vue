@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AIConfig, AIModelConfig, ModelCapabilities, PdfConverterKind } from "@/api-client"
+import type { AIConfig, AIModelConfig, ModelCapabilities, NotionDatabaseProperty, NotionSchemaConfig, PdfConverterKind } from "@/api-client"
 import Button from "primevue/button"
 import Checkbox from "primevue/checkbox"
 import Dialog from "primevue/dialog"
@@ -7,14 +7,19 @@ import InputText from "primevue/inputtext"
 import Password from "primevue/password"
 import Select from "primevue/select"
 import Textarea from "primevue/textarea"
-import { computed, onMounted, onUnmounted, ref } from "vue"
+import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
 import {
   getAIConfig,
+  getSchema,
+  inspectNotionDatabase,
   registryLookup,
   saveAIConfig
 } from "@/api-client"
 
+const props = defineProps<{
+  schemas: string[]
+}>()
 const visible = defineModel<boolean>("visible", { default: false })
 
 const loading = ref(false)
@@ -44,6 +49,17 @@ const langfuseEnabled = ref(false)
 const langfusePublicKey = ref("")
 const langfuseSecretKey = ref("")
 const langfuseHost = ref("")
+
+const notionEnabled = ref(false)
+const notionToken = ref("")
+const notionSchemas = ref<Record<string, NotionSchemaConfig>>({})
+const selectedNotionSchema = ref("")
+const notionDatabaseId = ref("")
+const notionTitleProperty = ref("")
+const notionFieldMap = ref("")
+const notionTesting = ref(false)
+const notionProperties = ref<NotionDatabaseProperty[]>([])
+const notionSchemaFields = ref<string[]>([])
 
 // Add model state
 const addingModel = ref(false)
@@ -104,14 +120,142 @@ const userSchemaError = computed(() => {
   return ""
 })
 
+const schemaOptions = computed(() => props.schemas.map(name => name.replace(".json", "")))
+
+const notionFieldMapError = computed(() => {
+  const text = notionFieldMap.value.trim()
+  if (!text)
+    return ""
+  try {
+    const parsed = JSON.parse(text)
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return "Field map must be a JSON object"
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value !== "string")
+        return `Field map value for "${key}" must be a string`
+    }
+    return ""
+  } catch {
+    return "Field map must be valid JSON"
+  }
+})
+
+const notionMappedFieldCount = computed(() => {
+  try {
+    return Object.keys(parseNotionFieldMap() ?? {}).length
+  } catch {
+    return 0
+  }
+})
+
 const canSave = computed(() =>
   !systemSchemaError.value
   && !userSchemaError.value
+  && !notionFieldMapError.value
   && !loading.value
   && models.value.length > 0
+  && (!notionEnabled.value || !!notionToken.value.trim())
   && (pdfConverter.value !== "mineru" || !!mineruCommand.value.trim())
   && (pdfConverter.value !== "markitdown" || !!markitdownCommand.value.trim())
 )
+
+function parseNotionFieldMap(): Record<string, string> | undefined {
+  if (!notionFieldMap.value.trim())
+    return undefined
+
+  const parsed = JSON.parse(notionFieldMap.value) as Record<string, string>
+  const filtered = Object.fromEntries(
+    Object.entries(parsed)
+      .map(([key, value]) => [key, typeof value === "string" ? value.trim() : ""])
+      .filter(([key, value]) => !!key && !!value)
+  )
+  return Object.keys(filtered).length > 0 ? filtered : undefined
+}
+
+function extractTopLevelSchemaFields(schema: any): string[] {
+  if (!schema?.properties || typeof schema.properties !== "object")
+    return []
+
+  return Object.entries(schema.properties)
+    .filter(([, property]: [string, any]) => {
+      if (property?.nested?.enabled)
+        return false
+      if (property?.type === "array" && property?.items?.nested?.enabled)
+        return false
+      return true
+    })
+    .map(([name]) => name)
+}
+
+function formatFieldMapForEditing(savedFieldMap?: Record<string, string>): string {
+  const rows: Record<string, string> = {}
+  for (const field of notionSchemaFields.value) {
+    rows[field] = savedFieldMap?.[field] ?? ""
+  }
+  for (const [key, value] of Object.entries(savedFieldMap ?? {})) {
+    if (!(key in rows))
+      rows[key] = value
+  }
+  return Object.keys(rows).length > 0 ? JSON.stringify(rows, null, 2) : ""
+}
+
+function persistSelectedNotionSchema(schemaName = selectedNotionSchema.value) {
+  if (!schemaName || notionFieldMapError.value)
+    return
+
+  const databaseId = notionDatabaseId.value.trim()
+  const titleProperty = notionTitleProperty.value.trim()
+  const fieldMap = parseNotionFieldMap()
+  if (!databaseId) {
+    const next = { ...notionSchemas.value }
+    delete next[schemaName]
+    notionSchemas.value = next
+    return
+  }
+
+  notionSchemas.value = {
+    ...notionSchemas.value,
+    [schemaName]: {
+      databaseId,
+      titleProperty: titleProperty || undefined,
+      fieldMap
+    }
+  }
+}
+
+function loadSelectedNotionSchema() {
+  const config = selectedNotionSchema.value ? notionSchemas.value[selectedNotionSchema.value] : undefined
+  notionDatabaseId.value = config?.databaseId ?? ""
+  notionTitleProperty.value = config?.titleProperty ?? ""
+  notionFieldMap.value = formatFieldMapForEditing(config?.fieldMap)
+  notionProperties.value = []
+}
+
+watch(schemaOptions, (schemas) => {
+  if (!selectedNotionSchema.value && schemas.length > 0)
+    selectedNotionSchema.value = schemas[0]
+}, { immediate: true })
+
+watch(selectedNotionSchema, (_next, previous) => {
+  if (previous)
+    persistSelectedNotionSchema(previous)
+  loadSelectedNotionSchemaFields()
+})
+
+async function loadSelectedNotionSchemaFields() {
+  const schemaName = selectedNotionSchema.value
+  notionSchemaFields.value = []
+  if (!schemaName) {
+    loadSelectedNotionSchema()
+    return
+  }
+  try {
+    notionSchemaFields.value = extractTopLevelSchemaFields(await getSchema(`${schemaName}.json`))
+  } catch {
+    notionSchemaFields.value = []
+  }
+  loadSelectedNotionSchema()
+}
 
 const pdfConverterOptions = [
   { label: "Built-in text extraction", value: "unpdf" },
@@ -158,6 +302,10 @@ async function loadConfig() {
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
     langfuseHost.value = config.langfuse?.host ?? ""
+    notionEnabled.value = !!config.notion?.enabled
+    notionToken.value = config.notion?.token ?? ""
+    notionSchemas.value = config.notion?.schemas ?? {}
+    await loadSelectedNotionSchemaFields()
   } catch {
     apiKey.value = ""
     models.value = []
@@ -172,6 +320,7 @@ async function handleSave() {
   if (!canSave.value) return
   saving.value = true
   try {
+    persistSelectedNotionSchema()
     const config: AIConfig = {
       provider: {
         baseURL: baseURL.value,
@@ -210,7 +359,12 @@ async function handleSave() {
             secretKey: langfuseSecretKey.value,
             host: langfuseHost.value || undefined
           }
-        : undefined
+        : undefined,
+      notion: {
+        enabled: notionEnabled.value,
+        token: notionToken.value,
+        schemas: notionSchemas.value
+      }
     }
     await saveAIConfig(config)
     visible.value = false
@@ -218,6 +372,53 @@ async function handleSave() {
     toast.error(e.message || "Failed to save")
   } finally {
     saving.value = false
+  }
+}
+
+async function handleInspectNotion() {
+  if (!selectedNotionSchema.value) {
+    toast.error("Select a schema first")
+    return
+  }
+  if (!notionToken.value.trim()) {
+    toast.error("Enter a Notion integration token")
+    return
+  }
+  if (!notionDatabaseId.value.trim()) {
+    toast.error("Enter a Notion database URL or ID")
+    return
+  }
+  if (notionFieldMapError.value) {
+    toast.error(notionFieldMapError.value)
+    return
+  }
+
+  notionTesting.value = true
+  try {
+    const result = await inspectNotionDatabase({
+      token: notionToken.value,
+      databaseId: notionDatabaseId.value,
+      schemaName: selectedNotionSchema.value
+    })
+
+    if (result.databaseId)
+      notionDatabaseId.value = result.databaseId
+    if (!notionTitleProperty.value && result.titleProperty)
+      notionTitleProperty.value = result.titleProperty
+
+    const existingFieldMap = parseNotionFieldMap() ?? {}
+    const suggestedFieldMap = result.suggestedFieldMap ?? {}
+    const mergedFieldMap = { ...suggestedFieldMap, ...existingFieldMap }
+    notionFieldMap.value = Object.keys(mergedFieldMap).length > 0
+      ? JSON.stringify(mergedFieldMap, null, 2)
+      : ""
+    notionProperties.value = result.properties ?? []
+    persistSelectedNotionSchema()
+    toast.success(`Connected to Notion (${notionProperties.value.length} properties)`)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Notion connection failed")
+  } finally {
+    notionTesting.value = false
   }
 }
 
@@ -446,6 +647,82 @@ onUnmounted(() => {
             <div class="flex flex-col gap-1">
               <label class="text-xs text-muted-foreground">Host (optional)</label>
               <InputText v-model="langfuseHost" size="small" placeholder="https://us.cloud.langfuse.com" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Notion Export -->
+      <section>
+        <h3 class="text-sm font-semibold mb-3 text-foreground">
+          Notion Export
+        </h3>
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="notionEnabled" :binary="true" input-id="notion-enabled" />
+            <label for="notion-enabled" class="text-sm cursor-pointer">Enabled</label>
+          </div>
+          <div class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Integration Token</label>
+              <Password v-model="notionToken" :feedback="false" toggle-mask size="small" placeholder="secret_..." input-class="w-full" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Schema Binding</label>
+              <Select
+                v-model="selectedNotionSchema"
+                :options="schemaOptions"
+                size="small"
+                placeholder="Select a schema"
+                :disabled="schemaOptions.length === 0"
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Database URL or ID</label>
+              <InputText v-model="notionDatabaseId" size="small" placeholder="https://www.notion.so/... or xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Title Property (optional)</label>
+              <InputText v-model="notionTitleProperty" size="small" placeholder="Name" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Button
+                label="Test & Auto Map"
+                icon="pi pi-bolt"
+                severity="secondary"
+                size="small"
+                :loading="notionTesting"
+                :disabled="!selectedNotionSchema || !notionToken.trim() || !notionDatabaseId.trim() || !!notionFieldMapError"
+                @click="handleInspectNotion"
+              />
+              <span v-if="notionProperties.length > 0" class="text-xs text-muted-foreground">
+                {{ notionProperties.length }} properties loaded
+              </span>
+            </div>
+            <div v-if="notionProperties.length > 0" class="max-h-28 overflow-auto rounded border border-border divide-y divide-border">
+              <div
+                v-for="property in notionProperties"
+                :key="property.name"
+                class="flex items-center justify-between gap-3 px-2 py-1.5 text-xs"
+              >
+                <span class="text-foreground truncate">{{ property.name }}</span>
+                <span class="text-muted-foreground shrink-0">{{ property.type }}</span>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center justify-between gap-2">
+                <label class="text-xs text-muted-foreground">Field Map JSON (optional)</label>
+                <span v-if="notionSchemaFields.length > 0" class="text-xs text-muted-foreground">
+                  {{ notionMappedFieldCount }} / {{ notionSchemaFields.length }} mapped
+                </span>
+              </div>
+              <Textarea v-model="notionFieldMap" rows="5" auto-resize class="text-xs font-mono" placeholder="{&#10;  &quot;invoiceNo&quot;: &quot;Invoice No&quot;,&#10;  &quot;issuedAt&quot;: &quot;Issued At&quot;&#10;}" />
+              <p v-if="notionFieldMapError" class="text-xs text-red-500 mt-1">
+                {{ notionFieldMapError }}
+              </p>
+            </div>
+            <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+              Selecting a schema fills the left-side keys. Fill the values with Notion property names, or test to auto-map matching properties.
             </div>
           </div>
         </div>

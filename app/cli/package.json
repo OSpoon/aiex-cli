@@ -60,6 +60,7 @@
     "@hono/node-server": "catalog:",
     "@hono/zod-validator": "catalog:",
     "@langfuse/otel": "catalog:",
+    "@notionhq/client": "catalog:",
     "@opentelemetry/sdk-trace-node": "catalog:",
     "ai": "catalog:",
     "better-sqlite3": "catalog:",

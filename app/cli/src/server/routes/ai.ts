@@ -1,6 +1,7 @@
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
 import path from 'node:path'
 import { Hono } from 'hono'
+import { readFile as readJsonFile } from 'jsonfile'
 import {
   getDefaultAIConfig,
   lookupModelCapabilities,
@@ -8,7 +9,36 @@ import {
   writeAIConfig,
 } from '@/core/ai-extraction'
 import { AIConfigSchema } from '@/core/ai-extraction/schemas'
+import { inspectNotionDatabase, parseNotionDatabaseId } from '@/core/notion-sink'
 import { getErrorMessage } from '@/core/schema-sqlite'
+
+const JSON_EXT_RE = /\.json$/i
+
+function extractSchemaFields(schema: any): Array<{ name: string, title?: string, description?: string }> {
+  if (!schema?.properties || typeof schema.properties !== 'object')
+    return []
+
+  return Object.entries(schema.properties)
+    .filter(([, property]: [string, any]) => {
+      if (property?.nested?.enabled)
+        return false
+      if (property?.type === 'array' && property?.items?.nested?.enabled)
+        return false
+      return true
+    })
+    .map(([name, property]: [string, any]) => ({
+      name,
+      title: typeof property?.title === 'string' ? property.title : undefined,
+      description: typeof property?.description === 'string' ? property.description : undefined,
+    }))
+}
+
+async function loadSchemaFields(config: MigrationConfig, schemaName: string): Promise<Array<{ name: string, title?: string, description?: string }>> {
+  const safeName = path.basename(schemaName).replace(JSON_EXT_RE, '')
+  const schemaPath = path.join(config.schemaPath, `${safeName}.json`)
+  const schema = await readJsonFile(schemaPath)
+  return extractSchemaFields(schema)
+}
 
 export function aiRoutes(config: MigrationConfig): Hono {
   const app = new Hono()
@@ -45,6 +75,29 @@ export function aiRoutes(config: MigrationConfig): Hono {
     }
   })
 
+  app.post('/ai/notion/inspect', async (c) => {
+    try {
+      const body = await c.req.json()
+      const token = typeof body.token === 'string' ? body.token : ''
+      const databaseId = typeof body.databaseId === 'string' ? body.databaseId : ''
+      const schemaName = typeof body.schemaName === 'string' ? body.schemaName : ''
+
+      if (!schemaName) {
+        return c.json({ success: false, error: 'Schema is required' }, 400)
+      }
+
+      const result = await inspectNotionDatabase({
+        token,
+        databaseId,
+        schemaFields: await loadSchemaFields(config, schemaName),
+      })
+      return c.json({ success: true, ...result })
+    }
+    catch (error: unknown) {
+      return c.json({ success: false, error: getErrorMessage(error) }, 400)
+    }
+  })
+
   // Save AI config
   app.put('/ai/config', async (c) => {
     try {
@@ -71,6 +124,25 @@ export function aiRoutes(config: MigrationConfig): Hono {
           { success: false, error: 'At least one model must be configured' },
           400,
         )
+      }
+      if (body.notion?.enabled) {
+        if (!body.notion.token?.trim()) {
+          return c.json(
+            { success: false, error: 'Notion token is required when Notion export is enabled' },
+            400,
+          )
+        }
+        for (const [schemaName, schemaConfig] of Object.entries(body.notion.schemas ?? {}) as Array<[string, any]>) {
+          if (typeof schemaConfig.databaseId === 'string') {
+            schemaConfig.databaseId = parseNotionDatabaseId(schemaConfig.databaseId)
+          }
+          if (!schemaConfig.databaseId?.trim()) {
+            return c.json(
+              { success: false, error: `Notion database ID is required for schema "${schemaName}"` },
+              400,
+            )
+          }
+        }
       }
 
       const validated = AIConfigSchema.parse(body)

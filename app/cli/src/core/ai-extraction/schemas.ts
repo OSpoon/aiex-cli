@@ -50,10 +50,23 @@ export const LangfuseConfigSchema = z.object({
   host: z.string().optional(),
 })
 
+export const NotionSchemaConfigSchema = z.object({
+  databaseId: z.string(),
+  titleProperty: z.string().optional(),
+  fieldMap: z.record(z.string()).optional(),
+})
+
+export const NotionConfigSchema = z.object({
+  enabled: z.boolean(),
+  token: z.string(),
+  schemas: z.record(NotionSchemaConfigSchema).default({}),
+})
+
 export const AIConfigSchema = z.object({
   provider: AIProviderConfigSchema,
   prompt: PromptConfigSchema,
   extraction: ExtractionConfigSchema,
   pdf: PdfConfigSchema.optional(),
   langfuse: LangfuseConfigSchema.optional(),
+  notion: NotionConfigSchema.optional(),
 })
