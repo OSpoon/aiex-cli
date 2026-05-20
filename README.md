@@ -21,7 +21,7 @@ npm install -g aiex-cli
 ```
 
 ```bash
-aiex web                                # configure schemas, AI settings, and run extractions in the browser
+aiex web                                # configure schemas/AI/Notion and inspect data in the browser
 aiex schema                             # generate SQLite from JSON Schema files
 aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into database
 ```
@@ -31,12 +31,12 @@ aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into d
 ## ✨ Features
 
 - **JSON Schema → SQLite** — Define tables as JSON Schema files, generate Drizzle ORM schema, and migrate to SQLite
-- **Visual Editor** — Browser-based UI for designing schemas without writing JSON by hand
-- **Web Extraction Workbench** — Run text/file extraction in the browser, review audit history, inspect details, retry failed runs, and delete history records
+- **Web Configuration & Viewer** — Browser-based UI for designing schemas, configuring AI/Notion, previewing prompts, and browsing extracted data
 - **AI Extraction** — Extract structured data from text, images, and PDFs using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
 - **Interactive Mode** — Run `aiex extract` without arguments for a guided extraction workflow
 - **Batch Mode** — `aiex extract -d <dir>` processes entire directories with optional glob filtering
-- **Extraction Audit Trail** — Every CLI/Web extraction is recorded with status, input source, output path, token usage, database inserts, and errors
+- **Notion Sync** — Map each JSON Schema to a Notion data source and automatically sync extracted results after CLI extraction
+- **Extraction Audit Trail** — Every extraction is recorded with status, input source, output path, token usage, database inserts, Notion pages, and errors
 - **Built-in Model Registry** — Knows capabilities of 2000+ models (vision, structured output) so you don't have to guess
 
 <br>
@@ -49,7 +49,7 @@ aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into d
 aiex web
 ```
 
-Opens a browser UI where you can visually design and manage your schemas, configure AI settings, run text/file extraction, inspect extraction history, retry failed runs, preview extraction prompts, browse inserted data, and apply changes to the database.
+Opens a browser UI where you can visually design and manage your schemas, configure AI and Notion settings, preview extraction prompts, browse inserted SQLite data, inspect extracted JSON files, and apply schema changes to the database. Extraction itself runs from the CLI.
 
 ### 2. Generate Database
 
@@ -90,7 +90,7 @@ Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` w
 
 By default, aiex automatically selects a model based on your input type (vision-capable for images, structured output for text). Use `--model` / `-m` to override and specify any model from your AI configuration.
 
-Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records include the run status (`running`, `succeeded`, `failed`, or `stale`), schema name, input source, output file, token usage, inserted table rows, retry lineage, and error message. Uploaded files used by Web extraction are cached under `.aiex/uploads/` so failed or historical file extractions can be retried. Deleting an audit record removes its cached upload, but keeps extracted JSON result files to avoid accidental data loss.
+Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records include the run status (`running`, `succeeded`, `failed`, or `stale`), schema name, input source, output file, token usage, inserted table rows, synced Notion pages, retry lineage, and error message. Deleting an audit record removes its cached upload, but keeps extracted JSON result files to avoid accidental data loss.
 
 <br>
 
@@ -100,7 +100,7 @@ Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records
 | --- | --- |
 | `aiex schema` | Parse JSON Schema files and migrate to SQLite |
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
-| `aiex web` | Launch visual schema editor in browser |
+| `aiex web` | Launch visual schema/configuration UI and data viewer in browser |
 | `aiex extract` | Interactive mode — prompts for schema and input source |
 | `aiex extract -s <name> -f <file>` | Extract structured data from documents and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
@@ -145,6 +145,22 @@ aiex works with any OpenAI-compatible API provider. Configure in the Web UI (AI 
 - **Prompts** — Customize system and user prompt templates with `{schema}` and `{text}` placeholders
 
 The built-in model registry automatically suggests capabilities for 2000+ models from providers including OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, Alibaba Cloud, and more.
+
+### Notion Sync
+
+aiex can sync extracted CLI results to Notion after extraction succeeds. When SQLite insertion is enabled, Notion sync runs after the database insert succeeds.
+
+Configure it in Web UI → AI Settings → Notion Export:
+
+- **Enabled** — Turn on Notion export and enter a Notion integration token
+- **Schema Binding** — Select a JSON Schema and bind it to one Notion data source
+- **Database/Data Source URL or ID** — Paste a Notion database or data source URL/ID; aiex resolves database links to their first data source
+- **Test & Auto Map** — Optional but recommended for first-time setup; verifies access, resolves the data source ID, reads Notion properties, and fills matching field mappings
+- **Field Map JSON** — Maps extracted top-level JSON fields to Notion property names, for example `{ "reportNumber": "reportNumber" }`
+
+Once enabled and saved, `aiex extract` automatically syncs results for schemas that have a Notion binding. No extra CLI flag is required. Notion sync uses the current Notion data source API and writes pages with `parent.data_source_id`.
+
+Nested schema fields are not flattened for Notion yet. The current mapping behavior is top-level fields only.
 
 ### Langfuse Tracing
 
