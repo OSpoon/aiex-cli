@@ -10,6 +10,15 @@ import { extractRoutes } from '@/server/routes/extract'
 interface ErrorResponse {
   success: boolean
   error: string
+  auditId?: string
+}
+
+interface AuditRecordResponse {
+  id: string
+  status: string
+  schemaName: string
+  error?: string
+  source: { type: string, text?: string, fileName?: string }
 }
 
 describe('extract routes', () => {
@@ -81,6 +90,17 @@ describe('extract routes', () => {
     expect(response.status).toBe(400)
     expect(body.success).toBe(false)
     expect(body.error).toBe('AI configuration not found. Configure AI settings first.')
+    expect(body.auditId).toBeTruthy()
+
+    const recordsResponse = await app.request('/extract/records')
+    const records = await recordsResponse.json() as AuditRecordResponse[]
+
+    expect(records).toHaveLength(1)
+    expect(records[0].id).toBe(body.auditId)
+    expect(records[0].status).toBe('failed')
+    expect(records[0].schemaName).toBe('person')
+    expect(records[0].source).toMatchObject({ type: 'text', text: 'Alice is 30' })
+    expect(records[0].error).toBe('AI configuration not found. Configure AI settings first.')
   })
 
   it('validates model overrides against configured models', async () => {
@@ -111,5 +131,19 @@ describe('extract routes', () => {
     expect(response.status).toBe(400)
     expect(body.success).toBe(false)
     expect(body.error).toBe('Model "missing-model" not found in AI settings')
+    expect(body.auditId).toBeTruthy()
+  })
+
+  it('returns 404 when retrying a missing extraction record', async () => {
+    const app = extractRoutes(config)
+
+    const response = await app.request('/extract/records/missing/retry', {
+      method: 'POST',
+    })
+    const body = await response.json() as ErrorResponse
+
+    expect(response.status).toBe(404)
+    expect(body.success).toBe(false)
+    expect(body.error).toBe('Extraction record not found')
   })
 })

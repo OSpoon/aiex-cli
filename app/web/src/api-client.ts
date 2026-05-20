@@ -167,6 +167,7 @@ export interface RunExtractionInput {
 export interface RunExtractionResult {
   success: boolean
   error?: string
+  auditId?: string
   outputPath?: string
   outputName?: string
   tablesInserted?: Array<{ table: string, rowId: number }>
@@ -175,6 +176,33 @@ export interface RunExtractionResult {
     completion: number
     total: number
   }
+}
+
+export type ExtractionAuditStatus = "running" | "succeeded" | "failed"
+
+export interface ExtractionAuditRecord {
+  id: string
+  status: ExtractionAuditStatus
+  schemaName: string
+  modelName?: string
+  source: {
+    type: "text" | "file"
+    text?: string
+    filePath?: string
+    fileName?: string
+  }
+  retryOf?: string
+  outputName?: string
+  outputPath?: string
+  tablesInserted?: Array<{ table: string, rowId: number }>
+  tokensUsed?: {
+    prompt: number
+    completion: number
+    total: number
+  }
+  error?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export async function runExtraction(input: RunExtractionInput): Promise<RunExtractionResult> {
@@ -195,6 +223,22 @@ export async function runExtraction(input: RunExtractionInput): Promise<RunExtra
   }
   catch (error) {
     throw new Error(await getErrorMessage(error, 'Extraction failed'))
+  }
+}
+
+export async function listExtractionRuns(): Promise<ExtractionAuditRecord[]> {
+  return api.get('api/extract/records').json<ExtractionAuditRecord[]>()
+}
+
+export async function retryExtractionRun(id: string): Promise<RunExtractionResult> {
+  try {
+    const data = await api.post(`api/extract/records/${encodeURIComponent(id)}/retry`).json<RunExtractionResult>()
+    if (!data.success)
+      throw new Error(data.error || 'Retry failed')
+    return data
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, 'Retry failed'))
   }
 }
 

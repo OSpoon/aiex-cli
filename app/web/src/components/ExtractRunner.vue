@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { AIModelConfig, RunExtractionResult } from "@/api-client"
+import type { AIModelConfig, ExtractionAuditRecord, RunExtractionResult } from "@/api-client"
 import Button from "primevue/button"
-import { computed, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
-import { runExtraction } from "@/api-client"
+import { listExtractionRuns, retryExtractionRun, runExtraction } from "@/api-client"
 
 const props = defineProps<{
   schemas: string[]
@@ -21,8 +21,12 @@ const textInput = ref("")
 const fileInput = ref<File | null>(null)
 const running = ref(false)
 const lastResult = ref<RunExtractionResult | null>(null)
+const records = ref<ExtractionAuditRecord[]>([])
+const recordsLoading = ref(false)
+const retryingId = ref<string | null>(null)
 
 const schemaOptions = computed(() => props.schemas.map(name => name.replace(".json", "")))
+const recentRecords = computed(() => records.value.slice(0, 8))
 
 watch(schemaOptions, (schemas) => {
   if (!selectedSchema.value && schemas.length > 0)
@@ -38,6 +42,16 @@ function resetInput() {
   textInput.value = ""
   fileInput.value = null
   lastResult.value = null
+}
+
+async function loadRecords() {
+  recordsLoading.value = true
+  try {
+    records.value = await listExtractionRuns()
+  } catch {
+    toast.error("Failed to load extraction history")
+  }
+  recordsLoading.value = false
 }
 
 async function handleRun() {
@@ -68,11 +82,40 @@ async function handleRun() {
     lastResult.value = result
     toast.success("Extraction complete")
     emit("completed", result)
+    await loadRecords()
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Extraction failed")
+    await loadRecords()
   }
   running.value = false
 }
+
+async function handleRetry(record: ExtractionAuditRecord) {
+  retryingId.value = record.id
+  try {
+    const result = await retryExtractionRun(record.id)
+    lastResult.value = result
+    toast.success("Retry complete")
+    emit("completed", result)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Retry failed")
+  }
+  await loadRecords()
+  retryingId.value = null
+}
+
+function statusClass(status: ExtractionAuditRecord["status"]): string {
+  if (status === "succeeded") return "text-green-600"
+  if (status === "failed") return "text-red-600"
+  return "text-muted-foreground"
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+
+onMounted(loadRecords)
 </script>
 
 <template>
@@ -163,5 +206,65 @@ async function handleRun() {
         </div>
       </div>
     </template>
+
+    <div class="shrink-0 h-72 rounded-md border border-border bg-background overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between border-b border-border px-3 py-2">
+        <h3 class="m-0 text-sm font-semibold text-foreground">
+          Extraction History
+        </h3>
+        <Button
+          icon="pi pi-refresh"
+          severity="secondary"
+          size="small"
+          text
+          :loading="recordsLoading"
+          @click="loadRecords"
+        />
+      </div>
+
+      <div v-if="recordsLoading" class="px-3 py-4 text-sm text-muted-foreground">
+        Loading...
+      </div>
+      <div v-else-if="recentRecords.length === 0" class="px-3 py-4 text-sm text-muted-foreground">
+        No extraction runs yet
+      </div>
+      <div v-else class="min-h-0 flex-1 overflow-y-auto divide-y divide-border">
+        <div
+          v-for="record in recentRecords"
+          :key="record.id"
+          class="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-3 py-2 text-sm"
+        >
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span class="font-medium text-foreground">{{ record.schemaName }}</span>
+              <span class="text-xs font-medium" :class="statusClass(record.status)">{{ record.status }}</span>
+              <span v-if="record.retryOf" class="text-xs text-muted-foreground">retry</span>
+            </div>
+            <div class="mt-1 truncate text-xs text-muted-foreground">
+              {{ formatDate(record.createdAt) }} · {{ record.source.type === "file" ? record.source.fileName : "text" }}
+              <template v-if="record.modelName">
+                · {{ record.modelName }}
+              </template>
+              <template v-if="record.outputName">
+                · {{ record.outputName }}
+              </template>
+            </div>
+            <div v-if="record.error" class="mt-1 truncate text-xs text-red-600">
+              {{ record.error }}
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <Button
+              icon="pi pi-replay"
+              severity="secondary"
+              size="small"
+              text
+              :loading="retryingId === record.id"
+              @click="handleRetry(record)"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
