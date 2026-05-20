@@ -306,12 +306,44 @@ describe('ai config schema', () => {
     expect(result.pdf?.mineru?.keepOutput).toBe(false)
   })
 
+  it('accepts markitdown pdf converter config', () => {
+    const result = AIConfigSchema.parse({
+      ...validConfig,
+      pdf: {
+        converter: 'markitdown',
+        markitdown: {
+          command: 'markitdown',
+          args: ['{input}', '-o', '{outputDir}/{basename}.md'],
+          outputFile: '{outputDir}/{basename}.md',
+          timeout: 600,
+          fallbackToUnpdf: true,
+          keepOutput: false,
+        },
+      },
+    })
+
+    expect(result.pdf?.converter).toBe('markitdown')
+    expect(result.pdf?.markitdown?.args).toEqual(['{input}', '-o', '{outputDir}/{basename}.md'])
+    expect(result.pdf?.markitdown?.outputFile).toBe('{outputDir}/{basename}.md')
+    expect(result.pdf?.markitdown?.keepOutput).toBe(false)
+  })
+
   it('rejects empty mineru command', () => {
     expect(() => AIConfigSchema.parse({
       ...validConfig,
       pdf: {
         converter: 'mineru',
         mineru: { command: '', args: [] },
+      },
+    })).toThrow()
+  })
+
+  it('rejects empty markitdown command', () => {
+    expect(() => AIConfigSchema.parse({
+      ...validConfig,
+      pdf: {
+        converter: 'markitdown',
+        markitdown: { command: '', args: [] },
       },
     })).toThrow()
   })

@@ -33,6 +33,12 @@ const mineruArgs = ref("-p\n{input}\n-o\n{outputDir}")
 const mineruTimeout = ref(600)
 const mineruFallbackToUnpdf = ref(true)
 const mineruKeepOutput = ref(true)
+const markitdownCommand = ref("markitdown")
+const markitdownArgs = ref("{input}\n-o\n{outputDir}/{basename}.md")
+const markitdownOutputFile = ref("{outputDir}/{basename}.md")
+const markitdownTimeout = ref(600)
+const markitdownFallbackToUnpdf = ref(true)
+const markitdownKeepOutput = ref(true)
 
 const langfuseEnabled = ref(false)
 const langfusePublicKey = ref("")
@@ -104,11 +110,13 @@ const canSave = computed(() =>
   && !loading.value
   && models.value.length > 0
   && (pdfConverter.value !== "mineru" || !!mineruCommand.value.trim())
+  && (pdfConverter.value !== "markitdown" || !!markitdownCommand.value.trim())
 )
 
 const pdfConverterOptions = [
   { label: "Built-in text extraction", value: "unpdf" },
-  { label: "MinerU command", value: "mineru" }
+  { label: "MinerU command", value: "mineru" },
+  { label: "MarkItDown command", value: "markitdown" }
 ]
 
 const defaultSystemTemplate = `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
@@ -140,6 +148,12 @@ async function loadConfig() {
     mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
     mineruFallbackToUnpdf.value = config.pdf?.mineru?.fallbackToUnpdf ?? true
     mineruKeepOutput.value = config.pdf?.mineru?.keepOutput ?? true
+    markitdownCommand.value = config.pdf?.markitdown?.command ?? "markitdown"
+    markitdownArgs.value = (config.pdf?.markitdown?.args ?? ["{input}", "-o", "{outputDir}/{basename}.md"]).join("\n")
+    markitdownOutputFile.value = config.pdf?.markitdown?.outputFile ?? "{outputDir}/{basename}.md"
+    markitdownTimeout.value = config.pdf?.markitdown?.timeout ?? 600
+    markitdownFallbackToUnpdf.value = config.pdf?.markitdown?.fallbackToUnpdf ?? true
+    markitdownKeepOutput.value = config.pdf?.markitdown?.keepOutput ?? true
     langfuseEnabled.value = !!config.langfuse
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
@@ -180,6 +194,14 @@ async function handleSave() {
           timeout: mineruTimeout.value,
           fallbackToUnpdf: mineruFallbackToUnpdf.value,
           keepOutput: mineruKeepOutput.value || undefined
+        },
+        markitdown: {
+          command: markitdownCommand.value,
+          args: markitdownArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+          outputFile: markitdownOutputFile.value.trim() || undefined,
+          timeout: markitdownTimeout.value,
+          fallbackToUnpdf: markitdownFallbackToUnpdf.value,
+          keepOutput: markitdownKeepOutput.value || undefined
         }
       },
       langfuse: langfuseEnabled.value
@@ -360,6 +382,38 @@ onUnmounted(() => {
             <div class="flex items-center gap-2">
               <Checkbox v-model="mineruKeepOutput" :binary="true" input-id="mineru-keep-output" />
               <label for="mineru-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
+            </div>
+            <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              <code class="bg-secondary px-1 rounded">{outputDir}</code>,
+              <code class="bg-secondary px-1 rounded">{basename}</code>
+            </div>
+          </div>
+
+          <div v-if="pdfConverter === 'markitdown'" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Command</label>
+              <InputText v-model="markitdownCommand" size="small" placeholder="markitdown" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Arguments</label>
+              <Textarea v-model="markitdownArgs" rows="4" auto-resize class="text-xs font-mono" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Output File</label>
+              <InputText v-model="markitdownOutputFile" size="small" class="text-xs font-mono" placeholder="{outputDir}/{basename}.md" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <InputText :value="String(markitdownTimeout)" type="number" size="small" placeholder="600" :min="1" @input="markitdownTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="markitdownFallbackToUnpdf" :binary="true" input-id="markitdown-fallback" />
+              <label for="markitdown-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="markitdownKeepOutput" :binary="true" input-id="markitdown-keep-output" />
+              <label for="markitdown-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
               Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,

@@ -38,8 +38,9 @@ export const ExternalPdfConverterConfigSchema = z.object({
 })
 
 export const PdfConfigSchema = z.object({
-  converter: z.enum(['unpdf', 'mineru', 'external']),
+  converter: z.enum(['unpdf', 'mineru', 'markitdown', 'external']),
   mineru: ExternalPdfConverterConfigSchema.optional(),
+  markitdown: ExternalPdfConverterConfigSchema.optional(),
   external: ExternalPdfConverterConfigSchema.optional(),
 })
 

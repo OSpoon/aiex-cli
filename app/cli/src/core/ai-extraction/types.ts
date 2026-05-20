@@ -24,7 +24,7 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
-export type PdfConverterKind = 'unpdf' | 'mineru' | 'external'
+export type PdfConverterKind = 'unpdf' | 'mineru' | 'markitdown' | 'external'
 
 export interface ExternalPdfConverterConfig {
   command: string
@@ -38,6 +38,7 @@ export interface ExternalPdfConverterConfig {
 export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
+  markitdown?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 
@@ -108,9 +109,19 @@ export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
   keepOutput: true,
 }
 
+export const DEFAULT_MARKITDOWN_CONFIG: ExternalPdfConverterConfig = {
+  command: 'markitdown',
+  args: ['{input}', '-o', '{outputDir}/{basename}.md'],
+  outputFile: '{outputDir}/{basename}.md',
+  timeout: 600,
+  fallbackToUnpdf: true,
+  keepOutput: true,
+}
+
 export const DEFAULT_PDF_CONFIG: PdfConfig = {
   converter: 'unpdf',
   mineru: DEFAULT_MINERU_CONFIG,
+  markitdown: DEFAULT_MARKITDOWN_CONFIG,
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {

@@ -105,7 +105,7 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
-export type PdfConverterKind = "unpdf" | "mineru" | "external"
+export type PdfConverterKind = "unpdf" | "mineru" | "markitdown" | "external"
 
 export interface ExternalPdfConverterConfig {
   command: string
@@ -119,6 +119,7 @@ export interface ExternalPdfConverterConfig {
 export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
+  markitdown?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 
