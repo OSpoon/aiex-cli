@@ -13,6 +13,10 @@ import pc from 'picocolors'
 import { globSync } from 'tinyglobby'
 import { ZodError } from 'zod'
 import { extractStructuredData, insertExtractedData } from '@/core/ai-extraction'
+import {
+  createExtractionAuditRecord,
+  updateExtractionAuditRecord,
+} from '@/core/extraction-audit'
 import { createPdfConverter } from '@/core/pdf-converter'
 import {
   JsonSchemaDefinitionSchema,
@@ -200,7 +204,7 @@ export async function extractSingle(
   text: string | undefined,
   filePath?: string,
   modelOverride?: AIModelConfig,
-  options?: { quiet?: boolean },
+  options?: { quiet?: boolean, insert?: boolean },
 ): Promise<ExtractResult> {
   const schemaLoad = await loadSchema(config, schemaName)
   if (!schemaLoad.schema) {
@@ -252,7 +256,7 @@ export async function extractSingle(
     )
   }
 
-  if (result.data) {
+  if (result.data && options?.insert !== false) {
     const s2 = spinner()
     if (!options?.quiet)
       s2.start('Inserting into database...')
@@ -313,7 +317,14 @@ async function processOneFile(
   schemaName: string,
   filePath: string,
   modelOverride: AIModelConfig | undefined,
+  options?: { insert?: boolean },
 ): Promise<boolean> {
+  const audit = await createExtractionAuditRecord(aiexDir, {
+    schemaName,
+    modelName: modelOverride?.name,
+    source: { type: 'file', filePath, fileName: path.basename(filePath) },
+  })
+
   try {
     const input = await readExtractFileInput(filePath, aiConfig)
 
@@ -325,19 +336,34 @@ async function processOneFile(
       input.text,
       input.filePath,
       modelOverride,
-      { quiet: false },
+      { quiet: false, insert: options?.insert },
     )
 
     if (r.success) {
+      await updateExtractionAuditRecord(aiexDir, audit.id, {
+        status: 'succeeded',
+        outputPath: r.outputPath,
+        outputName: r.outputPath ? path.basename(r.outputPath) : undefined,
+        tablesInserted: r.tablesInserted,
+        tokensUsed: r.tokensUsed,
+      })
       consola.success(`Processed: ${path.basename(filePath)}`)
       return true
     }
     else {
+      await updateExtractionAuditRecord(aiexDir, audit.id, {
+        status: 'failed',
+        error: r.error || 'Extraction failed',
+      })
       consola.error(`Failed: ${r.error}`)
       return false
     }
   }
   catch (e) {
+    await updateExtractionAuditRecord(aiexDir, audit.id, {
+      status: 'failed',
+      error: e instanceof Error ? e.message : String(e),
+    })
     consola.error(`Error processing ${path.basename(filePath)}: ${e instanceof Error ? e.message : String(e)}`)
     return false
   }
@@ -351,6 +377,7 @@ export async function runBatchExtraction(
   dir: string,
   globPattern: string | undefined,
   modelOverride: AIModelConfig | undefined,
+  options?: { insert?: boolean },
 ): Promise<BatchExtractionResult> {
   consola.info(`Scanning ${pc.cyan(dir)} for supported files...`)
 
@@ -374,7 +401,7 @@ export async function runBatchExtraction(
     const file = files[i]
     consola.info(`\n[${i + 1}/${files.length}] Processing: ${pc.cyan(path.basename(file))}`)
 
-    const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride)
+    const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, options)
     if (ok)
       successCount++
     else

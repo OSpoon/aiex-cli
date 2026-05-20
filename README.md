@@ -21,7 +21,7 @@ npm install -g aiex-cli
 ```
 
 ```bash
-aiex web                                # configure schemas and AI settings in the browser
+aiex web                                # configure schemas, AI settings, and run extractions in the browser
 aiex schema                             # generate SQLite from JSON Schema files
 aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into database
 ```
@@ -32,9 +32,11 @@ aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into d
 
 - **JSON Schema → SQLite** — Define tables as JSON Schema files, generate Drizzle ORM schema, and migrate to SQLite
 - **Visual Editor** — Browser-based UI for designing schemas without writing JSON by hand
+- **Web Extraction Workbench** — Run text/file extraction in the browser, review audit history, inspect details, retry failed runs, and delete history records
 - **AI Extraction** — Extract structured data from text, images, and PDFs using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
 - **Interactive Mode** — Run `aiex extract` without arguments for a guided extraction workflow
 - **Batch Mode** — `aiex extract -d <dir>` processes entire directories with optional glob filtering
+- **Extraction Audit Trail** — Every CLI/Web extraction is recorded with status, input source, output path, token usage, database inserts, and errors
 - **Built-in Model Registry** — Knows capabilities of 2000+ models (vision, structured output) so you don't have to guess
 
 <br>
@@ -47,7 +49,7 @@ aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into d
 aiex web
 ```
 
-Opens a browser UI where you can visually design and manage your schemas, configure AI settings, preview extraction prompts, and apply changes to the database.
+Opens a browser UI where you can visually design and manage your schemas, configure AI settings, run text/file extraction, inspect extraction history, retry failed runs, preview extraction prompts, browse inserted data, and apply changes to the database.
 
 ### 2. Generate Database
 
@@ -64,8 +66,13 @@ aiex extract                              # interactive mode (prompts for schema
 aiex extract -s <schema> -f <file>        # from file (txt, pdf, png, jpg, ...)
 aiex extract -s <schema> -t <text>        # from text
 aiex extract -s <schema> -f <file> -m <model>     # specify AI model (overrides auto-selection)
+aiex extract -s <schema> -f <file> --no-insert    # extract and save JSON without inserting into SQLite
 aiex extract -s <schema> -d <directory>           # batch extract all supported files in a directory
 aiex extract -s <schema> -d <dir> -g "*.pdf"      # batch with glob filter
+aiex extract history                              # list extraction audit records
+aiex extract show <audit-id>                      # show full audit record JSON
+aiex extract retry <audit-id>                     # retry a previous extraction
+aiex extract rm <audit-id>                        # delete an audit record and cached upload
 ```
 
 The AI reads your document and outputs structured JSON matching your schema.
@@ -74,12 +81,16 @@ The AI reads your document and outputs structured JSON matching your schema.
 ```bash
 aiex extract                                      # interactive mode
 aiex extract -s paper -f research.pdf              # save result to .aiex/extracted/ and insert into database
+aiex extract -s paper -f research.pdf --no-insert   # save result only, skip database insert
 aiex extract -s paper -f research.pdf -m gpt-4o    # use a specific model
 aiex extract -s paper -d ./papers -g "*.pdf"        # batch extract PDFs from a directory
+aiex extract history                                # inspect recent extraction runs
 ```
 Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema. Data is automatically inserted into the SQLite database.
 
 By default, aiex automatically selects a model based on your input type (vision-capable for images, structured output for text). Use `--model` / `-m` to override and specify any model from your AI configuration.
+
+Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records include the run status (`running`, `succeeded`, `failed`, or `stale`), schema name, input source, output file, token usage, inserted table rows, retry lineage, and error message. Uploaded files used by Web extraction are cached under `.aiex/uploads/` so failed or historical file extractions can be retried. Deleting an audit record removes its cached upload, but keeps extracted JSON result files to avoid accidental data loss.
 
 <br>
 
@@ -93,8 +104,14 @@ By default, aiex automatically selects a model based on your input type (vision-
 | `aiex extract` | Interactive mode — prompts for schema and input source |
 | `aiex extract -s <name> -f <file>` | Extract structured data from documents and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
+| `aiex extract -s <name> -f <file> --no-insert` | Extract and save JSON without inserting into SQLite |
 | `aiex extract -s <name> -d <dir>` | Batch extract all supported files in a directory |
 | `aiex extract -s <name> -d <dir> -g "*.pdf"` | Batch extract with glob filter |
+| `aiex extract history` | List extraction audit records |
+| `aiex extract show <audit-id>` | Show a full extraction audit record |
+| `aiex extract retry <audit-id>` | Retry a previous extraction run |
+| `aiex extract retry <audit-id> --no-insert` | Retry without inserting into SQLite |
+| `aiex extract rm <audit-id>` | Delete an audit record and its cached upload |
 | `aiex doctor` | System and configuration diagnostics |
 | `aiex completion bash\|zsh\|fish` | Generate shell completion scripts |
 

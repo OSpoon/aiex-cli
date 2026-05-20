@@ -158,3 +158,28 @@ export async function listExtractionAuditRecords(aiexDir: string): Promise<Extra
     return []
   }
 }
+
+function isPathInside(childPath: string, parentPath: string): boolean {
+  const relative = path.relative(path.resolve(parentPath), path.resolve(childPath))
+  return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
+export async function deleteExtractionAuditRecord(aiexDir: string, id: string): Promise<boolean> {
+  const record = await readExtractionAuditRecord(aiexDir, id)
+  if (!record)
+    return false
+
+  const uploadsDir = path.join(aiexDir, 'uploads')
+  if (record.source.type === 'file' && record.source.filePath && isPathInside(record.source.filePath, uploadsDir)) {
+    await fs.unlink(record.source.filePath).catch(() => {})
+  }
+  const uploadFiles = await fs.readdir(uploadsDir).catch(() => [])
+  await Promise.all(
+    uploadFiles
+      .filter(file => file.startsWith(`${id}-`))
+      .map(file => fs.unlink(path.join(uploadsDir, file)).catch(() => {})),
+  )
+
+  await fs.unlink(auditPath(aiexDir, id)).catch(() => {})
+  return true
+}

@@ -202,4 +202,62 @@ describe('extractCommand.run', () => {
 
     cleanupDir(projectDir)
   })
+
+  it('should save extraction without inserting when --no-insert is used', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    mockAIConfig()
+    vi.mocked(extractStructuredData).mockResolvedValue({
+      success: true,
+      data: { name: 'Alice' },
+      outputPath: path.join(projectDir, '.aiex', 'extracted', 'test_table-result.json'),
+    })
+
+    await cmd.run({ args: { schema: 'test', text: 'Alice', noInsert: true } })
+
+    expect(process.exitCode).toBe(0)
+    expect(insertExtractedData).not.toHaveBeenCalled()
+
+    const auditDir = path.join(projectDir, '.aiex', 'extracted', '_audit')
+    const auditFiles = fs.readdirSync(auditDir)
+    expect(auditFiles).toHaveLength(1)
+    const audit = JSON.parse(fs.readFileSync(path.join(auditDir, auditFiles[0]), 'utf-8'))
+    expect(audit).toMatchObject({
+      status: 'succeeded',
+      schemaName: 'test',
+      source: { type: 'text', text: 'Alice' },
+      outputName: 'test_table-result.json',
+    })
+
+    cleanupDir(projectDir)
+  })
+
+  it('should delete audit record and cached upload through extract rm', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    const auditDir = path.join(projectDir, '.aiex', 'extracted', '_audit')
+    const uploadsDir = path.join(projectDir, '.aiex', 'uploads')
+    const uploadPath = path.join(uploadsDir, 'run-1-source.txt')
+    fs.mkdirSync(auditDir, { recursive: true })
+    fs.mkdirSync(uploadsDir, { recursive: true })
+    fs.writeFileSync(uploadPath, 'Alice')
+    fs.writeFileSync(path.join(auditDir, 'run-1.json'), JSON.stringify({
+      id: 'run-1',
+      status: 'failed',
+      schemaName: 'test',
+      source: { type: 'file', filePath: uploadPath, fileName: 'source.txt' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }))
+
+    await cmd.subCommands.rm.run({ args: { id: 'run-1' } })
+
+    expect(process.exitCode).toBe(0)
+    expect(fs.existsSync(path.join(auditDir, 'run-1.json'))).toBe(false)
+    expect(fs.existsSync(uploadPath)).toBe(false)
+
+    cleanupDir(projectDir)
+  })
 })

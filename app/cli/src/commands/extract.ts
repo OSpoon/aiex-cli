@@ -14,13 +14,271 @@ import {
   runBatchExtraction,
 } from '@/core/extract-runner'
 import {
+  createExtractionAuditRecord,
+  deleteExtractionAuditRecord,
+  listExtractionAuditRecords,
+  readExtractionAuditRecord,
+  updateExtractionAuditRecord,
+} from '@/core/extraction-audit'
+import {
   createMigrationConfig,
 } from '@/core/schema-sqlite'
+
+function getIdArg(args: Record<string, unknown>): string {
+  if (typeof args.id === 'string')
+    return args.id
+  const positional = args._ as unknown
+  return Array.isArray(positional) && typeof positional[0] === 'string' ? positional[0] : ''
+}
+
+function formatSource(source: { type: 'text' | 'file', fileName?: string }): string {
+  return source.type === 'file' ? source.fileName || 'file' : 'text'
+}
+
+async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
+  const aiConfig = await readAIConfig(aiexDir)
+  if (!aiConfig) {
+    failCommand('AI configuration not found. Please run "aiex web" to configure AI settings first')
+    return null
+  }
+
+  if (!aiConfig.provider.apiKey) {
+    failCommand('API Key not configured. Please configure AI settings in the Web interface first')
+    return null
+  }
+
+  if (!aiConfig.provider.models?.length) {
+    failCommand('No models configured. Please add at least one model in AI Settings')
+    return null
+  }
+
+  return aiConfig
+}
+
+function resolveModelOverride(aiConfig: AIConfig, modelName?: string): AIModelConfig | undefined | null {
+  if (!modelName)
+    return undefined
+  const matched = aiConfig.provider.models.find(m => m.name === modelName)
+  if (!matched) {
+    const available = aiConfig.provider.models.map(m => m.name).join(', ')
+    failCommand(`Model "${modelName}" not found in configuration. Available models: ${available}`)
+    return null
+  }
+  return matched
+}
+
+async function runAuditedSingleExtraction(input: {
+  aiexDir: string
+  config: ReturnType<typeof createMigrationConfig>
+  aiConfig: AIConfig
+  schemaName: string
+  text: string
+  filePath?: string
+  source: { type: 'text' | 'file', text?: string, filePath?: string, fileName?: string }
+  modelOverride?: AIModelConfig
+  retryOf?: string
+  insert?: boolean
+}): Promise<boolean> {
+  const audit = await createExtractionAuditRecord(input.aiexDir, {
+    schemaName: input.schemaName,
+    modelName: input.modelOverride?.name,
+    source: input.source,
+    retryOf: input.retryOf,
+  })
+
+  const result = await extractSingle(
+    input.aiexDir,
+    input.config,
+    input.aiConfig,
+    input.schemaName,
+    input.text,
+    input.filePath,
+    input.modelOverride,
+    { insert: input.insert },
+  )
+
+  if (!result.success) {
+    await updateExtractionAuditRecord(input.aiexDir, audit.id, {
+      status: 'failed',
+      error: result.error || 'Extraction failed',
+    })
+    return false
+  }
+
+  await updateExtractionAuditRecord(input.aiexDir, audit.id, {
+    status: 'succeeded',
+    outputPath: result.outputPath,
+    outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
+    tablesInserted: result.tablesInserted,
+    tokensUsed: result.tokensUsed,
+  })
+  return true
+}
+
+const historyCommand = defineCommand({
+  meta: {
+    name: 'history',
+    description: 'List extraction audit records',
+  },
+  async run() {
+    const config = createMigrationConfig(process.cwd())
+    const aiexDir = path.dirname(config.schemaPath)
+    const records = await listExtractionAuditRecords(aiexDir)
+
+    if (records.length === 0) {
+      consola.info('No extraction history found')
+      return
+    }
+
+    for (const record of records) {
+      const suffix = record.error ? ` — ${record.error}` : record.outputName ? ` — ${record.outputName}` : ''
+      consola.info(`${record.status.padEnd(9)} ${record.id}  ${record.schemaName}  ${formatSource(record.source)}${suffix}`)
+    }
+  },
+})
+
+const showCommand = defineCommand({
+  meta: {
+    name: 'show',
+    description: 'Show an extraction audit record',
+  },
+  args: {
+    id: {
+      type: 'string',
+      description: 'Audit record id',
+    },
+  },
+  async run({ args }) {
+    const id = getIdArg(args)
+    if (!id) {
+      failCommand('Audit record id is required')
+      return
+    }
+
+    const config = createMigrationConfig(process.cwd())
+    const aiexDir = path.dirname(config.schemaPath)
+    const record = await readExtractionAuditRecord(aiexDir, id)
+    if (!record) {
+      failCommand(`Extraction record not found: ${id}`)
+      return
+    }
+
+    consola.info(JSON.stringify(record, null, 2))
+  },
+})
+
+const retryCommand = defineCommand({
+  meta: {
+    name: 'retry',
+    description: 'Retry an extraction audit record',
+  },
+  args: {
+    id: {
+      type: 'string',
+      description: 'Audit record id',
+    },
+    noInsert: {
+      type: 'boolean',
+      description: 'Extract and save JSON without inserting into SQLite',
+      default: false,
+    },
+  },
+  async run({ args }) {
+    intro(pc.inverse(' aiex extract retry '))
+
+    const id = getIdArg(args)
+    if (!id) {
+      failCommand('Audit record id is required')
+      return
+    }
+
+    const config = createMigrationConfig(process.cwd())
+    const aiexDir = path.dirname(config.schemaPath)
+    const record = await readExtractionAuditRecord(aiexDir, id)
+    if (!record) {
+      failCommand(`Extraction record not found: ${id}`)
+      return
+    }
+
+    const aiConfig = await loadConfiguredAI(aiexDir)
+    if (!aiConfig)
+      return
+
+    const modelOverride = resolveModelOverride(aiConfig, record.modelName)
+    if (modelOverride === null)
+      return
+
+    try {
+      const sourceInput = record.source.type === 'file'
+        ? await readExtractFileInput(record.source.filePath || '', aiConfig)
+        : { text: record.source.text || '', filePath: undefined }
+
+      const ok = await runAuditedSingleExtraction({
+        aiexDir,
+        config,
+        aiConfig,
+        schemaName: record.schemaName,
+        text: sourceInput.text,
+        filePath: sourceInput.filePath,
+        source: record.source,
+        modelOverride,
+        retryOf: record.id,
+        insert: !args.noInsert,
+      })
+
+      if (!ok) {
+        failCommand()
+        return
+      }
+
+      outro('Done!')
+    }
+    catch (error) {
+      failCommand(error instanceof Error ? error.message : String(error))
+    }
+  },
+})
+
+const rmCommand = defineCommand({
+  meta: {
+    name: 'rm',
+    description: 'Delete an extraction audit record and cached upload',
+  },
+  args: {
+    id: {
+      type: 'string',
+      description: 'Audit record id',
+    },
+  },
+  async run({ args }) {
+    const id = getIdArg(args)
+    if (!id) {
+      failCommand('Audit record id is required')
+      return
+    }
+
+    const config = createMigrationConfig(process.cwd())
+    const aiexDir = path.dirname(config.schemaPath)
+    const deleted = await deleteExtractionAuditRecord(aiexDir, id)
+    if (!deleted) {
+      failCommand(`Extraction record not found: ${id}`)
+      return
+    }
+
+    consola.success(`Deleted extraction record: ${id}`)
+  },
+})
 
 export const extractCommand = defineCommand({
   meta: {
     name: 'extract',
     description: 'Extract structured data from text, images, or PDFs',
+  },
+  subCommands: {
+    history: historyCommand,
+    show: showCommand,
+    retry: retryCommand,
+    rm: rmCommand,
   },
   args: {
     schema: {
@@ -53,6 +311,11 @@ export const extractCommand = defineCommand({
       alias: 'g',
       description: 'Glob pattern to filter files in batch mode (e.g. "*.pdf")',
     },
+    noInsert: {
+      type: 'boolean',
+      description: 'Extract and save JSON without inserting into SQLite',
+      default: false,
+    },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex extract '))
@@ -71,34 +334,14 @@ export const extractCommand = defineCommand({
       return
     }
 
-    // Read AI config early
-    const aiConfig = await readAIConfig(aiexDir)
-    if (!aiConfig) {
-      failCommand('AI configuration not found. Please run "aiex web" to configure AI settings first')
+    const aiConfig = await loadConfiguredAI(aiexDir)
+    if (!aiConfig)
       return
-    }
-
-    if (!aiConfig.provider.apiKey) {
-      failCommand('API Key not configured. Please configure AI settings in the Web interface first')
-      return
-    }
-
-    if (!aiConfig.provider.models?.length) {
-      failCommand('No models configured. Please add at least one model in AI Settings')
-      return
-    }
 
     // Resolve model override
-    let modelOverride: AIModelConfig | undefined
-    if (args.model) {
-      const matched = aiConfig.provider.models.find(m => m.name === args.model)
-      if (!matched) {
-        const available = aiConfig.provider.models.map(m => m.name).join(', ')
-        failCommand(`Model "${args.model}" not found in configuration. Available models: ${available}`)
-        return
-      }
-      modelOverride = matched
-    }
+    const modelOverride = resolveModelOverride(aiConfig, args.model as string | undefined)
+    if (modelOverride === null)
+      return
 
     // ── Interactive mode (when no args provided) ──
     if (!args.schema && !args.text && !args.file && !args.dir) {
@@ -115,7 +358,7 @@ export const extractCommand = defineCommand({
         failCommand('Schema name (-s) is required in batch mode')
         return
       }
-      const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride)
+      const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride, { insert: !args.noInsert })
       if (!result.ok) {
         failCommand(result.error)
         return
@@ -164,8 +407,20 @@ export const extractCommand = defineCommand({
       text = args.text as string
     }
 
-    const r = await extractSingle(aiexDir, config, aiConfig, args.schema as string, text, filePath, modelOverride)
-    if (!r.success) {
+    const ok = await runAuditedSingleExtraction({
+      aiexDir,
+      config,
+      aiConfig,
+      schemaName: args.schema as string,
+      text,
+      filePath,
+      source: filePath
+        ? { type: 'file', filePath: args.file as string, fileName: path.basename(args.file as string) }
+        : { type: 'text', text },
+      modelOverride,
+      insert: !args.noInsert,
+    })
+    if (!ok) {
       failCommand()
       return
     }
