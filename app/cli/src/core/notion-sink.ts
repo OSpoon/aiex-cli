@@ -237,14 +237,6 @@ async function resolveNotionDataSource(
   }
 
   const database = await notion.databases.retrieve({ database_id: id }) as any
-  if (hasProperties(database)) {
-    return {
-      databaseId: database.id ?? id,
-      properties: database.properties,
-      parent: { database_id: database.id ?? id },
-    }
-  }
-
   const dataSourceId = firstDataSourceId(database)
   if (!dataSourceId) {
     throw new Error('No data source found for this Notion database. Copy the data source link from Notion, or share the source database with the integration.')
@@ -334,8 +326,7 @@ export async function writeNotionPage(
 
   const titleProperty = findTitleProperty(databaseProperties, schemaConfig.titleProperty)
   if (titleProperty && !properties[titleProperty]) {
-    const titleSource = Object.entries(data).find(([, value]) => typeof value === 'string' && value.trim())
-    properties[titleProperty] = buildPropertyValue('title', titleSource?.[1] ?? schemaName)
+    properties[titleProperty] = buildPropertyValue('title', schemaName)
   }
 
   if (Object.keys(properties).length === 0)

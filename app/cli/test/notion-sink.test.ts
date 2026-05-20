@@ -91,6 +91,25 @@ describe('notion sink', () => {
     })
   })
 
+  it('ignores legacy database properties and requires a data source reference', async () => {
+    notionMock.dataSourcesRetrieve.mockRejectedValueOnce(new Error('not a data source'))
+    notionMock.databasesRetrieve.mockResolvedValueOnce({
+      object: 'database',
+      id: 'legacy-database',
+      properties: {
+        name: { type: 'title' },
+      },
+    })
+
+    await expect(inspectNotionDatabase({
+      token: 'token',
+      databaseId: 'legacy-database',
+      schemaFields: [{ name: 'name' }],
+    })).rejects.toThrow('No data source found')
+
+    expect(notionMock.pagesCreate).not.toHaveBeenCalled()
+  })
+
   it('writes extracted top-level fields to a resolved data source', async () => {
     notionMock.dataSourcesRetrieve
       .mockRejectedValueOnce(new Error('not a data source'))
@@ -142,6 +161,50 @@ describe('notion sink', () => {
       pageId: 'page-1',
       databaseId: 'database-1',
       dataSourceId: 'source-1',
+    })
+  })
+
+  it('uses the schema name as the title fallback when the title property is not mapped', async () => {
+    notionMock.dataSourcesRetrieve
+      .mockRejectedValueOnce(new Error('not a data source'))
+      .mockResolvedValueOnce({
+        object: 'data_source',
+        id: 'source-1',
+        properties: {
+          名称: { type: 'title' },
+          reportNumber: { type: 'rich_text' },
+        },
+      })
+    notionMock.databasesRetrieve.mockResolvedValueOnce({
+      object: 'database',
+      id: 'database-1',
+      data_sources: [{ id: 'source-1', name: 'AIEX Notion Test' }],
+    })
+    notionMock.pagesCreate.mockResolvedValueOnce({ id: 'page-1' })
+
+    await writeNotionPage({
+      enabled: true,
+      token: 'token',
+      schemas: {
+        score_report: {
+          databaseId: 'database-1',
+          fieldMap: {
+            name: 'name',
+            reportNumber: 'reportNumber',
+          },
+        },
+      },
+    }, 'score_report', {
+      name: 'Alice',
+      reportNumber: '500000500',
+    })
+
+    expect(notionMock.pagesCreate).toHaveBeenCalledWith({
+      parent: { data_source_id: 'source-1' },
+      properties: {
+        名称: { title: [{ text: { content: 'score_report' } }] },
+        reportNumber: { rich_text: [{ text: { content: '500000500' } }] },
+      },
     })
   })
 })
