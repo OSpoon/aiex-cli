@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { AIModelConfig, ExtractionAuditRecord, RunExtractionResult } from "@/api-client"
 import Button from "primevue/button"
-import Checkbox from "primevue/checkbox"
 import Dialog from "primevue/dialog"
 import { computed, onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
@@ -10,8 +9,6 @@ import { deleteExtractionRun, listExtractionRuns, retryExtractionRun, runExtract
 const props = defineProps<{
   schemas: string[]
   models: AIModelConfig[]
-  notionEnabled: boolean
-  notionSchemaNames: string[]
 }>()
 
 const emit = defineEmits<{
@@ -23,7 +20,6 @@ const selectedModel = ref("")
 const inputMode = ref<"text" | "file">("text")
 const textInput = ref("")
 const fileInput = ref<File | null>(null)
-const syncNotion = ref(false)
 const running = ref(false)
 const lastResult = ref<RunExtractionResult | null>(null)
 const records = ref<ExtractionAuditRecord[]>([])
@@ -34,7 +30,6 @@ const selectedRecord = ref<ExtractionAuditRecord | null>(null)
 const showDetails = ref(false)
 
 const schemaOptions = computed(() => props.schemas.map(name => name.replace(".json", "")))
-const selectedSchemaHasNotion = computed(() => props.notionEnabled && props.notionSchemaNames.includes(selectedSchema.value))
 const selectedRecordJson = computed(() => selectedRecord.value ? JSON.stringify(selectedRecord.value, null, 2) : "")
 
 watch(schemaOptions, (schemas) => {
@@ -89,8 +84,7 @@ async function handleRun() {
       schema: selectedSchema.value,
       text: inputMode.value === "text" ? text : undefined,
       file: inputMode.value === "file" ? fileInput.value : null,
-      model: selectedModel.value || undefined,
-      notion: selectedSchemaHasNotion.value && syncNotion.value
+      model: selectedModel.value || undefined
     })
     lastResult.value = result
     toast.success("Extraction complete")
@@ -380,11 +374,6 @@ onMounted(loadRecords)
         :disabled="schemaOptions.length === 0"
         @click="handleRun"
       />
-
-      <label class="flex h-9 items-center gap-2 text-sm text-foreground">
-        <Checkbox v-model="syncNotion" :binary="true" input-id="sync-notion" :disabled="!selectedSchemaHasNotion" />
-        <span :class="selectedSchemaHasNotion ? 'text-foreground' : 'text-muted-foreground'">Notion</span>
-      </label>
     </div>
 
     <div v-if="schemaOptions.length === 0" class="flex-1 flex flex-col items-center justify-center text-muted-foreground">

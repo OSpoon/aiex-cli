@@ -20,8 +20,6 @@ const ExtractionViewer = defineAsyncComponent(() => import("@/components/Extract
 
 const currentView = ref<"editor" | "extract" | "data">("editor")
 const aiModels = ref<AIModelConfig[]>([])
-const notionEnabled = ref(false)
-const notionSchemaNames = ref<string[]>([])
 
 // Data browser state
 const tables = ref<TableInfo[]>([])
@@ -378,12 +376,8 @@ async function loadAIModels() {
   try {
     const config = await getAIConfig()
     aiModels.value = config.provider.models ?? []
-    notionEnabled.value = !!config.notion?.enabled
-    notionSchemaNames.value = Object.keys(config.notion?.schemas ?? {})
   } catch {
     aiModels.value = []
-    notionEnabled.value = false
-    notionSchemaNames.value = []
   }
 }
 
@@ -587,8 +581,6 @@ onMounted(() => {
         v-else-if="currentView === 'extract'"
         :schemas="savedSchemas"
         :models="aiModels"
-        :notion-enabled="notionEnabled"
-        :notion-schema-names="notionSchemaNames"
         @completed="handleExtractionCompleted"
       />
       <DataBrowser

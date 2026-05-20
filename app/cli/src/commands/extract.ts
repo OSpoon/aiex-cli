@@ -20,6 +20,7 @@ import {
   readExtractionAuditRecord,
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
+import { writeNotionPage } from '@/core/notion-sink'
 import {
   createMigrationConfig,
 } from '@/core/schema-sqlite'
@@ -105,11 +106,40 @@ async function runAuditedSingleExtraction(input: {
     return false
   }
 
+  let notionPages: Array<{ databaseId: string, pageId: string }> | undefined
+  if (input.aiConfig.notion?.enabled && input.aiConfig.notion.schemas?.[input.schemaName]?.databaseId?.trim()) {
+    try {
+      if (!result.data || typeof result.data !== 'object' || Array.isArray(result.data))
+        throw new Error('Extraction result is not an object and cannot be written to Notion.')
+
+      const page = await writeNotionPage(
+        input.aiConfig.notion,
+        input.schemaName,
+        result.data as Record<string, unknown>,
+      )
+      notionPages = [{ databaseId: page.databaseId, pageId: page.pageId }]
+      consola.success(`Synced to Notion: ${notionPages.length} page(s)`)
+    }
+    catch (error) {
+      await updateExtractionAuditRecord(input.aiexDir, audit.id, {
+        status: 'failed',
+        outputPath: result.outputPath,
+        outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
+        tablesInserted: result.tablesInserted,
+        tokensUsed: result.tokensUsed,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      consola.error(`Notion sync failed: ${error instanceof Error ? error.message : String(error)}`)
+      return false
+    }
+  }
+
   await updateExtractionAuditRecord(input.aiexDir, audit.id, {
     status: 'succeeded',
     outputPath: result.outputPath,
     outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
     tablesInserted: result.tablesInserted,
+    notionPages,
     tokensUsed: result.tokensUsed,
   })
   return true
@@ -480,8 +510,15 @@ async function runInteractive(
       return false
     }
 
-    const r = await extractSingle(aiexDir, config, aiConfig, schemaName as string, textContent as string, undefined, modelOverride)
-    return r.success
+    return runAuditedSingleExtraction({
+      aiexDir,
+      config,
+      aiConfig,
+      schemaName: schemaName as string,
+      text: textContent as string,
+      source: { type: 'text', text: textContent as string },
+      modelOverride,
+    })
   }
   else if (inputSource === 'file') {
     const filePathStr = await text({
@@ -502,8 +539,16 @@ async function runInteractive(
 
     try {
       const input = await readExtractFileInput(fp, aiConfig)
-      const r = await extractSingle(aiexDir, config, aiConfig, schemaName as string, input.text, input.filePath, modelOverride)
-      return r.success
+      return runAuditedSingleExtraction({
+        aiexDir,
+        config,
+        aiConfig,
+        schemaName: schemaName as string,
+        text: input.text,
+        filePath: input.filePath,
+        source: { type: 'file', filePath: fp, fileName: path.basename(fp) },
+        modelOverride,
+      })
     }
     catch (e) {
       consola.error(`Cannot read file: ${fp} — ${e instanceof Error ? e.message : String(e)}`)

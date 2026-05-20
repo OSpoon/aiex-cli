@@ -17,6 +17,7 @@ import {
   createExtractionAuditRecord,
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
+import { writeNotionPage } from '@/core/notion-sink'
 import { createPdfConverter } from '@/core/pdf-converter'
 import {
   JsonSchemaDefinitionSchema,
@@ -62,11 +63,28 @@ export interface ExtractResult {
   outputPath?: string
   data?: unknown
   tablesInserted?: Array<{ table: string, rowId: number }>
+  notionPages?: Array<{ databaseId: string, pageId: string }>
   tokensUsed?: {
     prompt: number
     completion: number
     total: number
   }
+}
+
+async function syncResultToNotion(
+  aiConfig: AIConfig,
+  schemaName: string,
+  data: unknown,
+): Promise<Array<{ databaseId: string, pageId: string }>> {
+  if (!data || typeof data !== 'object' || Array.isArray(data))
+    throw new Error('Extraction result is not an object and cannot be written to Notion.')
+
+  const page = await writeNotionPage(aiConfig.notion, schemaName, data as Record<string, unknown>)
+  return [{ databaseId: page.databaseId, pageId: page.pageId }]
+}
+
+function shouldSyncNotion(aiConfig: AIConfig, schemaName: string): boolean {
+  return !!aiConfig.notion?.enabled && !!aiConfig.notion.schemas?.[schemaName]?.databaseId?.trim()
 }
 
 export interface BatchExtractionResult {
@@ -343,11 +361,32 @@ async function processOneFile(
     )
 
     if (r.success) {
+      let notionPages: Array<{ databaseId: string, pageId: string }> | undefined
+      if (shouldSyncNotion(aiConfig, schemaName)) {
+        try {
+          notionPages = await syncResultToNotion(aiConfig, schemaName, r.data)
+          consola.success(`Synced to Notion: ${notionPages.length} page(s)`)
+        }
+        catch (error) {
+          await updateExtractionAuditRecord(aiexDir, audit.id, {
+            status: 'failed',
+            outputPath: r.outputPath,
+            outputName: r.outputPath ? path.basename(r.outputPath) : undefined,
+            tablesInserted: r.tablesInserted,
+            tokensUsed: r.tokensUsed,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          consola.error(`Notion sync failed: ${error instanceof Error ? error.message : String(error)}`)
+          return false
+        }
+      }
+
       await updateExtractionAuditRecord(aiexDir, audit.id, {
         status: 'succeeded',
         outputPath: r.outputPath,
         outputName: r.outputPath ? path.basename(r.outputPath) : undefined,
         tablesInserted: r.tablesInserted,
+        notionPages,
         tokensUsed: r.tokensUsed,
       })
       consola.success(`Processed: ${path.basename(filePath)}`)

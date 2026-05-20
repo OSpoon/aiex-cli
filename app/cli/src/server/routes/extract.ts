@@ -67,7 +67,6 @@ async function executeAuditedExtraction(input: {
   text: string
   filePath?: string
   modelName?: string
-  syncNotion?: boolean
 }): Promise<Response> {
   const aiConfig = await readAIConfig(input.aiexDir)
   if (!aiConfig) {
@@ -147,7 +146,7 @@ async function executeAuditedExtraction(input: {
   }
 
   const notionPages: Array<{ databaseId: string, pageId: string }> = []
-  if (input.syncNotion) {
+  if (aiConfig.notion?.enabled && aiConfig.notion.schemas?.[input.schemaName]?.databaseId?.trim()) {
     try {
       if (!result.data || typeof result.data !== 'object' || Array.isArray(result.data))
         throw new Error('Extraction result is not an object and cannot be written to Notion.')
@@ -211,7 +210,6 @@ export function extractRoutes(config: MigrationConfig): Hono {
       const schemaName = getFormString(body.schema)
       const text = getFormString(body.text)
       const modelName = getFormString(body.model)
-      const syncNotion = getFormString(body.notion) === 'true'
       const file = getFormFile(body.file)
 
       if (!schemaName) {
@@ -250,7 +248,6 @@ export function extractRoutes(config: MigrationConfig): Hono {
         text,
         filePath,
         modelName,
-        syncNotion,
       })
     }
     catch (error: unknown) {

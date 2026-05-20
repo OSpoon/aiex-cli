@@ -207,7 +207,6 @@ export interface RunExtractionInput {
   text?: string
   file?: File | null
   model?: string
-  notion?: boolean
 }
 
 export interface RunExtractionResult {
@@ -262,8 +261,6 @@ export async function runExtraction(input: RunExtractionInput): Promise<RunExtra
     form.set('file', input.file)
   if (input.model)
     form.set('model', input.model)
-  if (input.notion)
-    form.set('notion', 'true')
 
   try {
     const data = await api.post('api/extract', { body: form }).json<RunExtractionResult>()
