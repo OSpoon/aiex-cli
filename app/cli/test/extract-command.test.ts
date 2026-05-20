@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { outro } from '@clack/prompts'
+import { intro, outro } from '@clack/prompts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { extractCommand } from '@/commands/extract'
@@ -114,6 +114,13 @@ describe('extractCommand.run', () => {
   it('should fail when combining --dir and --file', async () => {
     await cmd.run({ args: { dir: os.tmpdir(), file: path.join(os.tmpdir(), 'test.txt') } })
     expect(process.exitCode).toBe(1)
+  })
+
+  it('should not enter interactive extraction after a subcommand runs', async () => {
+    await cmd.run({ rawArgs: ['history'], args: {} })
+
+    expect(intro).not.toHaveBeenCalled()
+    expect(readAIConfig).not.toHaveBeenCalled()
   })
 
   it('should fail when combining --dir and --text', async () => {

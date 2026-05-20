@@ -32,6 +32,12 @@ function getIdArg(args: Record<string, unknown>): string {
   return Array.isArray(positional) && typeof positional[0] === 'string' ? positional[0] : ''
 }
 
+function isExtractSubCommand(rawArgs: unknown): boolean {
+  if (!Array.isArray(rawArgs))
+    return false
+  return rawArgs.some(arg => typeof arg === 'string' && ['history', 'show', 'retry', 'rm'].includes(arg))
+}
+
 function formatSource(source: { type: 'text' | 'file', fileName?: string }): string {
   return source.type === 'file' ? source.fileName || 'file' : 'text'
 }
@@ -347,7 +353,10 @@ export const extractCommand = defineCommand({
       default: false,
     },
   },
-  async run({ args }) {
+  async run({ args, rawArgs }) {
+    if (isExtractSubCommand(rawArgs))
+      return
+
     intro(pc.inverse(' aiex extract '))
 
     const cwd = process.cwd()
