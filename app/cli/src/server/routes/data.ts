@@ -8,7 +8,7 @@ import { readFile as readJsonFile } from 'jsonfile'
 import { Kysely, sql, SqliteDialect } from 'kysely'
 import { z } from 'zod'
 import { readAIConfig } from '@/core/ai-extraction'
-import { listExtractionAuditRecords, updateExtractionAuditRecord } from '@/core/extraction-audit'
+import { createExtractionAuditRecord, listExtractionAuditRecords, updateExtractionAuditRecord } from '@/core/extraction-audit'
 import { writeNotionPage } from '@/core/notion-sink'
 
 const FILE_REGEX = /\.json$/
@@ -317,10 +317,18 @@ export function dataRoutes(config: MigrationConfig): Hono {
       const page = await writeNotionPage(aiConfig.notion, schemaName, data as Record<string, unknown>)
       const notionPages = [{ databaseId: page.databaseId, pageId: page.pageId }]
       const records = await listExtractionAuditRecords(aiexDir)
-      const record = records.find(record => record.outputName === name)
+      let record = records.find(record => record.outputName === name)
+      if (!record) {
+        record = await createExtractionAuditRecord(aiexDir, {
+          schemaName,
+          source: { type: 'file', filePath, fileName: name },
+        })
+      }
       if (record) {
         await updateExtractionAuditRecord(aiexDir, record.id, {
           status: 'succeeded',
+          outputPath: filePath,
+          outputName: name,
           notionPages,
           error: undefined,
         })
@@ -329,9 +337,20 @@ export function dataRoutes(config: MigrationConfig): Hono {
       return c.json({ success: true, notionPages })
     }
     catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      const records = await listExtractionAuditRecords(aiexDir)
+      const record = records.find(record => record.outputName === name)
+      if (record) {
+        await updateExtractionAuditRecord(aiexDir, record.id, {
+          status: 'failed',
+          outputPath: filePath,
+          outputName: name,
+          error: message,
+        })
+      }
       return c.json({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: message,
       }, 500)
     }
   })

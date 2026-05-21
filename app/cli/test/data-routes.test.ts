@@ -136,5 +136,63 @@ describe('data routes', () => {
       'person',
       { name: 'Alice' },
     )
+
+    const listResponse = await app.request('/data')
+    const records = await listResponse.json() as Array<{ name: string, notionStatus: string, notionPages?: unknown[] }>
+    expect(records.find(record => record.name === 'person-2026-05-21T09-00-00-000Z.json')).toMatchObject({
+      notionStatus: 'synced',
+      notionPages: [{ databaseId: 'database-1', pageId: 'page-1' }],
+    })
+  })
+
+  it('marks Notion sync as failed when manual sync fails for an audited extraction', async () => {
+    await writeJsonFile(path.join(tempDir, 'ai-config.json'), {
+      provider: {
+        baseURL: 'https://example.test/v1',
+        apiKey: 'test-key',
+        models: [{ name: 'test-model', capabilities: { vision: false, structuredOutput: true } }],
+      },
+      prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
+      extraction: { outputDir: '.aiex/extracted' },
+      notion: {
+        enabled: true,
+        token: 'notion-token',
+        schemas: {
+          person: {
+            databaseId: 'source-1',
+          },
+        },
+      },
+    })
+    const extractedDir = path.join(tempDir, 'extracted')
+    const auditDir = path.join(extractedDir, '_audit')
+    await fs.mkdir(auditDir, { recursive: true })
+    await writeJsonFile(path.join(extractedDir, 'person-2026-05-21T09-00-00-000Z.json'), {
+      name: 'Alice',
+    })
+    await writeJsonFile(path.join(auditDir, 'run-1.json'), {
+      id: 'run-1',
+      status: 'succeeded',
+      schemaName: 'person',
+      source: { type: 'text', text: 'Alice' },
+      outputName: 'person-2026-05-21T09-00-00-000Z.json',
+      outputPath: path.join(extractedDir, 'person-2026-05-21T09-00-00-000Z.json'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    writeNotionPageMock.mockRejectedValueOnce(new Error('Notion unavailable'))
+
+    const app = dataRoutes(config)
+    const response = await app.request('/data/person-2026-05-21T09-00-00-000Z.json/notion/retry', {
+      method: 'POST',
+    })
+
+    expect(response.status).toBe(500)
+    const listResponse = await app.request('/data')
+    const records = await listResponse.json() as Array<{ name: string, notionStatus: string, notionError?: string }>
+    expect(records.find(record => record.name === 'person-2026-05-21T09-00-00-000Z.json')).toMatchObject({
+      notionStatus: 'failed',
+      notionError: 'Notion unavailable',
+    })
   })
 })
