@@ -17,6 +17,11 @@ import {
   createExtractionAuditRecord,
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
+import {
+  bytesToMB,
+  MAX_UPLOAD_SIZE,
+  MAX_UPLOAD_SIZE_TEXT,
+} from '@/core/file-constants'
 import { writeNotionPage } from '@/core/notion-sink'
 import { createPdfConverter } from '@/core/pdf-converter'
 import {
@@ -183,15 +188,10 @@ export function isImageFile(filePath: string): boolean {
   return FILE_PART_EXTENSIONS.has(ext)
 }
 
-function getFileSizeMB(filePath: string): number {
-  const stat = fs.statSync(filePath)
-  return stat.size / (1024 * 1024)
-}
-
 export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig): Promise<ExtractFileInput> {
-  const sizeMB = getFileSizeMB(filePath)
-  if (sizeMB > 150) {
-    throw new Error(`File size (${sizeMB.toFixed(1)}MB) exceeds 150MB limit: ${filePath}`)
+  const stat = fs.statSync(filePath)
+  if (stat.size > MAX_UPLOAD_SIZE) {
+    throw new Error(`File size (${bytesToMB(stat.size).toFixed(1)}MB) exceeds ${MAX_UPLOAD_SIZE_TEXT} limit: ${filePath}`)
   }
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   if (FILE_PART_EXTENSIONS.has(ext)) {

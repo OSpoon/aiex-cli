@@ -47,6 +47,10 @@ const MIME_TO_EXT: Record<string, string> = {
   'text/yaml': 'yaml',
 }
 
+export function bytesToMB(bytes: number): number {
+  return bytes / (1024 * 1024)
+}
+
 export function getExtensionFromMime(mimeType: string): string | undefined {
   return MIME_TO_EXT[mimeType]
 }
@@ -68,7 +72,7 @@ export function validateFileUpload(file: File): void {
   }
   if (file.size > MAX_UPLOAD_SIZE) {
     throw new FileValidationError(
-      `File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds ${MAX_UPLOAD_SIZE_TEXT} limit`,
+      `File size (${bytesToMB(file.size).toFixed(1)}MB) exceeds ${MAX_UPLOAD_SIZE_TEXT} limit`,
     )
   }
   if (!isAllowedMimeType(file.type)) {
