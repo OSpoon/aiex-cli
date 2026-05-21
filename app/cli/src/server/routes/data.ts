@@ -13,6 +13,7 @@ import { writeNotionPage } from '@/core/notion-sink'
 
 const FILE_REGEX = /\.json$/
 const EXTRACTION_TIMESTAMP_RE = /-\d{4}-\d{2}-\d{2}T/
+const INTERNAL_ROWID_COLUMN = '__aiex_rowid'
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
 const TIMESTAMP_TZ = /(\d{3})Z/
 
@@ -301,7 +302,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
         const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
         const result = await sql<Record<string, unknown>>`
-          select *
+          select rowid as ${sql.raw(INTERNAL_ROWID_COLUMN)}, *
           from ${sql.table(tableName)}
           ${searchCondition}
           ${orderBy}
@@ -309,23 +310,21 @@ export function dataRoutes(config: MigrationConfig): Hono {
           offset ${offset}
         `.execute(db)
 
-        const primaryKey = columns.find(column => column.pk)
         const actionsByRowId = await getRowExtractionActions(aiexDir, tableName)
-        const rowActions = primaryKey
-          ? Object.fromEntries(
-              result.rows
-                .map((row, index) => {
-                  const rowId = row[primaryKey.name]
-                  const action = rowId === null || rowId === undefined ? undefined : actionsByRowId.get(String(rowId))
-                  return action ? [String(index), action] : null
-                })
-                .filter((entry): entry is [string, RowExtractionAction] => !!entry),
-            )
-          : {}
+        const rowActions = Object.fromEntries(
+          result.rows
+            .map((row, index) => {
+              const rowId = row[INTERNAL_ROWID_COLUMN]
+              const action = rowId === null || rowId === undefined ? undefined : actionsByRowId.get(String(rowId))
+              return action ? [String(index), action] : null
+            })
+            .filter((entry): entry is [string, RowExtractionAction] => !!entry),
+        )
+        const rows = result.rows.map(({ [INTERNAL_ROWID_COLUMN]: _rowid, ...row }) => row)
 
         return c.json({
           columns,
-          rows: result.rows,
+          rows,
           rowActions,
           total,
           page,

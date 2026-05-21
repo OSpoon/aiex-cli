@@ -111,6 +111,36 @@ describe('data routes', () => {
     })
   })
 
+  it('keeps extraction JSON actions attached to the correct row after sorting and pagination', async () => {
+    const auditDir = path.join(tempDir, 'extracted', '_audit')
+    await fs.mkdir(auditDir, { recursive: true })
+    await writeJsonFile(path.join(auditDir, 'run-2.json'), {
+      id: 'run-2',
+      status: 'succeeded',
+      schemaName: 'people',
+      source: { type: 'text', text: 'Alicia' },
+      outputName: 'people-2026-05-21T10-00-00-000Z.json',
+      tablesInserted: [{ table: 'people', rowId: 3 }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+
+    const app = dataRoutes(config)
+    const response = await app.request('/data/tables/people?sortField=name&sortOrder=desc&page=2&pageSize=1')
+    const body = await response.json() as DataTableResponse & {
+      rowActions?: Record<string, { extractionName: string, notionStatus: string }>
+    }
+
+    expect(response.status).toBe(200)
+    expect(body.rows).toEqual([
+      { id: 3, name: 'Alicia', email: 'alicia@example.com' },
+    ])
+    expect(body.rowActions?.['0']).toMatchObject({
+      extractionName: 'people-2026-05-21T10-00-00-000Z.json',
+      notionStatus: 'not_synced',
+    })
+  })
+
   it('rejects invalid table names before query construction', async () => {
     const app = dataRoutes(config)
 
