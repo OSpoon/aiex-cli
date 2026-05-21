@@ -2,7 +2,7 @@
 import Button from "primevue/button"
 import { onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
-import { getExtraction } from "@/api-client"
+import { getExtraction, retryNotionSync } from "@/api-client"
 
 const props = defineProps<{
   extractionName: string | null
@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const extractContent = ref("")
 const loading = ref(false)
+const retryingNotion = ref(false)
 
 async function loadContent() {
   if (!props.extractionName) return
@@ -39,6 +40,18 @@ function handleDownload() {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+async function handleRetryNotion() {
+  if (!props.extractionName) return
+  retryingNotion.value = true
+  try {
+    const result = await retryNotionSync(props.extractionName)
+    toast.success(`Synced to Notion (${result.notionPages?.length ?? 0} page)`)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Notion sync failed")
+  }
+  retryingNotion.value = false
 }
 
 function tryParseAndFormat(json: string): string {
@@ -71,13 +84,23 @@ onMounted(loadContent)
         <h2 class="m-0 text-lg font-semibold text-foreground">
           {{ extractionName }}
         </h2>
-        <Button
-          icon="pi pi-download"
-          label="Download"
-          severity="secondary"
-          size="small"
-          @click="handleDownload"
-        />
+        <div class="flex items-center gap-2">
+          <Button
+            icon="pi pi-refresh"
+            label="Retry Notion"
+            severity="secondary"
+            size="small"
+            :loading="retryingNotion"
+            @click="handleRetryNotion"
+          />
+          <Button
+            icon="pi pi-download"
+            label="Download"
+            severity="secondary"
+            size="small"
+            @click="handleDownload"
+          />
+        </div>
       </div>
       <div class="flex-1 min-h-0 overflow-auto">
         <pre class="text-sm font-mono whitespace-pre-wrap text-foreground bg-secondary border border-border rounded-lg p-4">{{ tryParseAndFormat(extractContent) }}</pre>

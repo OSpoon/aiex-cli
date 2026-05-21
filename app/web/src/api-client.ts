@@ -210,6 +210,12 @@ export interface ExtractionRecord {
   modifiedAt: string
 }
 
+export interface RetryNotionSyncResult {
+  success: boolean
+  error?: string
+  notionPages?: Array<{ databaseId: string, pageId: string }>
+}
+
 export interface ColumnInfo {
   name: string
   type: string
@@ -273,4 +279,16 @@ export interface ExtractionDetail {
 
 export async function getExtraction(name: string): Promise<ExtractionDetail> {
   return api.get(`api/data/${encodeURIComponent(name)}`).json<ExtractionDetail>()
+}
+
+export async function retryNotionSync(name: string): Promise<RetryNotionSyncResult> {
+  try {
+    const data = await api.post(`api/data/${encodeURIComponent(name)}/notion/retry`).json<RetryNotionSyncResult>()
+    if (!data.success)
+      throw new Error(data.error || 'Notion sync failed')
+    return data
+  }
+  catch (error) {
+    throw new Error(await getErrorMessage(error, 'Notion sync failed'))
+  }
 }

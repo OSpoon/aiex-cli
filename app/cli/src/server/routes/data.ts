@@ -7,8 +7,12 @@ import { Hono } from 'hono'
 import { readFile as readJsonFile } from 'jsonfile'
 import { Kysely, sql, SqliteDialect } from 'kysely'
 import { z } from 'zod'
+import { readAIConfig } from '@/core/ai-extraction'
+import { listExtractionAuditRecords, updateExtractionAuditRecord } from '@/core/extraction-audit'
+import { writeNotionPage } from '@/core/notion-sink'
 
 const FILE_REGEX = /\.json$/
+const EXTRACTION_TIMESTAMP_RE = /-\d{4}-\d{2}-\d{2}T/
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
 const TIMESTAMP_TZ = /(\d{3})Z/
 
@@ -64,6 +68,14 @@ interface TableColumn {
 }
 
 type DynamicDatabase = Record<string, Record<string, unknown>>
+
+function schemaNameFromExtractionFile(name: string): string | null {
+  const stem = name.replace(FILE_REGEX, '')
+  const match = stem.match(EXTRACTION_TIMESTAMP_RE)
+  if (!match || typeof match.index !== 'number' || match.index <= 0)
+    return null
+  return stem.slice(0, match.index)
+}
 
 function createReadonlyQueryDb(databasePath: string): Kysely<DynamicDatabase> {
   return new Kysely<DynamicDatabase>({
@@ -272,6 +284,46 @@ export function dataRoutes(config: MigrationConfig): Hono {
     }
     catch {
       return c.json({ error: 'Extraction result not found' }, 404)
+    }
+  })
+
+  app.post('/data/:name/notion/retry', zValidator('param', extractionFileParamSchema, invalidParamResponse('Invalid extraction file name')), async (c) => {
+    const { name } = c.req.valid('param')
+    const filePath = path.join(extractedDir, name)
+    const schemaName = schemaNameFromExtractionFile(name)
+    if (!schemaName)
+      return c.json({ success: false, error: 'Cannot infer schema name from extraction file name' }, 400)
+
+    const aiConfig = await readAIConfig(aiexDir)
+    if (!aiConfig?.notion?.enabled)
+      return c.json({ success: false, error: 'Notion export is not enabled. Configure Notion settings first.' }, 400)
+    if (!aiConfig.notion.schemas?.[schemaName]?.databaseId?.trim())
+      return c.json({ success: false, error: `Notion database is not configured for schema "${schemaName}".` }, 400)
+
+    try {
+      const data = await readJsonFile(filePath) as unknown
+      if (!data || typeof data !== 'object' || Array.isArray(data))
+        return c.json({ success: false, error: 'Extraction result is not a JSON object and cannot be written to Notion.' }, 400)
+
+      const page = await writeNotionPage(aiConfig.notion, schemaName, data as Record<string, unknown>)
+      const notionPages = [{ databaseId: page.databaseId, pageId: page.pageId }]
+      const records = await listExtractionAuditRecords(aiexDir)
+      const record = records.find(record => record.outputName === name)
+      if (record) {
+        await updateExtractionAuditRecord(aiexDir, record.id, {
+          status: 'succeeded',
+          notionPages,
+          error: undefined,
+        })
+      }
+
+      return c.json({ success: true, notionPages })
+    }
+    catch (error: unknown) {
+      return c.json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }, 500)
     }
   })
 

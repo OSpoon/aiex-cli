@@ -3,8 +3,15 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import Database from 'better-sqlite3'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { writeFile as writeJsonFile } from 'jsonfile'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { dataRoutes } from '@/server/routes/data'
+
+const writeNotionPageMock = vi.hoisted(() => vi.fn())
+
+vi.mock('@/core/notion-sink', () => ({
+  writeNotionPage: writeNotionPageMock,
+}))
 
 interface DataTableResponse {
   columns: Array<{ name: string, type: string, notNull: boolean, pk: boolean }>
@@ -22,6 +29,7 @@ describe('data routes', () => {
   let config: MigrationConfig
 
   beforeEach(async () => {
+    writeNotionPageMock.mockReset()
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aiex-data-routes-'))
     const schemaPath = path.join(tempDir, 'schema')
     await fs.mkdir(schemaPath, { recursive: true })
@@ -80,5 +88,53 @@ describe('data routes', () => {
 
     expect(response.status).toBe(400)
     expect(body.error).toBe('Invalid table name')
+  })
+
+  it('retries Notion sync for a saved extraction without rerunning extraction', async () => {
+    await writeJsonFile(path.join(tempDir, 'ai-config.json'), {
+      provider: {
+        baseURL: 'https://example.test/v1',
+        apiKey: 'test-key',
+        models: [{ name: 'test-model', capabilities: { vision: false, structuredOutput: true } }],
+      },
+      prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
+      extraction: { outputDir: '.aiex/extracted' },
+      notion: {
+        enabled: true,
+        token: 'notion-token',
+        schemas: {
+          person: {
+            databaseId: 'source-1',
+          },
+        },
+      },
+    })
+    const extractedDir = path.join(tempDir, 'extracted')
+    await fs.mkdir(extractedDir, { recursive: true })
+    await writeJsonFile(path.join(extractedDir, 'person-2026-05-21T09-00-00-000Z.json'), {
+      name: 'Alice',
+    })
+    writeNotionPageMock.mockResolvedValueOnce({
+      databaseId: 'database-1',
+      dataSourceId: 'source-1',
+      pageId: 'page-1',
+    })
+
+    const app = dataRoutes(config)
+    const response = await app.request('/data/person-2026-05-21T09-00-00-000Z.json/notion/retry', {
+      method: 'POST',
+    })
+    const body = await response.json() as { success: boolean, notionPages?: Array<{ databaseId: string, pageId: string }> }
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({
+      success: true,
+      notionPages: [{ databaseId: 'database-1', pageId: 'page-1' }],
+    })
+    expect(writeNotionPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true, token: 'notion-token' }),
+      'person',
+      { name: 'Alice' },
+    )
   })
 })
