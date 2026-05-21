@@ -229,6 +229,12 @@ export interface ColumnInfo {
 export interface TableData {
   columns: ColumnInfo[]
   rows: Record<string, unknown>[]
+  rowActions?: Record<string, {
+    extractionName: string
+    notionStatus: "synced" | "failed" | "not_synced"
+    notionPages?: Array<{ databaseId: string, pageId: string }>
+    notionError?: string
+  }>
   total: number
   page: number
   pageSize: number

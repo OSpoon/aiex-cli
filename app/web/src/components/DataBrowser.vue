@@ -3,7 +3,9 @@ import { useDebounceFn } from "@vueuse/core"
 import { stringify } from "csv-stringify/browser/esm/sync"
 import Button from "primevue/button"
 import { computed, ref } from "vue"
+import { toast } from "vue-sonner"
 import { VxeColumn, VxeTable } from "vxe-table"
+import { retryNotionSync } from "@/api-client"
 import "vxe-pc-ui/lib/style.css"
 import "vxe-table/lib/style.css"
 
@@ -17,6 +19,12 @@ interface ColumnInfo {
 interface TableData {
   columns: ColumnInfo[]
   rows: Record<string, unknown>[]
+  rowActions?: Record<string, {
+    extractionName: string
+    notionStatus: "synced" | "failed" | "not_synced"
+    notionPages?: Array<{ databaseId: string, pageId: string }>
+    notionError?: string
+  }>
   total: number
   page: number
   pageSize: number
@@ -40,6 +48,8 @@ const emit = defineEmits<{
   pageChange: [page: number]
   pageSizeChange: [size: number]
   searchChange: [query: string]
+  selectExtraction: [name: string]
+  notionSynced: []
 }>()
 
 // ── search ──
@@ -70,6 +80,40 @@ function formatCellValue(val: unknown): string {
   if (val === null || val === undefined) return ""
   if (typeof val === "object") return JSON.stringify(val)
   return String(val)
+}
+
+type RowAction = NonNullable<TableData["rowActions"]>[string]
+
+function rowAction(rowIndex: number): RowAction | undefined {
+  return props.tableData?.rowActions?.[String(rowIndex)]
+}
+
+function notionStatusLabel(status: RowAction["notionStatus"]): string {
+  if (status === "synced") return "Synced"
+  if (status === "failed") return "Failed"
+  return "Pending"
+}
+
+function notionActionLabel(status: RowAction["notionStatus"]): string {
+  if (status === "synced") return "Synced"
+  if (status === "failed") return "Retry"
+  return "Sync"
+}
+
+const syncingExtraction = ref<string | null>(null)
+
+async function syncExtractionToNotion(action: RowAction) {
+  if (action.notionStatus === "synced") return
+  syncingExtraction.value = action.extractionName
+  try {
+    const result = await retryNotionSync(action.extractionName)
+    toast.success(`Synced to Notion (${result.notionPages?.length ?? 0} page)`)
+    emit("notionSynced")
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Notion sync failed")
+    emit("notionSynced")
+  }
+  syncingExtraction.value = null
 }
 
 // ── pagination ──
@@ -232,6 +276,43 @@ function exportJSON() {
             @sort-change="sortChange"
           >
             <VxeColumn type="seq" title="#" width="60" />
+            <VxeColumn title="Actions" width="220" fixed="right">
+              <template #default="{ rowIndex }: any">
+                <div v-if="rowAction(rowIndex)" class="flex items-center justify-end gap-1">
+                  <span
+                    class="mr-1 rounded px-1.5 py-0.5 text-[11px] font-medium"
+                    :class="[
+                      rowAction(rowIndex)!.notionStatus === 'synced'
+                        ? 'bg-green-500/10 text-green-700'
+                        : rowAction(rowIndex)!.notionStatus === 'failed'
+                          ? 'bg-red-500/10 text-red-700'
+                          : 'bg-secondary text-muted-foreground',
+                    ]"
+                  >
+                    {{ notionStatusLabel(rowAction(rowIndex)!.notionStatus) }}
+                  </span>
+                  <Button
+                    icon="pi pi-eye"
+                    severity="secondary"
+                    size="small"
+                    text
+                    v-tooltip="'View extraction JSON'"
+                    @click="emit('selectExtraction', rowAction(rowIndex)!.extractionName)"
+                  />
+                  <Button
+                    icon="pi pi-refresh"
+                    severity="secondary"
+                    size="small"
+                    text
+                    :loading="syncingExtraction === rowAction(rowIndex)!.extractionName"
+                    :disabled="rowAction(rowIndex)!.notionStatus === 'synced'"
+                    v-tooltip="notionActionLabel(rowAction(rowIndex)!.notionStatus)"
+                    @click="syncExtractionToNotion(rowAction(rowIndex)!)"
+                  />
+                </div>
+                <span v-else class="block text-right text-xs text-muted-foreground">-</span>
+              </template>
+            </VxeColumn>
             <VxeColumn
               v-for="col in props.tableData.columns"
               :key="col.name"

@@ -56,6 +56,13 @@ interface ExtractionRecord {
   notionError?: string
 }
 
+interface RowExtractionAction {
+  extractionName: string
+  notionStatus: 'synced' | 'failed' | 'not_synced'
+  notionPages?: Array<{ databaseId: string, pageId: string }>
+  notionError?: string
+}
+
 interface SqliteTableInfoRow {
   name: string
   type: string
@@ -71,6 +78,43 @@ interface TableColumn {
 }
 
 type DynamicDatabase = Record<string, Record<string, unknown>>
+
+function getAuditNotionStatus(record: Awaited<ReturnType<typeof listExtractionAuditRecords>>[number]): RowExtractionAction['notionStatus'] {
+  if (record.notionPages?.length)
+    return 'synced'
+  if (record.status === 'failed')
+    return 'failed'
+  return 'not_synced'
+}
+
+async function getRowExtractionActions(aiexDir: string, tableName: string): Promise<Map<string, RowExtractionAction>> {
+  const actions = new Map<string, RowExtractionAction>()
+  const auditRecords = await listExtractionAuditRecords(aiexDir)
+
+  for (const record of auditRecords) {
+    if (!record.outputName)
+      continue
+
+    for (const inserted of record.tablesInserted ?? []) {
+      if (inserted.table !== tableName)
+        continue
+
+      const key = String(inserted.rowId)
+      if (actions.has(key))
+        continue
+
+      const notionPages = record.notionPages?.length ? record.notionPages : undefined
+      actions.set(key, {
+        extractionName: record.outputName,
+        notionStatus: getAuditNotionStatus(record),
+        notionPages,
+        notionError: !notionPages && record.status === 'failed' ? record.error : undefined,
+      })
+    }
+  }
+
+  return actions
+}
 
 function schemaNameFromExtractionFile(name: string): string | null {
   const stem = name.replace(FILE_REGEX, '')
@@ -265,9 +309,24 @@ export function dataRoutes(config: MigrationConfig): Hono {
           offset ${offset}
         `.execute(db)
 
+        const primaryKey = columns.find(column => column.pk)
+        const actionsByRowId = await getRowExtractionActions(aiexDir, tableName)
+        const rowActions = primaryKey
+          ? Object.fromEntries(
+              result.rows
+                .map((row, index) => {
+                  const rowId = row[primaryKey.name]
+                  const action = rowId === null || rowId === undefined ? undefined : actionsByRowId.get(String(rowId))
+                  return action ? [String(index), action] : null
+                })
+                .filter((entry): entry is [string, RowExtractionAction] => !!entry),
+            )
+          : {}
+
         return c.json({
           columns,
           rows: result.rows,
+          rowActions,
           total,
           page,
           pageSize,

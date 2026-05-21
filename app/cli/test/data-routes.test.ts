@@ -80,6 +80,37 @@ describe('data routes', () => {
     ])
   })
 
+  it('includes extraction JSON actions for rows inserted from an audited extraction', async () => {
+    const auditDir = path.join(tempDir, 'extracted', '_audit')
+    await fs.mkdir(auditDir, { recursive: true })
+    await writeJsonFile(path.join(auditDir, 'run-1.json'), {
+      id: 'run-1',
+      status: 'succeeded',
+      schemaName: 'people',
+      source: { type: 'text', text: 'Alice' },
+      outputName: 'people-2026-05-21T09-00-00-000Z.json',
+      tablesInserted: [{ table: 'people', rowId: 1 }],
+      notionPages: [{ databaseId: 'database-1', pageId: 'page-1' }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+
+    const app = dataRoutes(config)
+    const response = await app.request('/data/tables/people?sortField=id&sortOrder=asc&page=1&pageSize=1')
+    const body = await response.json() as DataTableResponse & {
+      rowActions?: Record<string, { extractionName: string, notionStatus: string }>
+    }
+
+    expect(response.status).toBe(200)
+    expect(body.rows).toEqual([
+      { id: 1, name: 'Alice', email: 'alice@example.com' },
+    ])
+    expect(body.rowActions?.['0']).toMatchObject({
+      extractionName: 'people-2026-05-21T09-00-00-000Z.json',
+      notionStatus: 'synced',
+    })
+  })
+
   it('rejects invalid table names before query construction', async () => {
     const app = dataRoutes(config)
 
