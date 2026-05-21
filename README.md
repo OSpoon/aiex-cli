@@ -143,6 +143,7 @@ aiex works with any OpenAI-compatible API provider. Configure in the Web UI (AI 
 - **Provider** — Set your base URL and API key
 - **Models** — Add models with vision and/or structured output capabilities
 - **Prompts** — Customize system and user prompt templates with `{schema}` and `{text}` placeholders
+- **Integrations** — Optionally connect Notion from AI Settings; use Connect & Map to bind a schema to an existing Notion data source
 
 The built-in model registry automatically suggests capabilities for 2000+ models from providers including OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, Alibaba Cloud, and more.
 

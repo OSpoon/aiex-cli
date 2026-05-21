@@ -60,6 +60,7 @@ const notionFieldMap = ref("")
 const notionTesting = ref(false)
 const notionProperties = ref<NotionDatabaseProperty[]>([])
 const notionSchemaFields = ref<string[]>([])
+const notionAdvancedOpen = ref(false)
 
 // Add model state
 const addingModel = ref(false)
@@ -146,6 +147,14 @@ const notionMappedFieldCount = computed(() => {
   } catch {
     return 0
   }
+})
+
+const notionConnectionSummary = computed(() => {
+  if (notionProperties.value.length === 0)
+    return ""
+  if (notionSchemaFields.value.length === 0)
+    return `Connected · ${notionProperties.value.length} properties loaded`
+  return `Connected · ${notionMappedFieldCount.value}/${notionSchemaFields.value.length} fields mapped`
 })
 
 const canSave = computed(() =>
@@ -690,13 +699,9 @@ onUnmounted(() => {
               <label class="text-xs text-muted-foreground">Database/Data Source URL or ID</label>
               <InputText v-model="notionDatabaseId" size="small" placeholder="https://www.notion.so/... or xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
             </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Title Property (optional)</label>
-              <InputText v-model="notionTitleProperty" size="small" placeholder="Name" />
-            </div>
             <div class="flex items-center gap-2">
               <Button
-                label="Test & Auto Map"
+                label="Connect & Map"
                 icon="pi pi-bolt"
                 severity="secondary"
                 size="small"
@@ -704,24 +709,40 @@ onUnmounted(() => {
                 :disabled="!selectedNotionSchema || !notionToken.trim() || !notionDatabaseId.trim() || !!notionFieldMapError"
                 @click="handleInspectNotion"
               />
-              <span v-if="notionProperties.length > 0" class="text-xs text-muted-foreground">
-                {{ notionProperties.length }} properties loaded
+              <span v-if="notionConnectionSummary" class="text-xs text-green-600">
+                {{ notionConnectionSummary }}
               </span>
             </div>
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center justify-between gap-2">
-                <label class="text-xs text-muted-foreground">Field Map JSON (optional)</label>
-                <span v-if="notionSchemaFields.length > 0" class="text-xs text-muted-foreground">
-                  {{ notionMappedFieldCount }} / {{ notionSchemaFields.length }} mapped
-                </span>
+            <div class="rounded border border-border">
+              <button
+                type="button"
+                class="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary"
+                @click="notionAdvancedOpen = !notionAdvancedOpen"
+              >
+                <span>Advanced mapping</span>
+                <i :class="notionAdvancedOpen ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" class="text-[10px]" />
+              </button>
+              <div v-if="notionAdvancedOpen" class="space-y-3 border-t border-border p-3">
+                <div class="flex flex-col gap-1">
+                  <label class="text-xs text-muted-foreground">Title Property (optional)</label>
+                  <InputText v-model="notionTitleProperty" size="small" placeholder="Name" />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <label class="text-xs text-muted-foreground">Field Map JSON</label>
+                    <span v-if="notionSchemaFields.length > 0" class="text-xs text-muted-foreground">
+                      {{ notionMappedFieldCount }} / {{ notionSchemaFields.length }} mapped
+                    </span>
+                  </div>
+                  <Textarea v-model="notionFieldMap" rows="5" auto-resize class="text-xs font-mono" placeholder="{&#10;  &quot;invoiceNo&quot;: &quot;Invoice No&quot;,&#10;  &quot;issuedAt&quot;: &quot;Issued At&quot;&#10;}" />
+                  <p v-if="notionFieldMapError" class="text-xs text-red-500 mt-1">
+                    {{ notionFieldMapError }}
+                  </p>
+                </div>
+                <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+                  Selecting a schema fills the left-side keys. Nested objects use dot paths such as <code class="bg-secondary px-1 rounded">student.name</code>. Object arrays are skipped; model them as separate Notion data sources later if needed.
+                </div>
               </div>
-              <Textarea v-model="notionFieldMap" rows="5" auto-resize class="text-xs font-mono" placeholder="{&#10;  &quot;invoiceNo&quot;: &quot;Invoice No&quot;,&#10;  &quot;issuedAt&quot;: &quot;Issued At&quot;&#10;}" />
-              <p v-if="notionFieldMapError" class="text-xs text-red-500 mt-1">
-                {{ notionFieldMapError }}
-              </p>
-            </div>
-            <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-              Selecting a schema fills the left-side keys. Nested objects use dot paths such as <code class="bg-secondary px-1 rounded">student.name</code>. Object arrays are skipped; model them as separate Notion data sources later if needed.
             </div>
           </div>
         </div>
