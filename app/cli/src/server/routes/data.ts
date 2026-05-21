@@ -51,6 +51,9 @@ interface ExtractionRecord {
   timestamp: string
   fileSize: number
   modifiedAt: string
+  notionStatus: 'synced' | 'failed' | 'not_synced'
+  notionPages?: Array<{ databaseId: string, pageId: string }>
+  notionError?: string
 }
 
 interface SqliteTableInfoRow {
@@ -95,18 +98,19 @@ export function dataRoutes(config: MigrationConfig): Hono {
       await fs.mkdir(extractedDir, { recursive: true })
       const files = await fs.readdir(extractedDir)
       const jsonFiles = files.filter(f => f.endsWith('.json') && !f.endsWith('.prompt.md'))
+      const auditRecords = await listExtractionAuditRecords(aiexDir)
+      const auditByOutputName = new Map(auditRecords.map(record => [record.outputName, record]))
 
       const records: ExtractionRecord[] = []
 
       for (const file of jsonFiles) {
-        const name = file.replace(FILE_REGEX, '')
-        const idx = name.lastIndexOf('-')
-
-        if (idx === -1)
+        const schemaName = schemaNameFromExtractionFile(file)
+        if (!schemaName)
           continue
 
-        const schemaName = name.slice(0, idx)
-        const rawTimestamp = name.slice(idx + 1)
+        const rawTimestamp = file
+          .replace(FILE_REGEX, '')
+          .slice(schemaName.length + 1)
         const timestamp = rawTimestamp
           .replace(/-/g, (d: string, i: number) => (i === 4 || i === 7) ? '-' : d)
           .replace(TIMESTAMP_CLEANUP, (_, h, m, s) => `${h}:${m}:${s}`)
@@ -115,12 +119,17 @@ export function dataRoutes(config: MigrationConfig): Hono {
         const filePath = path.join(extractedDir, file)
         try {
           const stat = await fs.stat(filePath)
+          const audit = auditByOutputName.get(file)
+          const notionPages = audit?.notionPages?.length ? audit.notionPages : undefined
           records.push({
             name: file,
             schemaName,
             timestamp,
             fileSize: stat.size,
             modifiedAt: stat.mtime.toISOString(),
+            notionStatus: notionPages ? 'synced' : audit?.status === 'failed' ? 'failed' : 'not_synced',
+            notionPages,
+            notionError: !notionPages && audit?.status === 'failed' ? audit.error : undefined,
           })
         }
         catch { continue }

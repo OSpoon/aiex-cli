@@ -37,6 +37,17 @@ const dataSubView = ref<"table" | "extraction">("table")
 const extractions = ref<ExtractionRecord[]>([])
 const selectedExtraction = ref<string | null>(null)
 const extractionsLoading = ref(false)
+const selectedExtractionRecord = computed(() => extractions.value.find(ext => ext.name === selectedExtraction.value) ?? null)
+const openExtractionMenuFor = ref<string | null>(null)
+const extractionsBySchema = computed(() => {
+  const groups = new Map<string, ExtractionRecord[]>()
+  for (const extraction of extractions.value) {
+    const records = groups.get(extraction.schemaName) ?? []
+    records.push(extraction)
+    groups.set(extraction.schemaName, records)
+  }
+  return groups
+})
 
 async function loadTables() {
   try {
@@ -129,10 +140,24 @@ function selectExtraction(name: string) {
   selectedExtraction.value = name
 }
 
+function toggleExtractionMenu(tableName: string) {
+  openExtractionMenuFor.value = openExtractionMenuFor.value === tableName ? null : tableName
+}
+
+function tableExtractions(tableName: string): ExtractionRecord[] {
+  return extractionsBySchema.value.get(tableName) ?? []
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function notionStatusLabel(status: ExtractionRecord["notionStatus"]): string {
+  if (status === "synced") return "Notion synced"
+  if (status === "failed") return "Notion failed"
+  return "Notion pending"
 }
 
 // ── Schema editor state ──
@@ -462,49 +487,74 @@ onMounted(() => {
             <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
               Tables
             </h3>
+            <div v-if="extractionsLoading" class="text-xs text-muted-foreground py-2 text-center">
+              Loading history...
+            </div>
             <div class="space-y-1">
-              <button
+              <div
                 v-for="t in tables"
                 :key="t.name"
-                class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+                class="rounded-lg transition-colors"
                 :class="dataSubView === 'table' && selectedTable === t.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
-                @click="selectTable(t.name)"
               >
-                <div class="font-medium truncate">
-                  {{ t.title }}
+                <div class="flex items-start gap-1 px-2 py-2">
+                  <button class="min-w-0 flex-1 text-left" @click="selectTable(t.name)">
+                    <div class="font-medium truncate">
+                      {{ t.title }}
+                    </div>
+                    <div class="text-xs truncate" :class="dataSubView === 'table' && selectedTable === t.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
+                      {{ t.name }} · {{ t.hasData ? 'has data' : 'empty' }}
+                    </div>
+                  </button>
+                  <Button
+                    icon="pi pi-file"
+                    severity="secondary"
+                    text
+                    size="small"
+                    class="shrink-0"
+                    :label="String(tableExtractions(t.name).length)"
+                    :disabled="tableExtractions(t.name).length === 0"
+                    @click.stop="toggleExtractionMenu(t.name)"
+                    v-tooltip="'Extraction JSON history'"
+                  />
                 </div>
-                <div class="text-xs truncate" :class="dataSubView === 'table' && selectedTable === t.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
-                  {{ t.name }} · {{ t.hasData ? 'has data' : 'empty' }}
+                <div v-if="openExtractionMenuFor === t.name" class="px-2 pb-2">
+                  <div class="rounded-md border border-border bg-background/80 p-1 space-y-1">
+                    <button
+                      v-for="ext in tableExtractions(t.name)"
+                      :key="ext.name"
+                      class="w-full rounded px-2 py-1.5 text-left text-xs transition-colors"
+                      :class="dataSubView === 'extraction' && selectedExtraction === ext.name ? 'bg-secondary text-foreground' : 'hover:bg-secondary text-muted-foreground'"
+                      @click="selectExtraction(ext.name)"
+                    >
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="truncate">{{ ext.timestamp }}</span>
+                        <span
+                          class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                          :class="[
+                            ext.notionStatus === 'synced'
+                              ? 'bg-green-500/10 text-green-700'
+                              : ext.notionStatus === 'failed'
+                                ? 'bg-red-500/10 text-red-700'
+                                : 'bg-secondary text-muted-foreground',
+                          ]"
+                        >
+                          {{ notionStatusLabel(ext.notionStatus).replace('Notion ', '') }}
+                        </span>
+                      </div>
+                      <div class="mt-0.5 truncate text-muted-foreground">
+                        {{ formatFileSize(ext.fileSize) }} · {{ ext.name }}
+                      </div>
+                    </button>
+                  </div>
                 </div>
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
-              Extractions
-            </h3>
-            <div v-if="extractionsLoading" class="text-xs text-muted-foreground py-2 text-center">
-              Loading...
-            </div>
-            <div v-else-if="extractions.length === 0" class="text-xs text-muted-foreground py-2 text-center">
-              No extractions yet
-            </div>
-            <div v-else class="space-y-1">
-              <button
-                v-for="ext in extractions"
-                :key="ext.name"
-                class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
-                :class="dataSubView === 'extraction' && selectedExtraction === ext.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
-                @click="selectExtraction(ext.name)"
+              </div>
+              <div
+                v-if="!extractionsLoading && extractions.length === 0"
+                class="text-xs text-muted-foreground py-2 text-center"
               >
-                <div class="font-medium truncate">
-                  {{ ext.schemaName }}
-                </div>
-                <div class="text-xs truncate" :class="dataSubView === 'extraction' && selectedExtraction === ext.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
-                  {{ ext.timestamp }} · {{ formatFileSize(ext.fileSize) }}
-                </div>
-              </button>
+                No extraction JSON yet
+              </div>
             </div>
           </div>
         </div>
@@ -541,6 +591,8 @@ onMounted(() => {
       <ExtractionViewer
         v-else-if="currentView === 'data' && dataSubView === 'extraction'"
         :extraction-name="selectedExtraction"
+        :record="selectedExtractionRecord"
+        @notion-synced="loadExtractions"
       />
     </main>
   </div>

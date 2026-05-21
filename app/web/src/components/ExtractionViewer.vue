@@ -1,16 +1,26 @@
 <script setup lang="ts">
+import type { ExtractionRecord } from "@/api-client"
 import Button from "primevue/button"
-import { onMounted, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
 import { getExtraction, retryNotionSync } from "@/api-client"
 
 const props = defineProps<{
   extractionName: string | null
+  record?: ExtractionRecord | null
+}>()
+const emit = defineEmits<{
+  notionSynced: []
 }>()
 
 const extractContent = ref("")
 const loading = ref(false)
 const retryingNotion = ref(false)
+const notionActionLabel = computed(() => {
+  if (props.record?.notionStatus === "synced") return "Synced"
+  if (props.record?.notionStatus === "failed") return "Retry Notion"
+  return "Sync Notion"
+})
 
 async function loadContent() {
   if (!props.extractionName) return
@@ -48,10 +58,17 @@ async function handleRetryNotion() {
   try {
     const result = await retryNotionSync(props.extractionName)
     toast.success(`Synced to Notion (${result.notionPages?.length ?? 0} page)`)
+    emit("notionSynced")
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Notion sync failed")
   }
   retryingNotion.value = false
+}
+
+function notionStatusLabel(status: ExtractionRecord["notionStatus"] | undefined): string {
+  if (status === "synced") return "Synced to Notion"
+  if (status === "failed") return "Notion sync failed"
+  return "Notion not synced"
 }
 
 function tryParseAndFormat(json: string): string {
@@ -85,12 +102,26 @@ onMounted(loadContent)
           {{ extractionName }}
         </h2>
         <div class="flex items-center gap-2">
+          <span
+            v-if="record"
+            class="rounded px-2 py-1 text-xs font-medium"
+            :class="[
+              record.notionStatus === 'synced'
+                ? 'bg-green-500/10 text-green-700'
+                : record.notionStatus === 'failed'
+                  ? 'bg-red-500/10 text-red-700'
+                  : 'bg-secondary text-muted-foreground',
+            ]"
+          >
+            {{ notionStatusLabel(record.notionStatus) }}
+          </span>
           <Button
             icon="pi pi-refresh"
-            label="Retry Notion"
+            :label="notionActionLabel"
             severity="secondary"
             size="small"
             :loading="retryingNotion"
+            :disabled="record?.notionStatus === 'synced'"
             @click="handleRetryNotion"
           />
           <Button

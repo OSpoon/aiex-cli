@@ -208,6 +208,9 @@ export interface ExtractionRecord {
   timestamp: string
   fileSize: number
   modifiedAt: string
+  notionStatus: "synced" | "failed" | "not_synced"
+  notionPages?: Array<{ databaseId: string, pageId: string }>
+  notionError?: string
 }
 
 export interface RetryNotionSyncResult {
