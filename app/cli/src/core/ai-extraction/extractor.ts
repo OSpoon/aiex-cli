@@ -56,6 +56,7 @@ function initLangfuse(config: AIConfig): void {
 
 const SYSTEM_PROMPT_REGEX = /## System Prompt\n([\s\S]*?)(?=## User Prompt|$)/
 const USER_PROMPT_REGEX = /## User Prompt Template\n([\s\S]*)$/
+const OPENAI_COMPATIBLE_PROVIDER_NAME = 'openai-compatible'
 
 function detectMimeType(filePath: string): string {
   return mime.getType(filePath) ?? 'application/octet-stream'
@@ -291,8 +292,9 @@ export async function extractStructuredData(input: {
 
     const provider = createOpenAICompatible({
       baseURL: config.provider.baseURL,
-      name: 'qwen',
+      name: OPENAI_COMPATIBLE_PROVIDER_NAME,
       apiKey: config.provider.apiKey,
+      supportsStructuredOutputs: useStructuredOutput,
     })
 
     let system: string
