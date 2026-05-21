@@ -20,7 +20,7 @@ import {
   readExtractionAuditRecord,
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
-import { MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
+import { isMissingUploadFileError, MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
 import { writeNotionPage } from '@/core/notion-sink'
 import {
   createMigrationConfig,
@@ -41,10 +41,6 @@ function isExtractSubCommand(rawArgs: unknown): boolean {
 
 function formatSource(source: { type: 'text' | 'file', fileName?: string }): string {
   return source.type === 'file' ? source.fileName || 'file' : 'text'
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return !!error && typeof error === 'object' && (error as NodeJS.ErrnoException).code === 'ENOENT'
 }
 
 async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
@@ -275,7 +271,7 @@ const retryCommand = defineCommand({
       outro('Done!')
     }
     catch (error) {
-      if (isMissingFileError(error)) {
+      if (isMissingUploadFileError(error)) {
         failCommand(MISSING_UPLOAD_FILE_TEXT)
         return
       }

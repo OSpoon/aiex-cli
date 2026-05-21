@@ -4,8 +4,10 @@ import {
   FileValidationError,
   getExtensionFromMime,
   isAllowedMimeType,
+  isMissingUploadFileError,
   MAX_UPLOAD_SIZE,
   SUPPORTED_FILE_TYPES_TEXT,
+  unsupportedFileTypeMessage,
   validateFileUpload,
 } from '@/core/file-constants'
 
@@ -40,6 +42,25 @@ describe('file-constants', () => {
     })
   })
 
+  describe('unsupportedFileTypeMessage', () => {
+    it('formats the shared unsupported type message', () => {
+      expect(unsupportedFileTypeMessage('application/octet-stream'))
+        .toBe(`Unsupported file type "application/octet-stream". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`)
+    })
+  })
+
+  describe('isMissingUploadFileError', () => {
+    it('detects missing file errors', () => {
+      expect(isMissingUploadFileError(Object.assign(new Error('missing'), { code: 'ENOENT' }))).toBe(true)
+    })
+
+    it('ignores unrelated errors', () => {
+      expect(isMissingUploadFileError(Object.assign(new Error('denied'), { code: 'EACCES' }))).toBe(false)
+      expect(isMissingUploadFileError(new Error('plain'))).toBe(false)
+      expect(isMissingUploadFileError(null)).toBe(false)
+    })
+  })
+
   describe('validateFileUpload', () => {
     it('accepts a supported non-empty file within the size limit', () => {
       const file = new File(['hello'], 'hello.txt', { type: 'text/plain' })
@@ -65,7 +86,7 @@ describe('file-constants', () => {
       const file = new File(['hello'], 'hello.bin', { type: 'application/octet-stream' })
 
       expect(() => validateFileUpload(file)).toThrow(FileValidationError)
-      expect(() => validateFileUpload(file)).toThrow(`Unsupported file type "application/octet-stream". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`)
+      expect(() => validateFileUpload(file)).toThrow(unsupportedFileTypeMessage('application/octet-stream'))
     })
   })
 })

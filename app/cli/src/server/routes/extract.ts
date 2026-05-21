@@ -18,8 +18,9 @@ import {
 import {
   FileValidationError,
   getExtensionFromMime,
+  isMissingUploadFileError,
   MISSING_UPLOAD_FILE_TEXT,
-  SUPPORTED_FILE_TYPES_TEXT,
+  unsupportedFileTypeMessage,
   validateFileUpload,
 } from '@/core/file-constants'
 import { writeNotionPage } from '@/core/notion-sink'
@@ -62,15 +63,11 @@ function safeUploadNameForMime(file: File): string {
   const safeName = safeUploadName(file.name)
   const ext = getExtensionFromMime(file.type)
   if (!ext)
-    throw new FileValidationError(`Unsupported file type "${file.type}". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`)
+    throw new FileValidationError(unsupportedFileTypeMessage(file.type))
 
   const parsed = path.parse(safeName)
   const stem = parsed.name || 'upload'
   return `${stem}.${ext}`
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return !!error && typeof error === 'object' && (error as NodeJS.ErrnoException).code === 'ENOENT'
 }
 
 async function saveUploadToFile(file: File, uploadsDir: string, id: string): Promise<string> {
@@ -147,7 +144,7 @@ async function executeAuditedExtraction(input: {
       inputFilePath = source.filePath
     }
     catch (error) {
-      if (isMissingFileError(error)) {
+      if (isMissingUploadFileError(error)) {
         const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
           status: 'failed',
           error: MISSING_UPLOAD_FILE_TEXT,

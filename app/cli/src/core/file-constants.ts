@@ -63,6 +63,14 @@ export function isAllowedMimeType(mimeType: string): boolean {
   return SUPPORTED_MIME_TYPES.has(mimeType)
 }
 
+export function unsupportedFileTypeMessage(mimeType: string): string {
+  return `Unsupported file type "${mimeType}". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`
+}
+
+export function isMissingUploadFileError(error: unknown): boolean {
+  return !!error && typeof error === 'object' && (error as NodeJS.ErrnoException).code === 'ENOENT'
+}
+
 export class FileValidationError extends Error {
   constructor(message: string) {
     super(message)
@@ -81,7 +89,7 @@ export function validateFileUpload(file: File): void {
   }
   if (!isAllowedMimeType(file.type)) {
     throw new FileValidationError(
-      `Unsupported file type "${file.type}". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`,
+      unsupportedFileTypeMessage(file.type),
     )
   }
 }
