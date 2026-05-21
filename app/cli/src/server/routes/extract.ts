@@ -70,6 +70,26 @@ function safeUploadNameForMime(file: File): string {
   return `${stem}.${ext}`
 }
 
+function jsonResponse(body: ExtractResponse, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+async function auditFailureResponse(
+  aiexDir: string,
+  auditId: string,
+  error: string,
+  status: number,
+): Promise<Response> {
+  const record = await updateExtractionAuditRecord(aiexDir, auditId, {
+    status: 'failed',
+    error,
+  })
+  return jsonResponse({ success: false, error: record.error, auditId: record.id }, status)
+}
+
 async function saveUploadToFile(file: File, uploadsDir: string, id: string): Promise<string> {
   validateFileUpload(file)
   await fs.mkdir(uploadsDir, { recursive: true })
@@ -90,48 +110,20 @@ async function executeAuditedExtraction(input: {
 }): Promise<Response> {
   const aiConfig = await readAIConfig(input.aiexDir)
   if (!aiConfig) {
-    const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-      status: 'failed',
-      error: 'AI configuration not found. Configure AI settings first.',
-    })
-    return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    })
+    return auditFailureResponse(input.aiexDir, input.auditId, 'AI configuration not found. Configure AI settings first.', 400)
   }
   if (!aiConfig.provider.apiKey) {
-    const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-      status: 'failed',
-      error: 'API Key not configured. Configure AI settings first.',
-    })
-    return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    })
+    return auditFailureResponse(input.aiexDir, input.auditId, 'API Key not configured. Configure AI settings first.', 400)
   }
   if (!aiConfig.provider.models?.length) {
-    const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-      status: 'failed',
-      error: 'No models configured. Add at least one model in AI Settings.',
-    })
-    return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    })
+    return auditFailureResponse(input.aiexDir, input.auditId, 'No models configured. Add at least one model in AI Settings.', 400)
   }
 
   const modelOverride = input.modelName
     ? aiConfig.provider.models.find(model => model.name === input.modelName)
     : undefined
   if (input.modelName && !modelOverride) {
-    const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-      status: 'failed',
-      error: `Model "${input.modelName}" not found in AI settings`,
-    })
-    return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    })
+    return auditFailureResponse(input.aiexDir, input.auditId, `Model "${input.modelName}" not found in AI settings`, 400)
   }
 
   let inputText = input.text
@@ -145,14 +137,7 @@ async function executeAuditedExtraction(input: {
     }
     catch (error) {
       if (isMissingUploadFileError(error)) {
-        const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-          status: 'failed',
-          error: MISSING_UPLOAD_FILE_TEXT,
-        })
-        return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
-          status: 400,
-          headers: { 'content-type': 'application/json' },
-        })
+        return auditFailureResponse(input.aiexDir, input.auditId, MISSING_UPLOAD_FILE_TEXT, 400)
       }
       throw error
     }
@@ -170,14 +155,7 @@ async function executeAuditedExtraction(input: {
   )
 
   if (!result.success) {
-    const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-      status: 'failed',
-      error: result.error || 'Extraction failed',
-    })
-    return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    })
+    return auditFailureResponse(input.aiexDir, input.auditId, result.error || 'Extraction failed', 500)
   }
 
   const notionPages: Array<{ databaseId: string, pageId: string }> = []
@@ -200,10 +178,7 @@ async function executeAuditedExtraction(input: {
         tokensUsed: result.tokensUsed,
         error: error instanceof Error ? error.message : String(error),
       })
-      return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
-        status: 500,
-        headers: { 'content-type': 'application/json' },
-      })
+      return jsonResponse({ success: false, error: record.error, auditId: record.id }, 500)
     }
   }
 
@@ -216,7 +191,7 @@ async function executeAuditedExtraction(input: {
     tokensUsed: result.tokensUsed,
   })
 
-  return new Response(JSON.stringify({
+  return jsonResponse({
     success: true,
     outputPath: record.outputPath,
     outputName: record.outputName,
@@ -224,10 +199,7 @@ async function executeAuditedExtraction(input: {
     notionPages: record.notionPages,
     tokensUsed: record.tokensUsed,
     auditId: record.id,
-  }), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  })
+  }, 200)
 }
 
 export function extractRoutes(config: MigrationConfig): Hono {
