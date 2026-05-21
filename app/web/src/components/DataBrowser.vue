@@ -95,9 +95,13 @@ function notionStatusLabel(status: RowAction["notionStatus"]): string {
 }
 
 function notionActionLabel(status: RowAction["notionStatus"]): string {
-  if (status === "synced") return "Synced"
   if (status === "failed") return "Retry"
   return "Sync"
+}
+
+function notionActionTooltip(status: RowAction["notionStatus"]): string | null {
+  if (status === "synced") return null
+  return notionActionLabel(status)
 }
 
 const syncingExtraction = ref<string | null>(null)
@@ -268,17 +272,18 @@ function exportJSON() {
           <VxeTable
             :data="props.tableData.rows"
             height="auto"
-            border="none"
+            border
+            round
             stripe
             :row-config="{ isHover: true }"
             show-header-overflow="title"
             :sort-config="{ remote: true }"
             @sort-change="sortChange"
           >
-            <VxeColumn type="seq" title="#" width="60" />
-            <VxeColumn title="Actions" width="220" fixed="right">
+            <VxeColumn type="seq" title="#" width="60" fixed="left" />
+            <VxeColumn title="Actions" width="180" align="center" fixed="right">
               <template #default="{ rowIndex }: any">
-                <div v-if="rowAction(rowIndex)" class="flex items-center justify-end gap-1">
+                <div v-if="rowAction(rowIndex)" class="flex items-center justify-center">
                   <span
                     class="mr-1 rounded px-1.5 py-0.5 text-[11px] font-medium"
                     :class="[
@@ -296,7 +301,8 @@ function exportJSON() {
                     severity="secondary"
                     size="small"
                     text
-                    v-tooltip="'View extraction JSON'"
+                    v-tooltip.top="'View JSON'"
+                    aria-label="View extraction JSON"
                     @click="emit('selectExtraction', rowAction(rowIndex)!.extractionName)"
                   />
                   <Button
@@ -306,7 +312,8 @@ function exportJSON() {
                     text
                     :loading="syncingExtraction === rowAction(rowIndex)!.extractionName"
                     :disabled="rowAction(rowIndex)!.notionStatus === 'synced'"
-                    v-tooltip="notionActionLabel(rowAction(rowIndex)!.notionStatus)"
+                    v-tooltip.top="notionActionTooltip(rowAction(rowIndex)!.notionStatus)"
+                    :aria-label="notionActionLabel(rowAction(rowIndex)!.notionStatus)"
                     @click="syncExtractionToNotion(rowAction(rowIndex)!)"
                   />
                 </div>
@@ -319,7 +326,7 @@ function exportJSON() {
               :field="col.name"
               :title="col.name"
               sortable
-              min-width="120"
+              min-width="180"
             >
               <template #default="{ row }: any">
                 {{ formatCellValue(row[col.name]) }}

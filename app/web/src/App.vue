@@ -30,12 +30,10 @@ const currentDataPage = ref(1)
 const currentPageSize = ref(50)
 const currentSearch = ref("")
 
-// Data view sub-navigation
-const dataSubView = ref<"table" | "extraction">("table")
-
 // Extraction state
 const extractions = ref<ExtractionRecord[]>([])
 const selectedExtraction = ref<string | null>(null)
+const showExtractionDialog = ref(false)
 const extractionsLoading = ref(false)
 const selectedExtractionRecord = computed(() => extractions.value.find(ext => ext.name === selectedExtraction.value) ?? null)
 
@@ -65,7 +63,6 @@ async function loadTableData(
   sortField?: string,
   sortOrder?: string
 ) {
-  dataSubView.value = "table"
   selectedTable.value = tableName
   tableDataLoading.value = true
 
@@ -133,8 +130,8 @@ function selectTable(name: string) {
 }
 
 function selectExtraction(name: string) {
-  dataSubView.value = "extraction"
   selectedExtraction.value = name
+  showExtractionDialog.value = true
 }
 
 // ── Schema editor state ──
@@ -417,6 +414,21 @@ onMounted(() => {
       </template>
     </Dialog>
 
+    <Dialog
+      v-model:visible="showExtractionDialog"
+      modal
+      :draggable="false"
+      :style="{ width: 'min(920px, calc(100vw - 2rem))' }"
+      :content-style="{ height: 'min(72vh, 720px)', padding: '0' }"
+      :header="selectedExtraction || 'Extraction JSON'"
+    >
+      <ExtractionViewer
+        :extraction-name="selectedExtraction"
+        :record="selectedExtractionRecord"
+        @notion-synced="refreshNotionState"
+      />
+    </Dialog>
+
     <div class="row-start-2 flex flex-col min-h-0 bg-card border border-border rounded-xl p-3">
       <div class="flex mb-3 shrink-0 bg-muted rounded-lg p-0.5">
         <button
@@ -469,7 +481,7 @@ onMounted(() => {
                 v-for="t in tables"
                 :key="t.name"
                 class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
-                :class="dataSubView === 'table' && selectedTable === t.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
+                :class="selectedTable === t.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
                 @click="selectTable(t.name)"
               >
                 <div class="flex items-center justify-between gap-2">
@@ -477,7 +489,7 @@ onMounted(() => {
                     <div class="font-medium truncate">
                       {{ t.title }}
                     </div>
-                    <div class="text-xs truncate" :class="dataSubView === 'table' && selectedTable === t.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
+                    <div class="text-xs truncate" :class="selectedTable === t.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
                       {{ t.name }} · {{ t.hasData ? 'has data' : 'empty' }}
                     </div>
                   </div>
@@ -506,7 +518,7 @@ onMounted(() => {
         @save-and-migrate="handleSaveAndMigrate"
       />
       <DataBrowser
-        v-else-if="currentView === 'data' && dataSubView === 'table'"
+        v-else-if="currentView === 'data'"
         :table-name="selectedTable"
         :table-data="selectedTableData"
         :loading="tableDataLoading"
@@ -516,12 +528,6 @@ onMounted(() => {
         @page-size-change="onPageSizeChange"
         @search-change="onSearchChange"
         @select-extraction="selectExtraction"
-        @notion-synced="refreshNotionState"
-      />
-      <ExtractionViewer
-        v-else-if="currentView === 'data' && dataSubView === 'extraction'"
-        :extraction-name="selectedExtraction"
-        :record="selectedExtractionRecord"
         @notion-synced="refreshNotionState"
       />
     </main>
