@@ -18,7 +18,7 @@ interface AuditRecordResponse {
   status: string
   schemaName: string
   error?: string
-  source: { type: string, text?: string, fileName?: string }
+  source: { type: string, text?: string, fileName?: string, filePath?: string }
 }
 
 describe('extract routes', () => {
@@ -132,6 +132,47 @@ describe('extract routes', () => {
     expect(body.success).toBe(false)
     expect(body.error).toBe('Model "missing-model" not found in AI settings')
     expect(body.auditId).toBeTruthy()
+  })
+
+  it('normalizes upload extension from MIME type before later parsing', async () => {
+    const app = extractRoutes(config)
+    const form = new FormData()
+    form.set('schema', 'person')
+    form.set('file', new File(['Alice is 30'], 'photo.jpg', { type: 'text/plain' }))
+
+    const response = await app.request('/extract', {
+      method: 'POST',
+      body: form,
+    })
+    const body = await response.json() as ErrorResponse
+
+    expect(response.status).toBe(400)
+    expect(body.auditId).toBeTruthy()
+
+    const recordsResponse = await app.request('/extract/records')
+    const records = await recordsResponse.json() as AuditRecordResponse[]
+    const record = records.find(record => record.id === body.auditId)
+
+    expect(record?.source.fileName).toBe(`${body.auditId}-photo.txt`)
+    expect(record?.source.filePath).toBe(path.join(tempDir, 'uploads', `${body.auditId}-photo.txt`))
+    await expect(fs.readFile(record!.source.filePath!, 'utf-8')).resolves.toBe('Alice is 30')
+  })
+
+  it('rejects unsupported upload MIME types', async () => {
+    const app = extractRoutes(config)
+    const form = new FormData()
+    form.set('schema', 'person')
+    form.set('file', new File(['Alice is 30'], 'source.bin', { type: 'application/octet-stream' }))
+
+    const response = await app.request('/extract', {
+      method: 'POST',
+      body: form,
+    })
+    const body = await response.json() as ErrorResponse
+
+    expect(response.status).toBe(400)
+    expect(body.success).toBe(false)
+    expect(body.error).toContain('Unsupported file type')
   })
 
   it('returns 404 when retrying a missing extraction record', async () => {

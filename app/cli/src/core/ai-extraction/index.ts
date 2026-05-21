@@ -1,6 +1,6 @@
 export { lookupModelCapabilities } from './capabilities'
 export type { ModelCapabilities } from './capabilities'
-export { getDefaultAIConfig, maskApiKey, readAIConfig, writeAIConfig } from './config'
+export { getDefaultAIConfig, readAIConfig, writeAIConfig } from './config'
 export { extractStructuredData, selectModel } from './extractor'
 export type { SelectedModel } from './extractor'
 export { insertExtractedData } from './inserter'

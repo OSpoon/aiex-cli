@@ -38,10 +38,6 @@ export function getDefaultAIConfig(): AIConfig {
   return structuredClone(DEFAULT_AI_CONFIG)
 }
 
-export function maskApiKey(apiKey: string): string {
-  return apiKey
-}
-
 async function addToGitignore(aiexDir: string, fileName: string): Promise<void> {
   // Find .gitignore in the project root (parent of .aiex)
   const projectRoot = path.dirname(aiexDir)

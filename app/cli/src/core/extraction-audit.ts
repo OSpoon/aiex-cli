@@ -4,6 +4,14 @@ import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
 
 const AUDIT_ID_RE = /^[\w.-]+$/
 const STALE_AFTER_MS = 30 * 60 * 1000
+const CACHE_TTL_MS = 5_000
+
+interface CacheEntry {
+  records: ExtractionAuditRecord[]
+  timestamp: number
+}
+
+const recordCache = new Map<string, CacheEntry>()
 
 export type ExtractionAuditStatus = 'running' | 'succeeded' | 'failed' | 'stale'
 
@@ -75,6 +83,7 @@ export async function createExtractionAuditRecord(
   }
   await fs.mkdir(auditDir(aiexDir), { recursive: true })
   await writeJsonFile(auditPath(aiexDir, record.id), record, { spaces: 2, EOL: '\n' })
+  clearRecordCache(aiexDir)
   return record
 }
 
@@ -95,6 +104,7 @@ export async function updateExtractionAuditRecord(
   }
   await fs.mkdir(auditDir(aiexDir), { recursive: true })
   await writeJsonFile(auditPath(aiexDir, id), record, { spaces: 2, EOL: '\n' })
+  clearRecordCache(aiexDir)
   return record
 }
 
@@ -131,10 +141,30 @@ async function markStaleIfNeeded(aiexDir: string, record: ExtractionAuditRecord)
     updatedAt: new Date().toISOString(),
   }
   await writeJsonFile(auditPath(aiexDir, staleRecord.id), staleRecord, { spaces: 2, EOL: '\n' })
+  clearRecordCache(aiexDir)
   return staleRecord
 }
 
+function getCachedRecords(aiexDir: string): ExtractionAuditRecord[] | null {
+  const entry = recordCache.get(aiexDir)
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS)
+    return entry.records
+  return null
+}
+
+function setCachedRecords(aiexDir: string, records: ExtractionAuditRecord[]): void {
+  recordCache.set(aiexDir, { records, timestamp: Date.now() })
+}
+
+function clearRecordCache(aiexDir: string): void {
+  recordCache.delete(aiexDir)
+}
+
 export async function listExtractionAuditRecords(aiexDir: string): Promise<ExtractionAuditRecord[]> {
+  const cached = getCachedRecords(aiexDir)
+  if (cached)
+    return cached
+
   try {
     const dir = auditDir(aiexDir)
     const files = await fs.readdir(dir)
@@ -151,9 +181,12 @@ export async function listExtractionAuditRecords(aiexDir: string): Promise<Extra
           }
         }),
     )
-    return records
+    const result = records
       .filter((record): record is ExtractionAuditRecord => !!record)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+    setCachedRecords(aiexDir, result)
+    return result
   }
   catch {
     return []
@@ -182,5 +215,6 @@ export async function deleteExtractionAuditRecord(aiexDir: string, id: string): 
   )
 
   await fs.unlink(auditPath(aiexDir, id)).catch(() => {})
+  clearRecordCache(aiexDir)
   return true
 }

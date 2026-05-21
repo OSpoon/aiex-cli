@@ -15,6 +15,11 @@ import {
   readExtractionAuditRecord,
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
+import {
+  FileValidationError,
+  getExtensionFromMime,
+  validateFileUpload,
+} from '@/core/file-constants'
 import { writeNotionPage } from '@/core/notion-sink'
 
 interface ExtractResponse {
@@ -51,9 +56,21 @@ function safeUploadName(name: string): string {
   return base || 'upload.txt'
 }
 
+function safeUploadNameForMime(file: File): string {
+  const safeName = safeUploadName(file.name)
+  const ext = getExtensionFromMime(file.type)
+  if (!ext)
+    throw new FileValidationError(`Unsupported file type "${file.type}"`)
+
+  const parsed = path.parse(safeName)
+  const stem = parsed.name || 'upload'
+  return `${stem}.${ext}`
+}
+
 async function saveUploadToFile(file: File, uploadsDir: string, id: string): Promise<string> {
+  validateFileUpload(file)
   await fs.mkdir(uploadsDir, { recursive: true })
-  const filePath = path.join(uploadsDir, `${id}-${safeUploadName(file.name)}`)
+  const filePath = path.join(uploadsDir, `${id}-${safeUploadNameForMime(file)}`)
   const buffer = Buffer.from(await file.arrayBuffer())
   await fs.writeFile(filePath, buffer)
   return filePath
@@ -234,9 +251,18 @@ export function extractRoutes(config: MigrationConfig): Hono {
 
       let filePath: string | undefined
       if (file) {
-        filePath = await saveUploadToFile(file, uploadsDir, audit.id)
+        try {
+          filePath = await saveUploadToFile(file, uploadsDir, audit.id)
+        }
+        catch (e) {
+          if (e instanceof FileValidationError) {
+            await updateExtractionAuditRecord(aiexDir, audit.id, { status: 'failed', error: e.message })
+            return c.json<ExtractResponse>({ success: false, error: e.message }, 400)
+          }
+          throw e
+        }
         await updateExtractionAuditRecord(aiexDir, audit.id, {
-          source: { type: 'file', filePath, fileName: safeUploadName(file.name) },
+          source: { type: 'file', filePath, fileName: path.basename(filePath) },
         })
       }
 

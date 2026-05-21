@@ -87,7 +87,7 @@ export async function generateSchemaFromFiles(
   }
 }
 
-function parseMigrationOutput(stdout: string, stderr: string): MigrationResult {
+export function parseMigrationOutput(stdout: string, stderr: string): MigrationResult {
   try {
     const lines = stdout.trim().split('\n')
     const jsonLine = lines.find(l => l.startsWith('{') && l.endsWith('}'))

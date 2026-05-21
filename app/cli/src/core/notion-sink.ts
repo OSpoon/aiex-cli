@@ -26,20 +26,31 @@ export interface NotionDatabaseInfo {
   suggestedFieldMap: Record<string, string>
 }
 
+interface NotionPropertyObject {
+  type: string
+  [key: string]: unknown
+}
+
+interface NotionDataSourceResponse {
+  id: string
+  properties: Record<string, NotionPropertyObject>
+  parent?: { database_id?: string }
+}
+
+interface NotionDatabaseResponse {
+  id: string
+  data_sources?: Array<{ id: string }>
+}
+
 const RICH_TEXT_LIMIT = 2000
 const UUID_RE = /^[0-9a-f]{32}$/i
 const HYPHENATED_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 interface ResolvedNotionDataSource {
   databaseId: string
   dataSourceId?: string
-  properties: Record<string, any>
+  properties: Record<string, NotionPropertyObject>
   parent: { database_id: string } | { data_source_id: string }
-}
-
-interface NotionObjectWithProperties {
-  id?: string
-  parent?: { database_id?: string }
-  properties: Record<string, any>
 }
 
 function truncateText(value: string): string {
@@ -120,7 +131,20 @@ function getValueAtPath(data: Record<string, unknown>, path: string): { found: b
   return { found: true, value: current }
 }
 
-function buildPropertyValue(type: string, value: unknown): unknown {
+interface NotionPropertyValueInput {
+  title?: Array<{ text: { content: string } }>
+  rich_text?: Array<{ text: { content: string } }>
+  number?: number | null
+  checkbox?: boolean
+  date?: { start: string } | null
+  select?: { name: string } | null
+  multi_select?: Array<{ name: string }>
+  url?: string | null
+  email?: string | null
+  phone_number?: string | null
+}
+
+function buildPropertyValue(type: string, value: unknown): NotionPropertyValueInput | null {
   const text = truncateText(stringifyValue(value))
 
   switch (type) {
@@ -153,7 +177,7 @@ function buildPropertyValue(type: string, value: unknown): unknown {
   }
 }
 
-function findTitleProperty(properties: Record<string, any>, preferred?: string): string | null {
+function findTitleProperty(properties: Record<string, NotionPropertyObject>, preferred?: string): string | null {
   if (preferred && properties[preferred]?.type === 'title')
     return preferred
 
@@ -197,7 +221,7 @@ function buildMatchKeys(field: NotionSchemaField): string[] {
 
 function suggestFieldMap(
   schemaFields: NotionSchemaField[],
-  databaseProperties: Record<string, any>,
+  databaseProperties: Record<string, NotionPropertyObject>,
 ): Record<string, string> {
   const propertyByKey = new Map<string, string>()
   for (const propertyName of Object.keys(databaseProperties)) {
@@ -217,13 +241,15 @@ function suggestFieldMap(
   return fieldMap
 }
 
-function hasProperties(value: unknown): value is NotionObjectWithProperties {
-  return !!value && typeof value === 'object' && !!(value as any).properties && typeof (value as any).properties === 'object'
+function isDataSourceResponse(value: unknown): value is NotionDataSourceResponse {
+  return !!value
+    && typeof value === 'object'
+    && typeof (value as Record<string, unknown>).properties === 'object'
+    && !Array.isArray(value)
 }
 
-function firstDataSourceId(database: any): string | undefined {
-  const dataSources = Array.isArray(database?.data_sources) ? database.data_sources : []
-  return dataSources.find((source: any) => typeof source?.id === 'string' && source.id.trim())?.id
+function firstDataSourceId(database: NotionDatabaseResponse): string | undefined {
+  return database.data_sources?.find(source => typeof source.id === 'string' && source.id.trim())?.id
 }
 
 async function resolveNotionDataSource(
@@ -235,16 +261,16 @@ async function resolveNotionDataSource(
     throw new Error('Notion database or data source URL/ID is required.')
 
   try {
-    const dataSource = await notion.dataSources.retrieve({ data_source_id: id }) as any
-    if (hasProperties(dataSource)) {
+    const dataSource = await notion.dataSources.retrieve({ data_source_id: id })
+    if (isDataSourceResponse(dataSource)) {
       const parentDatabaseId = typeof dataSource.parent?.database_id === 'string'
         ? dataSource.parent.database_id
         : id
       return {
         databaseId: parentDatabaseId,
-        dataSourceId: dataSource.id ?? id,
+        dataSourceId: dataSource.id,
         properties: dataSource.properties,
-        parent: { data_source_id: dataSource.id ?? id },
+        parent: { data_source_id: dataSource.id },
       }
     }
   }
@@ -252,22 +278,22 @@ async function resolveNotionDataSource(
     // Fall through and try the ID as a database container for Notion's data source model.
   }
 
-  const database = await notion.databases.retrieve({ database_id: id }) as any
+  const database = await notion.databases.retrieve({ database_id: id })
   const dataSourceId = firstDataSourceId(database)
   if (!dataSourceId) {
     throw new Error('No data source found for this Notion database. Copy the data source link from Notion, or share the source database with the integration.')
   }
 
-  const dataSource = await notion.dataSources.retrieve({ data_source_id: dataSourceId }) as any
-  if (!hasProperties(dataSource)) {
+  const dataSource = await notion.dataSources.retrieve({ data_source_id: dataSourceId })
+  if (!isDataSourceResponse(dataSource)) {
     throw new Error('Notion data source did not return properties. Make sure it is shared with the integration and is not a linked data source.')
   }
 
   return {
-    databaseId: database.id ?? id,
-    dataSourceId: dataSource.id ?? dataSourceId,
+    databaseId: database.id,
+    dataSourceId: dataSource.id,
     properties: dataSource.properties,
-    parent: { data_source_id: dataSource.id ?? dataSourceId },
+    parent: { data_source_id: dataSource.id },
   }
 }
 
@@ -327,7 +353,7 @@ export async function writeNotionPage(
   const resolved = await resolveNotionDataSource(notion, schemaConfig.databaseId)
   const databaseProperties = resolved.properties
   const fieldMap = schemaConfig.fieldMap ?? {}
-  const properties: Record<string, any> = {}
+  const properties: Record<string, NotionPropertyValueInput> = {}
   const sourceFields = new Set([...Object.keys(data), ...Object.keys(fieldMap)])
 
   for (const sourceField of sourceFields) {
@@ -347,7 +373,7 @@ export async function writeNotionPage(
 
   const titleProperty = findTitleProperty(databaseProperties, schemaConfig.titleProperty)
   if (titleProperty && !properties[titleProperty]) {
-    properties[titleProperty] = buildPropertyValue('title', schemaName)
+    properties[titleProperty] = buildPropertyValue('title', schemaName)!
   }
 
   if (Object.keys(properties).length === 0)
@@ -355,8 +381,8 @@ export async function writeNotionPage(
 
   const page = await notion.pages.create({
     parent: resolved.parent,
-    properties,
-  }) as any
+    properties: properties as any,
+  })
 
   return {
     pageId: page.id,

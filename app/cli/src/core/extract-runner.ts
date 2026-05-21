@@ -183,7 +183,16 @@ export function isImageFile(filePath: string): boolean {
   return FILE_PART_EXTENSIONS.has(ext)
 }
 
+function getFileSizeMB(filePath: string): number {
+  const stat = fs.statSync(filePath)
+  return stat.size / (1024 * 1024)
+}
+
 export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig): Promise<ExtractFileInput> {
+  const sizeMB = getFileSizeMB(filePath)
+  if (sizeMB > 150) {
+    throw new Error(`File size (${sizeMB.toFixed(1)}MB) exceeds 150MB limit: ${filePath}`)
+  }
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   if (FILE_PART_EXTENSIONS.has(ext)) {
     return { text: '', filePath }

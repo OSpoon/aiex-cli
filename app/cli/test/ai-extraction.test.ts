@@ -1,7 +1,6 @@
 import type { AIModelConfig } from '@/core/ai-extraction/types'
 import { describe, expect, it } from 'vitest'
 import { lookupModelCapabilities } from '@/core/ai-extraction/capabilities'
-import { maskApiKey } from '@/core/ai-extraction/config'
 import { schemaToExtractionOutputSchema, validateExtractedData } from '@/core/ai-extraction/extractor'
 import { safeParseJSON } from '@/core/ai-extraction/json-utils'
 import { selectModel } from '@/core/ai-extraction/model-selector'
@@ -243,23 +242,6 @@ describe('generatePromptSnapshot', () => {
     const md = generatePromptSnapshot(flatSchema)
     expect(md).toContain('- name: string')
     expect(md).toContain('- age: integer')
-  })
-})
-
-// ───────────── Unit tests: maskApiKey ─────────────
-
-describe('maskApiKey', () => {
-  it('returns the key as-is (no masking)', () => {
-    expect(maskApiKey('sk-abcdefghijklmnop')).toBe('sk-abcdefghijklmnop')
-  })
-
-  it('returns short key as-is', () => {
-    expect(maskApiKey('abc')).toBe('abc')
-    expect(maskApiKey('abcd')).toBe('abcd')
-  })
-
-  it('returns empty string as-is', () => {
-    expect(maskApiKey('')).toBe('')
   })
 })
 
