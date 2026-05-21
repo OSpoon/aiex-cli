@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { openBrowser, resolveWebStaticDir } from '@/core/web-runner'
 
@@ -17,7 +18,7 @@ describe('web-runner', () => {
   describe('resolveWebStaticDir', () => {
     it('returns static dir under dist/web', () => {
       const result = resolveWebStaticDir()
-      expect(result).toBe('/mock/package/root/dist/web')
+      expect(result).toBe(path.join('/mock/package/root', 'dist/web'))
     })
   })
 
@@ -32,7 +33,7 @@ describe('web-runner', () => {
   describe('startWebServer integration', () => {
     it('resolveWebStaticDir returns a non-empty path', () => {
       expect(resolveWebStaticDir().length).toBeGreaterThan(0)
-      expect(resolveWebStaticDir()).toContain('dist/web')
+      expect(resolveWebStaticDir()).toContain(path.join('dist', 'web'))
     })
   })
 })

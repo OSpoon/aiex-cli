@@ -2,6 +2,10 @@ export const MAX_UPLOAD_SIZE = 150 * 1024 * 1024
 
 export const MAX_UPLOAD_SIZE_TEXT = '150MB'
 
+export const SUPPORTED_FILE_TYPES_TEXT = 'images, PDF, text, markdown, CSV, JSON, HTML, XML, YAML'
+
+export const MISSING_UPLOAD_FILE_TEXT = 'Uploaded file is no longer available. Re-run extraction with the original file.'
+
 export const SUPPORTED_MIME_TYPES = new Set([
   'image/png',
   'image/jpeg',
@@ -77,7 +81,7 @@ export function validateFileUpload(file: File): void {
   }
   if (!isAllowedMimeType(file.type)) {
     throw new FileValidationError(
-      `Unsupported file type "${file.type}". Supported types: ${[...SUPPORTED_MIME_TYPES].join(', ')}`,
+      `Unsupported file type "${file.type}". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`,
     )
   }
 }

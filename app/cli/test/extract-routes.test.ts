@@ -5,6 +5,7 @@ import path from 'node:path'
 import { writeFile as writeJsonFile } from 'jsonfile'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACTION_CONFIG, DEFAULT_PROMPT_CONFIG } from '@/core/ai-extraction/types'
+import { MISSING_UPLOAD_FILE_TEXT } from '@/core/file-constants'
 import { extractRoutes } from '@/server/routes/extract'
 
 interface ErrorResponse {
@@ -172,7 +173,18 @@ describe('extract routes', () => {
 
     expect(response.status).toBe(400)
     expect(body.success).toBe(false)
-    expect(body.error).toContain('Unsupported file type')
+    expect(body.error).toBe('Unsupported file type "application/octet-stream". Supported: images, PDF, text, markdown, CSV, JSON, HTML, XML, YAML.')
+    expect(body.auditId).toBeTruthy()
+
+    const recordsResponse = await app.request('/extract/records')
+    const records = await recordsResponse.json() as AuditRecordResponse[]
+    const record = records.find(record => record.id === body.auditId)
+
+    expect(record).toMatchObject({
+      id: body.auditId,
+      status: 'failed',
+      error: body.error,
+    })
   })
 
   it('returns 404 when retrying a missing extraction record', async () => {
@@ -186,6 +198,52 @@ describe('extract routes', () => {
     expect(response.status).toBe(404)
     expect(body.success).toBe(false)
     expect(body.error).toBe('Extraction record not found')
+  })
+
+  it('reports a clear error when retrying an extraction whose uploaded file is gone', async () => {
+    await writeJsonFile(path.join(tempDir, 'ai-config.json'), {
+      provider: {
+        baseURL: 'http://localhost:11434/v1',
+        apiKey: 'test-key',
+        models: [
+          { name: 'known-model', capabilities: { vision: false, structuredOutput: true } },
+        ],
+      },
+      prompt: DEFAULT_PROMPT_CONFIG,
+      extraction: DEFAULT_EXTRACTION_CONFIG,
+    })
+
+    const auditDir = path.join(tempDir, 'extracted', '_audit')
+    const missingUploadPath = path.join(tempDir, 'uploads', 'missing-source.txt')
+    await fs.mkdir(auditDir, { recursive: true })
+    await writeJsonFile(path.join(auditDir, 'run-1.json'), {
+      id: 'run-1',
+      status: 'failed',
+      schemaName: 'person',
+      source: { type: 'file', filePath: missingUploadPath, fileName: 'source.txt' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+
+    const app = extractRoutes(config)
+    const response = await app.request('/extract/records/run-1/retry', {
+      method: 'POST',
+    })
+    const body = await response.json() as ErrorResponse
+
+    expect(response.status).toBe(400)
+    expect(body.success).toBe(false)
+    expect(body.error).toBe(MISSING_UPLOAD_FILE_TEXT)
+    expect(body.auditId).toBeTruthy()
+
+    const recordsResponse = await app.request('/extract/records')
+    const records = await recordsResponse.json() as AuditRecordResponse[]
+    const retryRecord = records.find(record => record.id === body.auditId)
+
+    expect(retryRecord).toMatchObject({
+      status: 'failed',
+      error: body.error,
+    })
   })
 
   it('marks interrupted running records as stale when listing records', async () => {

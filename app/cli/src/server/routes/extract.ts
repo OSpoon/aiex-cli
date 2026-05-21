@@ -18,6 +18,8 @@ import {
 import {
   FileValidationError,
   getExtensionFromMime,
+  MISSING_UPLOAD_FILE_TEXT,
+  SUPPORTED_FILE_TYPES_TEXT,
   validateFileUpload,
 } from '@/core/file-constants'
 import { writeNotionPage } from '@/core/notion-sink'
@@ -60,11 +62,15 @@ function safeUploadNameForMime(file: File): string {
   const safeName = safeUploadName(file.name)
   const ext = getExtensionFromMime(file.type)
   if (!ext)
-    throw new FileValidationError(`Unsupported file type "${file.type}"`)
+    throw new FileValidationError(`Unsupported file type "${file.type}". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`)
 
   const parsed = path.parse(safeName)
   const stem = parsed.name || 'upload'
   return `${stem}.${ext}`
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return !!error && typeof error === 'object' && (error as NodeJS.ErrnoException).code === 'ENOENT'
 }
 
 async function saveUploadToFile(file: File, uploadsDir: string, id: string): Promise<string> {
@@ -135,9 +141,24 @@ async function executeAuditedExtraction(input: {
   let inputFilePath = input.filePath
 
   if (input.filePath) {
-    const source = await readExtractFileInput(input.filePath, aiConfig)
-    inputText = source.text
-    inputFilePath = source.filePath
+    try {
+      const source = await readExtractFileInput(input.filePath, aiConfig)
+      inputText = source.text
+      inputFilePath = source.filePath
+    }
+    catch (error) {
+      if (isMissingFileError(error)) {
+        const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
+          status: 'failed',
+          error: MISSING_UPLOAD_FILE_TEXT,
+        })
+        return new Response(JSON.stringify({ success: false, error: record.error, auditId: record.id }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      throw error
+    }
   }
 
   const result = await extractSingle(
@@ -257,7 +278,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
         catch (e) {
           if (e instanceof FileValidationError) {
             await updateExtractionAuditRecord(aiexDir, audit.id, { status: 'failed', error: e.message })
-            return c.json<ExtractResponse>({ success: false, error: e.message }, 400)
+            return c.json<ExtractResponse>({ success: false, error: e.message, auditId: audit.id }, 400)
           }
           throw e
         }

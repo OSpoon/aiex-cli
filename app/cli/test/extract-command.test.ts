@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { extractCommand } from '@/commands/extract'
 import { extractStructuredData, insertExtractedData, readAIConfig } from '@/core/ai-extraction'
+import { SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
 
 // —— vitest mocks ——
 vi.mock('@/core/ai-extraction', () => ({
@@ -94,6 +95,10 @@ describe('extractCommand definition', () => {
   it('should have correct arg aliases', () => {
     expect(cmd.args.dir.alias).toBe('d')
     expect(cmd.args.glob.alias).toBe('g')
+  })
+
+  it('should describe supported file types from the shared file constants', () => {
+    expect(cmd.args.file.description).toContain(`Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`)
   })
 })
 

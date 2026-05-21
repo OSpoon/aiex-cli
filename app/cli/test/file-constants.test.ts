@@ -5,6 +5,7 @@ import {
   getExtensionFromMime,
   isAllowedMimeType,
   MAX_UPLOAD_SIZE,
+  SUPPORTED_FILE_TYPES_TEXT,
   validateFileUpload,
 } from '@/core/file-constants'
 
@@ -64,7 +65,7 @@ describe('file-constants', () => {
       const file = new File(['hello'], 'hello.bin', { type: 'application/octet-stream' })
 
       expect(() => validateFileUpload(file)).toThrow(FileValidationError)
-      expect(() => validateFileUpload(file)).toThrow('Unsupported file type')
+      expect(() => validateFileUpload(file)).toThrow(`Unsupported file type "application/octet-stream". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`)
     })
   })
 })
