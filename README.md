@@ -161,21 +161,42 @@ aiex completion fish | source
 
 **Permanent install (recommended):**
 
-```bash
-# bash — write to system completions directory
-aiex completion bash > /etc/bash_completion.d/aiex
-# or for user-level (no sudo):
-mkdir -p ~/.local/share/bash-completion/completions
-aiex completion bash > ~/.local/share/bash-completion/completions/aiex
+* **Zsh (Oh My Zsh - Recommended):**
+  If you use Oh My Zsh, you can save the completion script directly to the custom completions folder without modifying `~/.zshrc`:
+  ```bash
+  mkdir -p ~/.oh-my-zsh/custom/completions
+  aiex completion zsh > ~/.oh-my-zsh/custom/completions/_aiex
+  source ~/.zshrc
+  ```
 
-# zsh — write to a directory in $fpath
-aiex completion zsh > "${fpath[1]}/_aiex"
-# or use the pre-built file from the package:
-# $(npm root -g)/aiex-cli/dist/completions/aiex.zsh
+* **Zsh (Standard):**
+  Write to a directory in your `$fpath` (e.g., `~/.zsh/completions`):
+  ```bash
+  mkdir -p ~/.zsh/completions
+  aiex completion zsh > ~/.zsh/completions/_aiex
+  ```
+  Then add the following lines to your `~/.zshrc` (before `compinit`):
+  ```bash
+  fpath=(~/.zsh/completions $fpath)
+  autoload -Uz compinit && compinit
+  ```
 
-# fish — write to fish completions directory
-aiex completion fish > ~/.config/fish/completions/aiex.fish
-```
+* **Bash:**
+  Write to the system completions directory:
+  ```bash
+  aiex completion bash > /etc/bash_completion.d/aiex
+  ```
+  Or for user-level (no sudo):
+  ```bash
+  mkdir -p ~/.local/share/bash-completion/completions
+  aiex completion bash > ~/.local/share/bash-completion/completions/aiex
+  ```
+
+* **Fish:**
+  Write to the fish completions directory:
+  ```bash
+  aiex completion fish > ~/.config/fish/completions/aiex.fish
+  ```
 
 > Pre-built completion files are also available in the installed package at `node_modules/aiex-cli/dist/completions/`, so Homebrew formulae, oh-my-zsh plugins, and other package managers can reference them directly without running `aiex completion`.
 
