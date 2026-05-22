@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useDebounceFn } from "@vueuse/core"
-import { stringify } from "csv-stringify/browser/esm/sync"
 import Button from "primevue/button"
 import { computed, ref } from "vue"
 import { toast } from "vue-sonner"
 import { VxeColumn, VxeTable } from "vxe-table"
-import { retryNotionSync } from "@/api-client"
+import * as XLSX from "xlsx"
+import { getTableData, retryNotionSync } from "@/api-client"
 import "vxe-pc-ui/lib/style.css"
 import "vxe-table/lib/style.css"
 
@@ -29,6 +29,7 @@ interface TableData {
   page: number
   pageSize: number
   totalPages: number
+  schema?: any
 }
 
 const props = withDefaults(defineProps<{
@@ -158,7 +159,64 @@ const pageSizeOptions = [10, 20, 50, 100, 200]
 
 // ── export ──
 
-function downloadBlob(content: string, filename: string, mimeType: string) {
+const exporting = ref(false)
+
+async function fetchAllRows() {
+  if (!props.tableName) return null
+  exporting.value = true
+  try {
+    const data = await getTableData(props.tableName, { all: true })
+    return data
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Failed to load full table data")
+    return null
+  } finally {
+    exporting.value = false
+  }
+}
+
+function formatExportRows(rows: Record<string, unknown>[], columns: ColumnInfo[], schema: any, format: "csv" | "xlsx") {
+  return rows.map((row) => {
+    const newRow: Record<string, any> = {}
+    columns.forEach((col) => {
+      const colName = col.name
+      const val = row[colName]
+      const prop = schema?.properties?.[colName]
+      const type = prop?.type || ""
+
+      if (val === null || val === undefined) {
+        newRow[colName] = ""
+      } else if (type === "boolean") {
+        if (format === "xlsx") {
+          newRow[colName] = val === 1 || val === "1" || val === true
+        } else {
+          newRow[colName] = (val === 1 || val === "1" || val === true) ? "true" : "false"
+        }
+      } else if (type === "number" || type === "integer") {
+        if (val === "") {
+          newRow[colName] = ""
+        } else {
+          const num = Number(val)
+          newRow[colName] = Number.isNaN(num) ? val : num
+        }
+      } else if (typeof val === "object") {
+        newRow[colName] = JSON.stringify(val)
+      } else {
+        const dbType = (col.type || "").toLowerCase()
+        const isNumericDb = dbType.includes("int") || dbType.includes("real") || dbType.includes("num") || dbType.includes("double") || dbType.includes("float")
+        if (isNumericDb && typeof val === "string" && val !== "") {
+          const num = Number(val)
+          newRow[colName] = Number.isNaN(num) ? val : num
+        } else {
+          newRow[colName] = val
+        }
+      }
+    })
+    return newRow
+  })
+}
+
+function downloadBlob(content: string | ArrayBuffer | Blob, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
@@ -170,27 +228,33 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
   URL.revokeObjectURL(url)
 }
 
-function exportCSV() {
-  if (!props.tableData) return
-  const { columns, rows } = props.tableData
-  const records = rows.map(row =>
-    columns.map((column) => {
-      const value = row[column.name]
-      return typeof value === "object" && value !== null ? JSON.stringify(value) : value
-    })
-  )
-  const csv = stringify(records, {
-    bom: true,
-    header: true,
-    columns: columns.map(column => column.name)
-  })
+async function exportCSV() {
+  const fullData = await fetchAllRows()
+  if (!fullData) return
+  const { columns, rows, schema } = fullData
+  const formattedRows = formatExportRows(rows, columns, schema, "csv")
+  const ws = XLSX.utils.json_to_sheet(formattedRows, { header: columns.map(col => col.name) })
+  const csv = XLSX.utils.sheet_to_csv(ws)
   const bom = "\uFEFF"
-  downloadBlob(csv.startsWith(bom) ? csv : `${bom}${csv}`, `${props.tableName}.csv`, "text/csv;charset=utf-8")
+  downloadBlob(bom + csv, `${props.tableName}.csv`, "text/csv;charset=utf-8")
 }
 
-function exportJSON() {
-  if (!props.tableData) return
-  const { columns, rows } = props.tableData
+async function exportExcel() {
+  const fullData = await fetchAllRows()
+  if (!fullData) return
+  const { columns, rows, schema } = fullData
+  const formattedRows = formatExportRows(rows, columns, schema, "xlsx")
+  const ws = XLSX.utils.json_to_sheet(formattedRows, { header: columns.map(col => col.name) })
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, (props.tableName || "Sheet1").slice(0, 31))
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+  downloadBlob(wbout, `${props.tableName}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+}
+
+async function exportJSON() {
+  const fullData = await fetchAllRows()
+  if (!fullData) return
+  const { columns, rows } = fullData
   const data = rows.map((row) => {
     const obj: Record<string, unknown> = {}
     columns.forEach((c) => {
@@ -250,11 +314,21 @@ function exportJSON() {
               </button>
             </div>
             <Button
+              icon="pi pi-file-excel"
+              label="Excel"
+              severity="secondary"
+              size="small"
+              outlined
+              :loading="exporting"
+              @click="exportExcel"
+            />
+            <Button
               icon="pi pi-file-export"
               label="CSV"
               severity="secondary"
               size="small"
               outlined
+              :loading="exporting"
               @click="exportCSV"
             />
             <Button
@@ -263,6 +337,7 @@ function exportJSON() {
               severity="secondary"
               size="small"
               outlined
+              :loading="exporting"
               @click="exportJSON"
             />
           </div>

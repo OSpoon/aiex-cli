@@ -37,6 +37,10 @@ const tableQuerySchema = z.object({
     value => typeof value === 'string' ? value.toLowerCase() : value,
     z.enum(['asc', 'desc']).catch('asc'),
   ),
+  all: z.preprocess(
+    value => value === 'true' || value === true,
+    z.boolean().catch(false),
+  ),
 })
 
 function invalidParamResponse(message: string) {
@@ -250,7 +254,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
     zValidator('query', tableQuerySchema),
     async (c) => {
       const { name: tableName } = c.req.valid('param')
-      const { page, pageSize, search, sortField, sortOrder } = c.req.valid('query')
+      const { page, pageSize, search, sortField, sortOrder, all } = c.req.valid('query')
 
       let db: Kysely<DynamicDatabase>
       try {
@@ -299,16 +303,23 @@ export function dataRoutes(config: MigrationConfig): Hono {
         const total = countResult.rows[0]?.count ?? 0
 
         const offset = (page - 1) * pageSize
-        const totalPages = Math.max(1, Math.ceil(total / pageSize))
+        const totalPages = all ? 1 : Math.max(1, Math.ceil(total / pageSize))
 
-        const result = await sql<Record<string, unknown>>`
-          select rowid as ${sql.raw(INTERNAL_ROWID_COLUMN)}, *
-          from ${sql.table(tableName)}
-          ${searchCondition}
-          ${orderBy}
-          limit ${pageSize}
-          offset ${offset}
-        `.execute(db)
+        const result = all
+          ? await sql<Record<string, unknown>>`
+              select rowid as ${sql.raw(INTERNAL_ROWID_COLUMN)}, *
+              from ${sql.table(tableName)}
+              ${searchCondition}
+              ${orderBy}
+            `.execute(db)
+          : await sql<Record<string, unknown>>`
+              select rowid as ${sql.raw(INTERNAL_ROWID_COLUMN)}, *
+              from ${sql.table(tableName)}
+              ${searchCondition}
+              ${orderBy}
+              limit ${pageSize}
+              offset ${offset}
+            `.execute(db)
 
         const actionsByRowId = await getRowExtractionActions(aiexDir, tableName)
         const rowActions = Object.fromEntries(
@@ -322,14 +333,30 @@ export function dataRoutes(config: MigrationConfig): Hono {
         )
         const rows = result.rows.map(({ [INTERNAL_ROWID_COLUMN]: _rowid, ...row }) => row)
 
+        // Find schema file corresponding to this table
+        const schemaDir = config.schemaPath
+        let schema: any = null
+        try {
+          const schemaFiles = (await fs.readdir(schemaDir)).filter(f => f.endsWith('.json'))
+          for (const file of schemaFiles) {
+            const s = await readJsonFile(path.join(schemaDir, file))
+            if (s.table?.name === tableName) {
+              schema = s
+              break
+            }
+          }
+        }
+        catch {}
+
         return c.json({
           columns,
           rows,
           rowActions,
           total,
-          page,
-          pageSize,
+          page: all ? 1 : page,
+          pageSize: all ? total : pageSize,
           totalPages,
+          schema,
         })
       }
       catch (error: unknown) {

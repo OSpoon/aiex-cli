@@ -1,5 +1,6 @@
 import { completionCommand } from '@/commands/completion'
 import { doctorCommand } from '@/commands/doctor'
+import { exportCommand } from '@/commands/export'
 import { extractCommand } from '@/commands/extract'
 import { schemaCommand } from '@/commands/schema'
 import { watchCommand } from '@/commands/watch'
@@ -10,6 +11,7 @@ export const subCommands = {
   schema: schemaCommand,
   extract: extractCommand,
   watch: watchCommand,
+  export: exportCommand,
   completion: completionCommand,
   doctor: doctorCommand,
 }

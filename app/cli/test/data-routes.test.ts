@@ -18,6 +18,8 @@ interface DataTableResponse {
   rows: Array<Record<string, unknown>>
   total: number
   totalPages: number
+  page?: number
+  pageSize?: number
 }
 
 interface ErrorResponse {
@@ -78,6 +80,43 @@ describe('data routes', () => {
     expect(body.rows).toEqual([
       { id: 3, name: 'Alicia', email: 'alicia@example.com' },
     ])
+  })
+
+  it('queries all table data and includes schema metadata when all=true is passed', async () => {
+    // Write schema file
+    const schemaFile = path.join(config.schemaPath, 'people.json')
+    await writeJsonFile(schemaFile, {
+      title: 'People Schema',
+      table: { name: 'people' },
+      properties: {
+        id: { type: 'integer' },
+        name: { type: 'string' },
+        email: { type: 'string', format: 'email' },
+      },
+    })
+
+    const app = dataRoutes(config)
+    const response = await app.request('/data/tables/people?all=true&sortField=id&sortOrder=asc')
+    const body = await response.json() as DataTableResponse & { schema: any }
+
+    expect(response.status).toBe(200)
+    expect(body.total).toBe(3)
+    expect(body.page).toBe(1)
+    expect(body.pageSize).toBe(3)
+    expect(body.totalPages).toBe(1)
+    expect(body.rows.length).toBe(3)
+    expect(body.rows[0]).toEqual({ id: 1, name: 'Alice', email: 'alice@example.com' })
+    expect(body.rows[1]).toEqual({ id: 2, name: 'Bob', email: 'bob@example.com' })
+    expect(body.rows[2]).toEqual({ id: 3, name: 'Alicia', email: 'alicia@example.com' })
+    expect(body.schema).toEqual({
+      title: 'People Schema',
+      table: { name: 'people' },
+      properties: {
+        id: { type: 'integer' },
+        name: { type: 'string' },
+        email: { type: 'string', format: 'email' },
+      },
+    })
   })
 
   it('includes extraction JSON actions for rows inserted from an audited extraction', async () => {

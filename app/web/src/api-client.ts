@@ -249,6 +249,7 @@ export interface TableData {
   page: number
   pageSize: number
   totalPages: number
+  schema?: any
 }
 
 export interface TableInfo {
@@ -263,6 +264,7 @@ export interface TableDataParams {
   search?: string
   sortField?: string
   sortOrder?: string
+  all?: boolean
 }
 
 export async function listExtractions(): Promise<ExtractionRecord[]> {
@@ -285,6 +287,8 @@ export async function getTableData(tableName: string, params: TableDataParams = 
     searchParams.set('sortField', params.sortField)
   if (params.sortOrder)
     searchParams.set('sortOrder', params.sortOrder)
+  if (params.all !== undefined)
+    searchParams.set('all', String(params.all))
 
   return api.get(`api/data/tables/${encodeURIComponent(tableName)}`, { searchParams }).json<TableData>()
 }

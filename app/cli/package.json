@@ -89,6 +89,7 @@
     "tsx": "catalog:cli",
     "unpdf": "catalog:",
     "update-notifier": "catalog:",
+    "xlsx": "catalog:",
     "zod": "catalog:"
   },
   "optionalDependencies": {

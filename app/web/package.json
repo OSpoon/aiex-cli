@@ -28,6 +28,7 @@
     "vue-sonner": "catalog:",
     "vxe-pc-ui": "catalog:",
     "vxe-table": "catalog:",
+    "xlsx": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
