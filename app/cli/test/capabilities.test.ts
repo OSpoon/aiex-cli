@@ -10,12 +10,10 @@ describe('lookupModelCapabilities', () => {
   })
 
   it('returns capabilities for known Claude model', () => {
-    const caps = lookupModelCapabilities('claude-3-5-sonnet-20241022')
-    // May not be in registry; if found, verify structure
-    if (caps) {
-      expect(typeof caps.vision).toBe('boolean')
-      expect(typeof caps.structuredOutput).toBe('boolean')
-    }
+    const caps = lookupModelCapabilities('anthropic.claude-3-5-sonnet-20241022-v2:0')
+    expect(caps).not.toBeNull()
+    expect(typeof caps!.vision).toBe('boolean')
+    expect(typeof caps!.structuredOutput).toBe('boolean')
   })
 
   it('returns null for truly unknown model', () => {
@@ -43,10 +41,8 @@ describe('lookupModelCapabilities', () => {
 
   it('returns capabilities for DeepSeek models', () => {
     const caps = lookupModelCapabilities('deepseek-chat')
-    // May not exist in registry; if found, verify structure
-    if (caps) {
-      expect(typeof caps.vision).toBe('boolean')
-      expect(typeof caps.structuredOutput).toBe('boolean')
-    }
+    expect(caps).not.toBeNull()
+    expect(typeof caps!.vision).toBe('boolean')
+    expect(typeof caps!.structuredOutput).toBe('boolean')
   })
 })
