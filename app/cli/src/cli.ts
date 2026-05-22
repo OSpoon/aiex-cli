@@ -25,7 +25,7 @@ process.on('unhandledRejection', (reason) => {
 // Handle internal _complete command before citty processes args
 if (process.argv[2] === '_complete') {
   const { getCompletions } = await import('@/core/completions')
-  const args = process.argv.slice(3)
+  const args = process.argv.slice(4)
   const suggestions = getCompletions(subCommands as unknown as Record<string, unknown>, args)
   for (const s of suggestions)
     process.stdout.write(`${s}\n`)

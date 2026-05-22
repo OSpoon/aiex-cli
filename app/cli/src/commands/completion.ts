@@ -9,7 +9,7 @@ export const completionCommand = defineCommand({
   },
   args: {
     shell: {
-      type: 'string',
+      type: 'positional',
       description: 'Shell type: bash, zsh, fish',
       required: true,
     },
