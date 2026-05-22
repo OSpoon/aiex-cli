@@ -11,6 +11,7 @@ import {
   provideSchemaStore
 } from "@/lib/jsonschema-editor/hooks/useSchemaStore"
 import { cn } from "@/lib/jsonschema-editor/lib/utils"
+import FewShotExamplesEditor from "./FewShotExamplesEditor.vue"
 import JsonSchemaVisualizer from "./JsonSchemaVisualizer.vue"
 import SchemaVisualEditor from "./SchemaVisualEditor.vue"
 import TableConfigEditor from "./TableConfigEditor.vue"
@@ -131,6 +132,8 @@ function handleMouseUp() {
   document.removeEventListener("mousemove", handleMouseMove)
   document.removeEventListener("mouseup", handleMouseUp)
 }
+
+const leftTab = ref<"fields" | "examples">("fields")
 </script>
 
 <template>
@@ -169,8 +172,33 @@ function handleMouseUp() {
           </button>
         </div>
         <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" />
+        <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
+          <button
+            type="button"
+            @click="leftTab = 'fields'"
+            class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+              leftTab === 'fields'
+                ? 'bg-secondary text-foreground font-bold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
+            ]"
+          >
+            Fields Config
+          </button>
+          <button
+            type="button"
+            @click="leftTab = 'examples'"
+            class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+              leftTab === 'examples'
+                ? 'bg-secondary text-foreground font-bold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
+            ]"
+          >
+            Few-Shot Examples
+          </button>
+        </div>
         <div class="grow min-h-0 flex flex-col">
-          <SchemaVisualEditor :read-only="readOnly" />
+          <SchemaVisualEditor v-if="leftTab === 'fields'" :read-only="readOnly" />
+          <FewShotExamplesEditor v-else :read-only="readOnly" />
         </div>
       </div>
     </template>
@@ -213,7 +241,34 @@ function handleMouseUp() {
             "
           >
             <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" />
-            <SchemaVisualEditor :read-only="readOnly" />
+            <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
+              <button
+                type="button"
+                @click="leftTab = 'fields'"
+                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                  leftTab === 'fields'
+                    ? 'bg-secondary text-foreground font-bold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground',
+                ]"
+              >
+                Fields Config
+              </button>
+              <button
+                type="button"
+                @click="leftTab = 'examples'"
+                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                  leftTab === 'examples'
+                    ? 'bg-secondary text-foreground font-bold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground',
+                ]"
+              >
+                Few-Shot Examples
+              </button>
+            </div>
+            <div class="grow min-h-0 flex flex-col">
+              <SchemaVisualEditor v-if="leftTab === 'fields'" :read-only="readOnly" />
+              <FewShotExamplesEditor v-else :read-only="readOnly" />
+            </div>
           </TabPanel>
 
           <TabPanel
@@ -260,7 +315,34 @@ function handleMouseUp() {
             class="flex flex-col min-h-0 min-w-0"
             :style="{ width: `${leftPanelWidth}%` }"
           >
-            <SchemaVisualEditor :read-only="readOnly" />
+            <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
+              <button
+                type="button"
+                @click="leftTab = 'fields'"
+                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                  leftTab === 'fields'
+                    ? 'bg-secondary text-foreground font-bold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground',
+                ]"
+              >
+                Fields Config
+              </button>
+              <button
+                type="button"
+                @click="leftTab = 'examples'"
+                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                  leftTab === 'examples'
+                    ? 'bg-secondary text-foreground font-bold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground',
+                ]"
+              >
+                Few-Shot Examples
+              </button>
+            </div>
+            <div class="grow min-h-0 flex flex-col">
+              <SchemaVisualEditor v-if="leftTab === 'fields'" :read-only="readOnly" />
+              <FewShotExamplesEditor v-else :read-only="readOnly" />
+            </div>
           </div>
           <div
             class="w-0.5 bg-border hover:bg-primary cursor-col-resize shrink-0"

@@ -51,6 +51,28 @@ describe('prompt-generator', () => {
       const desc = schemaToDescription(schema)
       expect(desc).toContain('tags: array of string')
     })
+
+    it('describes examples/few-shot cases if present', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object' as const,
+        properties: {
+          name: { type: 'string' as const },
+        },
+        table: { name: 'test' },
+        examples: [
+          {
+            text: 'Alice is here',
+            output: { name: 'Alice' },
+          },
+        ],
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('Examples / Few-shot Cases:')
+      expect(desc).toContain('Example 1:')
+      expect(desc).toContain('Alice is here')
+      expect(desc).toContain('"name": "Alice"')
+    })
   })
 
   describe('generateExtractionPrompt', () => {

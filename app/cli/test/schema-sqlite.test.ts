@@ -294,6 +294,33 @@ describe('schema-sqlite', () => {
       expect(createdAtCol?.drizzleType).toBe(`integer({ mode: 'timestamp' })`)
     })
 
+    it('should ignore examples/few-shot data and not generate columns for it', () => {
+      const schema = {
+        title: 'User',
+        type: 'object',
+        table: { name: 'users' },
+        properties: {
+          id: { type: 'integer', primary: true, autoIncrement: true },
+          name: { type: 'string' },
+        },
+        examples: [
+          {
+            text: 'Alice is here',
+            output: { id: 1, name: 'Alice' },
+          },
+        ],
+        required: ['name'],
+      }
+
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+
+      expect(result.tables.length).toBe(1)
+      const table = result.tables[0]
+      expect(table.columns.length).toBe(2) // only id and name
+      expect(table.columns.map(c => c.name)).not.toContain('examples')
+    })
+
     it('should add timestamp columns when enabled', () => {
       const schema = {
         title: 'User',

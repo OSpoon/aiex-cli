@@ -163,6 +163,16 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   }>;
   properties: z.ZodRecord<z.ZodString, z.ZodType<JsonSchemaProperty, z.ZodTypeDef, JsonSchemaProperty>>;
   required: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+  examples: z.ZodOptional<z.ZodArray<z.ZodObject<{
+    text: z.ZodString;
+    output: z.ZodRecord<z.ZodString, z.ZodUnknown>;
+  }, "strip", z.ZodTypeAny, {
+    text: string;
+    output: Record<string, unknown>;
+  }, {
+    text: string;
+    output: Record<string, unknown>;
+  }>, "many">>;
 }, "strip", z.ZodTypeAny, {
   type: "object";
   table: {
@@ -175,6 +185,10 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }, {
   type: "object";
   table: {
@@ -187,6 +201,10 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }>, {
   type: "object";
   table: {
@@ -199,6 +217,10 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }, {
   type: "object";
   table: {
@@ -211,6 +233,10 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }>, {
   type: "object";
   table: {
@@ -223,6 +249,10 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }, {
   type: "object";
   table: {
@@ -235,6 +265,10 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }>, {
   type: "object";
   table: {
@@ -247,6 +281,10 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }, {
   type: "object";
   table: {
@@ -259,4 +297,8 @@ export declare const JsonSchemaDefinitionSchema: z.ZodEffects<z.ZodEffects<z.Zod
   $schema?: string | undefined;
   description?: string | undefined;
   required?: string[] | undefined;
+  examples?: {
+    text: string;
+    output: Record<string, unknown>;
+  }[] | undefined;
 }>;

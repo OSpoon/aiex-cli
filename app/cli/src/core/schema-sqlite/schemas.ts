@@ -43,6 +43,11 @@ export const TableConfigSchema = z.object({
   softDelete: z.boolean().optional(),
 })
 
+export const ExamplePairSchema = z.object({
+  text: z.string().min(1),
+  output: z.record(z.string(), z.unknown()),
+})
+
 export const JsonSchemaDefinitionSchema = z.object({
   $schema: z.string().optional(),
   title: z.string().min(1),
@@ -51,6 +56,7 @@ export const JsonSchemaDefinitionSchema = z.object({
   table: TableConfigSchema,
   properties: z.record(z.string(), JsonSchemaPropertySchema),
   required: z.array(z.string()).optional(),
+  examples: z.array(ExamplePairSchema).optional(),
 }).refine(
   schema => Object.keys(schema.properties).length >= 1,
   { message: 'At least one property is required', path: ['properties'] },

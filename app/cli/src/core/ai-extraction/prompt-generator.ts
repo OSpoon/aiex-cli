@@ -95,6 +95,23 @@ export function schemaToDescription(schema: JsonSchemaDefinition): string {
     lines.push(nestedPropertyToDescription(name, property))
   }
 
+  if (schema.examples && schema.examples.length > 0) {
+    lines.push('')
+    lines.push('Examples / Few-shot Cases:')
+    schema.examples.forEach((example, idx) => {
+      lines.push('')
+      lines.push(`Example ${idx + 1}:`)
+      lines.push('Input text:')
+      lines.push('"""')
+      lines.push(example.text)
+      lines.push('"""')
+      lines.push('Expected JSON output:')
+      lines.push('```json')
+      lines.push(JSON.stringify(example.output, null, 2))
+      lines.push('```')
+    })
+  }
+
   return lines.join('\n')
 }
 

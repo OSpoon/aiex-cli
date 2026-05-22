@@ -53,6 +53,13 @@ export type NestedConfig = z.infer<typeof NestedConfigSchema>
 
 // ─── Base Schema with Extensions ───────────────────────────────────────────────
 
+export const ExamplePairSchema = z.object({
+  text: z.string().min(1),
+  output: z.record(z.string(), z.unknown()),
+})
+
+export type ExamplePair = z.infer<typeof ExamplePairSchema>
+
 // Define base schema first - Zod is the source of truth
 /** @public */
 export const baseSchema = z.object({
@@ -71,7 +78,7 @@ export const baseSchema = z.object({
   deprecated: z.boolean().optional(),
   readOnly: z.boolean().optional(),
   writeOnly: z.boolean().optional(),
-  examples: z.array(z.unknown()).optional(),
+  examples: z.array(ExamplePairSchema).optional(),
   type: z.union([z.enum(simpleTypes), z.array(z.enum(simpleTypes))]).optional(),
 
   // String validations
