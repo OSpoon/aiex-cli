@@ -36,6 +36,8 @@ aiex watch -s invoice -d ./watch_folder # watch folder daemon for automatic extr
 - **AI Extraction** — Extract structured data from text, images, and PDFs using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
 - **Interactive Mode** — Run `aiex extract` without arguments for a guided extraction workflow
 - **Batch Mode** — `aiex extract -d <dir>` processes entire directories with optional glob filtering
+- **Incremental Extraction** — File hash deduplication skips already-processed files; use `--force` to override
+- **Data Export** — `aiex export` exports SQLite tables to CSV or Excel (.xlsx)
 - **Notion Sync** — Optionally sync CLI extraction results to configured Notion data sources
 - **Extraction Audit Trail** — Every extraction is recorded with status, input source, output path, token usage, database inserts, Notion pages, and errors
 - **Built-in Model Registry** — Knows capabilities of 2000+ models (vision, structured output) so you don't have to guess
@@ -66,26 +68,28 @@ Converts your JSON Schema files into a SQLite database with full migration suppo
 aiex extract                              # interactive mode (prompts for schema & input)
 aiex extract -s <schema> -f <file>        # from file (txt, pdf, png, jpg, ...)
 aiex extract -s <schema> -t <text>        # from text
-aiex extract -s <schema> -f <file> -m <model>     # specify AI model (overrides auto-selection)
-aiex extract -s <schema> -f <file> --no-insert    # extract and save JSON without inserting into SQLite
-aiex extract -s <schema> -d <directory>           # batch extract all supported files in a directory
-aiex extract -s <schema> -d <dir> -g "*.pdf"      # batch with glob filter
-aiex extract history                              # list extraction audit records
-aiex extract show <audit-id>                      # show full audit record JSON
-aiex extract retry <audit-id>                     # retry a previous extraction
-aiex extract rm <audit-id>                        # delete an audit record and cached upload
+aiex extract -s <schema> -f <file> -m <model>      # specify AI model (overrides auto-selection)
+aiex extract -s <schema> -f <file> --no-insert      # extract and save JSON without inserting into SQLite
+aiex extract -s <schema> -f <file> --force         # force re-extraction even if already processed
+aiex extract -s <schema> -d <directory>            # batch extract all supported files in a directory
+aiex extract -s <schema> -d <dir> -g "*.pdf"       # batch with glob filter
+aiex extract history                               # list extraction audit records
+aiex extract show <audit-id>                       # show full audit record JSON
+aiex extract retry <audit-id>                      # retry a previous extraction
+aiex extract rm <audit-id>                         # delete an audit record and cached upload
 ```
 
 The AI reads your document and outputs structured JSON matching your schema.
 
 **Examples:**
 ```bash
-aiex extract                                      # interactive mode
+aiex extract                                       # interactive mode
 aiex extract -s paper -f research.pdf              # save result to .aiex/extracted/ and insert into database
 aiex extract -s paper -f research.pdf --no-insert   # save result only, skip database insert
 aiex extract -s paper -f research.pdf -m gpt-4o    # use a specific model
-aiex extract -s paper -d ./papers -g "*.pdf"        # batch extract PDFs from a directory
-aiex extract history                                # inspect recent extraction runs
+aiex extract -s paper -f research.pdf --force      # force re-extraction even if already processed
+aiex extract -s paper -d ./papers -g "*.pdf"       # batch extract PDFs from a directory
+aiex extract history                               # inspect recent extraction runs
 ```
 Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` with fields like `title`, `firstAuthor`, `journal`, `year` — exactly as defined in your schema. Data is automatically inserted into the SQLite database.
 
@@ -101,6 +105,16 @@ aiex watch -s <schema> -d <folder>
 
 Runs a background watcher daemon to monitor a folder for new incoming files (such as scanned documents or downloads), automatically performing offline data extraction, database insertion, and system notifications.
 
+### 5. Export Data
+
+```bash
+aiex export -s <schema>                          # export to CSV (default)
+aiex export -s <schema> -f xlsx -o output.xlsx   # export to Excel
+aiex export -t <table> -f csv -o output.csv      # export a specific table by name
+```
+
+Exports all extracted data for a given schema (or table) from the SQLite database to CSV or Excel format.
+
 <br>
 
 ## 📖 Commands
@@ -114,6 +128,7 @@ Runs a background watcher daemon to monitor a folder for new incoming files (suc
 | `aiex extract -s <name> -f <file>` | Extract structured data from documents and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
 | `aiex extract -s <name> -f <file> --no-insert` | Extract and save JSON without inserting into SQLite |
+| `aiex extract -s <name> -f <file> --force` | Force re-extraction even if the file has already been processed |
 | `aiex extract -s <name> -d <dir>` | Batch extract all supported files in a directory |
 | `aiex extract -s <name> -d <dir> -g "*.pdf"` | Batch extract with glob filter |
 | `aiex extract history` | List extraction audit records |
@@ -123,6 +138,8 @@ Runs a background watcher daemon to monitor a folder for new incoming files (suc
 | `aiex extract rm <audit-id>` | Delete an audit record and its cached upload |
 | `aiex watch -s <name> -d <dir>` | Watch a directory for new files and automatically extract data |
 | `aiex watch -s <name> -d <dir> --no-insert` | Watch and save JSON without inserting into SQLite |
+| `aiex export -s <name>` | Export extracted data for a schema to CSV |
+| `aiex export -s <name> -f xlsx -o <file>` | Export to Excel (.xlsx) |
 | `aiex doctor` | System and configuration diagnostics |
 | `aiex completion bash\|zsh\|fish` | Generate shell completion scripts |
 
