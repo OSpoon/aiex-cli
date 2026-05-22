@@ -5,15 +5,12 @@ import path from 'node:path'
 import { Hono } from 'hono'
 import { readAIConfig } from '@/core/ai-extraction'
 import {
-  extractSingle,
-  readExtractFileInput,
+  runAuditedExtraction,
 } from '@/core/extract-runner'
 import {
-  createExtractionAuditRecord,
   deleteExtractionAuditRecord,
   listExtractionAuditRecords,
   readExtractionAuditRecord,
-  updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
 import {
   FileValidationError,
@@ -23,7 +20,7 @@ import {
   unsupportedFileTypeMessage,
   validateFileUpload,
 } from '@/core/file-constants'
-import { writeNotionPage } from '@/core/notion-sink'
+import { createMigrationConfig } from '@/core/schema-sqlite'
 
 interface ExtractResponse {
   success: boolean
@@ -77,19 +74,6 @@ function jsonResponse(body: ExtractResponse, status: number): Response {
   })
 }
 
-async function auditFailureResponse(
-  aiexDir: string,
-  auditId: string,
-  error: string,
-  status: number,
-): Promise<Response> {
-  const record = await updateExtractionAuditRecord(aiexDir, auditId, {
-    status: 'failed',
-    error,
-  })
-  return jsonResponse({ success: false, error: record.error, auditId: record.id }, status)
-}
-
 async function saveUploadToFile(file: File, uploadsDir: string, id: string): Promise<string> {
   validateFileUpload(file)
   await fs.mkdir(uploadsDir, { recursive: true })
@@ -97,109 +81,6 @@ async function saveUploadToFile(file: File, uploadsDir: string, id: string): Pro
   const buffer = Buffer.from(await file.arrayBuffer())
   await fs.writeFile(filePath, buffer)
   return filePath
-}
-
-async function executeAuditedExtraction(input: {
-  aiexDir: string
-  config: MigrationConfig
-  auditId: string
-  schemaName: string
-  text: string
-  filePath?: string
-  modelName?: string
-}): Promise<Response> {
-  const aiConfig = await readAIConfig(input.aiexDir)
-  if (!aiConfig) {
-    return auditFailureResponse(input.aiexDir, input.auditId, 'AI configuration not found. Configure AI settings first.', 400)
-  }
-  if (!aiConfig.provider.apiKey) {
-    return auditFailureResponse(input.aiexDir, input.auditId, 'API Key not configured. Configure AI settings first.', 400)
-  }
-  if (!aiConfig.provider.models?.length) {
-    return auditFailureResponse(input.aiexDir, input.auditId, 'No models configured. Add at least one model in AI Settings.', 400)
-  }
-
-  const modelOverride = input.modelName
-    ? aiConfig.provider.models.find(model => model.name === input.modelName)
-    : undefined
-  if (input.modelName && !modelOverride) {
-    return auditFailureResponse(input.aiexDir, input.auditId, `Model "${input.modelName}" not found in AI settings`, 400)
-  }
-
-  let inputText = input.text
-  let inputFilePath = input.filePath
-
-  if (input.filePath) {
-    try {
-      const source = await readExtractFileInput(input.filePath, aiConfig)
-      inputText = source.text
-      inputFilePath = source.filePath
-    }
-    catch (error) {
-      if (isMissingUploadFileError(error)) {
-        return auditFailureResponse(input.aiexDir, input.auditId, MISSING_UPLOAD_FILE_TEXT, 400)
-      }
-      throw error
-    }
-  }
-
-  const result = await extractSingle(
-    input.aiexDir,
-    input.config,
-    aiConfig,
-    input.schemaName,
-    inputText,
-    inputFilePath,
-    modelOverride,
-    { quiet: true },
-  )
-
-  if (!result.success) {
-    return auditFailureResponse(input.aiexDir, input.auditId, result.error || 'Extraction failed', 500)
-  }
-
-  const notionPages: Array<{ databaseId: string, pageId: string }> = []
-  if (aiConfig.notion?.enabled && aiConfig.notion.schemas?.[input.schemaName]?.databaseId?.trim()) {
-    try {
-      if (!result.data || typeof result.data !== 'object' || Array.isArray(result.data))
-        throw new Error('Extraction result is not an object and cannot be written to Notion.')
-      notionPages.push(await writeNotionPage(
-        aiConfig.notion,
-        input.schemaName,
-        result.data as Record<string, unknown>,
-      ))
-    }
-    catch (error) {
-      const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-        status: 'failed',
-        outputPath: result.outputPath,
-        outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
-        tablesInserted: result.tablesInserted,
-        tokensUsed: result.tokensUsed,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return jsonResponse({ success: false, error: record.error, auditId: record.id }, 500)
-    }
-  }
-
-  const record = await updateExtractionAuditRecord(input.aiexDir, input.auditId, {
-    status: 'succeeded',
-    outputPath: result.outputPath,
-    outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
-    tablesInserted: result.tablesInserted,
-    notionPages: notionPages.length > 0 ? notionPages : undefined,
-    tokensUsed: result.tokensUsed,
-  })
-
-  return jsonResponse({
-    success: true,
-    outputPath: record.outputPath,
-    outputName: record.outputName,
-    tablesInserted: record.tablesInserted,
-    notionPages: record.notionPages,
-    tokensUsed: record.tokensUsed,
-    auditId: record.id,
-  }, 200)
 }
 
 export function extractRoutes(config: MigrationConfig): Hono {
@@ -231,42 +112,74 @@ export function extractRoutes(config: MigrationConfig): Hono {
         return c.json<ExtractResponse>({ success: false, error: 'Text and file input cannot be used together' }, 400)
       }
 
-      const audit = await createExtractionAuditRecord(aiexDir, {
-        schemaName,
-        modelName,
-        source: file
-          ? { type: 'file', fileName: safeUploadName(file.name) }
-          : { type: 'text', text },
-      })
+      // Validate and save uploaded file early, before AI config checks
+      // so MIME type errors surface with correct priority
+      let source: { type: 'file', filePath: string } | { type: 'text', text: string }
 
-      let filePath: string | undefined
       if (file) {
+        const uploadId = `upload-${Date.now()}`
+        let filePath: string
         try {
-          filePath = await saveUploadToFile(file, uploadsDir, audit.id)
+          filePath = await saveUploadToFile(file, uploadsDir, uploadId)
         }
         catch (e) {
           if (e instanceof FileValidationError) {
-            await updateExtractionAuditRecord(aiexDir, audit.id, { status: 'failed', error: e.message })
-            return c.json<ExtractResponse>({ success: false, error: e.message, auditId: audit.id }, 400)
+            return c.json<ExtractResponse>({ success: false, error: e.message }, 400)
           }
           throw e
         }
-        await updateExtractionAuditRecord(aiexDir, audit.id, {
-          source: { type: 'file', filePath, fileName: path.basename(filePath) },
-        })
+        source = { type: 'file', filePath }
+      }
+      else {
+        source = { type: 'text', text }
       }
 
-      return executeAuditedExtraction({
+      const aiConfig = await readAIConfig(aiexDir)
+      if (!aiConfig) {
+        return c.json<ExtractResponse>({ success: false, error: 'AI configuration not found. Configure AI settings first.' }, 400)
+      }
+      if (!aiConfig.provider.apiKey) {
+        return c.json<ExtractResponse>({ success: false, error: 'API Key not configured. Configure AI settings first.' }, 400)
+      }
+      if (!aiConfig.provider.models?.length) {
+        return c.json<ExtractResponse>({ success: false, error: 'No models configured. Add at least one model in AI Settings.' }, 400)
+      }
+
+      const modelOverride = modelName
+        ? aiConfig.provider.models.find(model => model.name === modelName)
+        : undefined
+      if (modelName && !modelOverride) {
+        return c.json<ExtractResponse>({ success: false, error: `Model "${modelName}" not found in AI settings` }, 400)
+      }
+
+      const result = await runAuditedExtraction({
         aiexDir,
-        config,
-        auditId: audit.id,
+        config: createMigrationConfig(path.dirname(aiexDir)),
+        aiConfig,
         schemaName,
-        text,
-        filePath,
-        modelName,
+        source,
+        modelOverride,
+        quiet: true,
       })
+
+      if (!result.success) {
+        return jsonResponse({ success: false, error: result.error, auditId: result.auditId }, 500)
+      }
+
+      return jsonResponse({
+        success: true,
+        outputPath: result.outputPath,
+        outputName: result.outputName,
+        tablesInserted: result.tablesInserted,
+        notionPages: result.notionPages,
+        tokensUsed: result.tokensUsed,
+        auditId: result.auditId,
+      }, 200)
     }
     catch (error: unknown) {
+      if (isMissingUploadFileError(error)) {
+        return c.json<ExtractResponse>({ success: false, error: MISSING_UPLOAD_FILE_TEXT }, 400)
+      }
       return c.json<ExtractResponse>({
         success: false,
         error: error instanceof Error ? error.message : String(error),
@@ -281,22 +194,53 @@ export function extractRoutes(config: MigrationConfig): Hono {
       return c.json<ExtractResponse>({ success: false, error: 'Extraction record not found' }, 404)
     }
 
-    const audit = await createExtractionAuditRecord(aiexDir, {
+    const aiConfig = await readAIConfig(aiexDir)
+    if (!aiConfig) {
+      return c.json<ExtractResponse>({ success: false, error: 'AI configuration not found. Configure AI settings first.' }, 400)
+    }
+    if (!aiConfig.provider.apiKey) {
+      return c.json<ExtractResponse>({ success: false, error: 'API Key not configured. Configure AI settings first.' }, 400)
+    }
+    if (!aiConfig.provider.models?.length) {
+      return c.json<ExtractResponse>({ success: false, error: 'No models configured. Add at least one model in AI Settings.' }, 400)
+    }
+
+    const modelOverride = original.modelName
+      ? aiConfig.provider.models.find(m => m.name === original.modelName)
+      : undefined
+    if (original.modelName && !modelOverride) {
+      return c.json<ExtractResponse>({ success: false, error: `Model "${original.modelName}" not found in AI settings` }, 400)
+    }
+
+    const source = original.source.type === 'file' && original.source.filePath
+      ? { type: 'file' as const, filePath: original.source.filePath }
+      : { type: 'text' as const, text: original.source.text ?? '' }
+
+    const result = await runAuditedExtraction({
+      aiexDir,
+      config: createMigrationConfig(path.dirname(aiexDir)),
+      aiConfig,
       schemaName: original.schemaName,
-      modelName: original.modelName,
-      source: original.source,
+      source,
+      modelOverride,
       retryOf: original.id,
+      force: true, // Retry always bypasses duplicate check
+      quiet: true,
     })
 
-    return executeAuditedExtraction({
-      aiexDir,
-      config,
-      auditId: audit.id,
-      schemaName: original.schemaName,
-      text: original.source.type === 'text' ? original.source.text ?? '' : '',
-      filePath: original.source.type === 'file' ? original.source.filePath : undefined,
-      modelName: original.modelName,
-    })
+    if (!result.success) {
+      return jsonResponse({ success: false, error: result.error, auditId: result.auditId }, 500)
+    }
+
+    return jsonResponse({
+      success: true,
+      outputPath: result.outputPath,
+      outputName: result.outputName,
+      tablesInserted: result.tablesInserted,
+      notionPages: result.notionPages,
+      tokensUsed: result.tokensUsed,
+      auditId: result.auditId,
+    }, 200)
   })
 
   app.delete('/extract/records/:id', async (c) => {

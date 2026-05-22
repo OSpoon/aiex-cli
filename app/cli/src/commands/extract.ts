@@ -8,25 +8,19 @@ import pc from 'picocolors'
 import { failCommand } from '@/commands/utils'
 import { readAIConfig } from '@/core/ai-extraction'
 import {
-  extractSingle,
   listSchemas,
-  readExtractFileInput,
+  runAuditedExtraction,
   runBatchExtraction,
 } from '@/core/extract-runner'
 import {
-  createExtractionAuditRecord,
   deleteExtractionAuditRecord,
-  findSucceededAuditByHash,
   listExtractionAuditRecords,
   readExtractionAuditRecord,
-  updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
 import { isMissingUploadFileError, MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
-import { writeNotionPage } from '@/core/notion-sink'
 import {
   createMigrationConfig,
 } from '@/core/schema-sqlite'
-import { getFileHash } from '@/utils/hash'
 
 function getIdArg(args: Record<string, unknown>): string {
   if (typeof args.id === 'string')
@@ -75,109 +69,6 @@ export function resolveModelOverride(aiConfig: AIConfig, modelName?: string): AI
     return null
   }
   return matched
-}
-
-async function runAuditedSingleExtraction(input: {
-  aiexDir: string
-  config: ReturnType<typeof createMigrationConfig>
-  aiConfig: AIConfig
-  schemaName: string
-  text: string
-  filePath?: string
-  source: { type: 'text' | 'file', text?: string, filePath?: string, fileName?: string, fileHash?: string }
-  modelOverride?: AIModelConfig
-  retryOf?: string
-  insert?: boolean
-  force?: boolean
-}): Promise<boolean> {
-  if (input.source.type === 'file' && input.source.filePath) {
-    const hashPath = input.source.filePath
-    const ext = path.extname(hashPath).toLowerCase().replace('.', '')
-    const isPlainTextFile = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'yaml', 'yml'].includes(ext)
-
-    let fileHash: string | undefined
-    try {
-      fileHash = await getFileHash(hashPath)
-      input.source.fileHash = fileHash
-    }
-    catch (e) {
-      consola.warn(`Failed to calculate file hash: ${e instanceof Error ? e.message : String(e)}`)
-    }
-
-    if (fileHash && !isPlainTextFile && !input.force) {
-      const existing = await findSucceededAuditByHash(input.aiexDir, input.schemaName, fileHash)
-      if (existing) {
-        consola.info(
-          `File ${pc.cyan(path.basename(hashPath))} has already been processed successfully. Skipping. Use --force to extract again.`,
-        )
-        return true
-      }
-    }
-  }
-
-  const audit = await createExtractionAuditRecord(input.aiexDir, {
-    schemaName: input.schemaName,
-    modelName: input.modelOverride?.name,
-    source: input.source,
-    retryOf: input.retryOf,
-  })
-
-  const result = await extractSingle(
-    input.aiexDir,
-    input.config,
-    input.aiConfig,
-    input.schemaName,
-    input.text,
-    input.filePath,
-    input.modelOverride,
-    { insert: input.insert },
-  )
-
-  if (!result.success) {
-    await updateExtractionAuditRecord(input.aiexDir, audit.id, {
-      status: 'failed',
-      error: result.error || 'Extraction failed',
-    })
-    return false
-  }
-
-  let notionPages: Array<{ databaseId: string, pageId: string }> | undefined
-  if (input.aiConfig.notion?.enabled && input.aiConfig.notion.schemas?.[input.schemaName]?.databaseId?.trim()) {
-    try {
-      if (!result.data || typeof result.data !== 'object' || Array.isArray(result.data))
-        throw new Error('Extraction result is not an object and cannot be written to Notion.')
-
-      const page = await writeNotionPage(
-        input.aiConfig.notion,
-        input.schemaName,
-        result.data as Record<string, unknown>,
-      )
-      notionPages = [{ databaseId: page.databaseId, pageId: page.pageId }]
-      consola.success(`Synced to Notion: ${notionPages.length} page(s)`)
-    }
-    catch (error) {
-      await updateExtractionAuditRecord(input.aiexDir, audit.id, {
-        status: 'failed',
-        outputPath: result.outputPath,
-        outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
-        tablesInserted: result.tablesInserted,
-        tokensUsed: result.tokensUsed,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      consola.error(`Notion sync failed: ${error instanceof Error ? error.message : String(error)}`)
-      return false
-    }
-  }
-
-  await updateExtractionAuditRecord(input.aiexDir, audit.id, {
-    status: 'succeeded',
-    outputPath: result.outputPath,
-    outputName: result.outputPath ? path.basename(result.outputPath) : undefined,
-    tablesInserted: result.tablesInserted,
-    notionPages,
-    tokensUsed: result.tokensUsed,
-  })
-  return true
 }
 
 const historyCommand = defineCommand({
@@ -274,25 +165,20 @@ const retryCommand = defineCommand({
       return
 
     try {
-      const sourceInput = record.source.type === 'file'
-        ? await readExtractFileInput(record.source.filePath || '', aiConfig)
-        : { text: record.source.text || '', filePath: undefined }
-
-      const ok = await runAuditedSingleExtraction({
+      const result = await runAuditedExtraction({
         aiexDir,
         config,
         aiConfig,
         schemaName: record.schemaName,
-        text: sourceInput.text,
-        filePath: sourceInput.filePath,
-        source: record.source,
+        source: record.source as any,
         modelOverride,
         retryOf: record.id,
         insert: !args.noInsert,
+        force: true, // Retry should always bypass duplicate check
       })
 
-      if (!ok) {
-        failCommand()
+      if (!result.success) {
+        failCommand(result.error)
         return
       }
 
@@ -466,40 +352,24 @@ export const extractCommand = defineCommand({
       return
     }
 
-    let text = ''
-    let filePath: string | undefined
+    const source = args.file
+      ? { type: 'file' as const, filePath: args.file as string }
+      : { type: 'text' as const, text: args.text as string }
 
-    if (args.file) {
-      try {
-        const input = await readExtractFileInput(args.file as string, aiConfig, modelOverride)
-        text = input.text
-        filePath = input.filePath
-      }
-      catch (e) {
-        failCommand(`Cannot read file: ${args.file} — ${e instanceof Error ? e.message : String(e)}`)
-        return
-      }
-    }
-    else if (args.text) {
-      text = args.text as string
-    }
-
-    const ok = await runAuditedSingleExtraction({
+    const result = await runAuditedExtraction({
       aiexDir,
       config,
       aiConfig,
       schemaName: args.schema as string,
-      text,
-      filePath,
-      source: args.file
-        ? { type: 'file', filePath: args.file as string, fileName: path.basename(args.file as string) }
-        : { type: 'text', text },
+      source,
       modelOverride,
       insert: !args.noInsert,
       force: args.force,
+      quiet: false,
     })
-    if (!ok) {
-      failCommand()
+
+    if (!result.success) {
+      failCommand(result.error)
       return
     }
 
@@ -558,15 +428,15 @@ async function runInteractive(
       return false
     }
 
-    return runAuditedSingleExtraction({
+    const result = await runAuditedExtraction({
       aiexDir,
       config,
       aiConfig,
       schemaName: schemaName as string,
-      text: textContent as string,
       source: { type: 'text', text: textContent as string },
       modelOverride,
     })
+    return result.success
   }
   else if (inputSource === 'file') {
     const filePathStr = await text({
@@ -585,23 +455,15 @@ async function runInteractive(
 
     const fp = filePathStr as string
 
-    try {
-      const input = await readExtractFileInput(fp, aiConfig, modelOverride)
-      return runAuditedSingleExtraction({
-        aiexDir,
-        config,
-        aiConfig,
-        schemaName: schemaName as string,
-        text: input.text,
-        filePath: input.filePath,
-        source: { type: 'file', filePath: fp, fileName: path.basename(fp) },
-        modelOverride,
-      })
-    }
-    catch (e) {
-      consola.error(`Cannot read file: ${fp} — ${e instanceof Error ? e.message : String(e)}`)
-      return false
-    }
+    const result = await runAuditedExtraction({
+      aiexDir,
+      config,
+      aiConfig,
+      schemaName: schemaName as string,
+      source: { type: 'file', filePath: fp },
+      modelOverride,
+    })
+    return result.success
   }
   else if (inputSource === 'dir') {
     const dirPath = await text({

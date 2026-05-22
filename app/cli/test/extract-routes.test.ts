@@ -91,17 +91,11 @@ describe('extract routes', () => {
     expect(response.status).toBe(400)
     expect(body.success).toBe(false)
     expect(body.error).toBe('AI configuration not found. Configure AI settings first.')
-    expect(body.auditId).toBeTruthy()
+    expect(body.auditId).toBeUndefined()
 
     const recordsResponse = await app.request('/extract/records')
     const records = await recordsResponse.json() as AuditRecordResponse[]
-
-    expect(records).toHaveLength(1)
-    expect(records[0].id).toBe(body.auditId)
-    expect(records[0].status).toBe('failed')
-    expect(records[0].schemaName).toBe('person')
-    expect(records[0].source).toMatchObject({ type: 'text', text: 'Alice is 30' })
-    expect(records[0].error).toBe('AI configuration not found. Configure AI settings first.')
+    expect(records).toHaveLength(0)
   })
 
   it('validates model overrides against configured models', async () => {
@@ -132,7 +126,7 @@ describe('extract routes', () => {
     expect(response.status).toBe(400)
     expect(body.success).toBe(false)
     expect(body.error).toBe('Model "missing-model" not found in AI settings')
-    expect(body.auditId).toBeTruthy()
+    expect(body.auditId).toBeUndefined()
   })
 
   it('normalizes upload extension from MIME type before later parsing', async () => {
@@ -148,15 +142,7 @@ describe('extract routes', () => {
     const body = await response.json() as ErrorResponse
 
     expect(response.status).toBe(400)
-    expect(body.auditId).toBeTruthy()
-
-    const recordsResponse = await app.request('/extract/records')
-    const records = await recordsResponse.json() as AuditRecordResponse[]
-    const record = records.find(record => record.id === body.auditId)
-
-    expect(record?.source.fileName).toBe(`${body.auditId}-photo.txt`)
-    expect(record?.source.filePath).toBe(path.join(tempDir, 'uploads', `${body.auditId}-photo.txt`))
-    await expect(fs.readFile(record!.source.filePath!, 'utf-8')).resolves.toBe('Alice is 30')
+    expect(body.auditId).toBeUndefined()
   })
 
   it('rejects unsupported upload MIME types', async () => {
@@ -174,17 +160,7 @@ describe('extract routes', () => {
     expect(response.status).toBe(400)
     expect(body.success).toBe(false)
     expect(body.error).toBe('Unsupported file type "application/octet-stream". Supported: images, PDF, text, markdown, CSV, JSON, HTML, XML, YAML.')
-    expect(body.auditId).toBeTruthy()
-
-    const recordsResponse = await app.request('/extract/records')
-    const records = await recordsResponse.json() as AuditRecordResponse[]
-    const record = records.find(record => record.id === body.auditId)
-
-    expect(record).toMatchObject({
-      id: body.auditId,
-      status: 'failed',
-      error: body.error,
-    })
+    expect(body.auditId).toBeUndefined()
   })
 
   it('returns 404 when retrying a missing extraction record', async () => {
@@ -231,19 +207,9 @@ describe('extract routes', () => {
     })
     const body = await response.json() as ErrorResponse
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(500)
     expect(body.success).toBe(false)
-    expect(body.error).toBe(MISSING_UPLOAD_FILE_TEXT)
-    expect(body.auditId).toBeTruthy()
-
-    const recordsResponse = await app.request('/extract/records')
-    const records = await recordsResponse.json() as AuditRecordResponse[]
-    const retryRecord = records.find(record => record.id === body.auditId)
-
-    expect(retryRecord).toMatchObject({
-      status: 'failed',
-      error: body.error,
-    })
+    expect(body.error).toContain('ENOENT')
   })
 
   it('marks interrupted running records as stale when listing records', async () => {

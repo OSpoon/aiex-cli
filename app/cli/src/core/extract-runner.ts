@@ -348,54 +348,128 @@ export async function extractSingle(
   }
 }
 
-export async function processOneFile(
-  aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
-  aiConfig: AIConfig,
-  schemaName: string,
-  filePath: string,
-  modelOverride: AIModelConfig | undefined,
-  options?: { insert?: boolean, force?: boolean },
-): Promise<boolean> {
-  const ext = path.extname(filePath).toLowerCase().replace('.', '')
-  const isPlainTextFile = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'yaml', 'yml'].includes(ext)
+export interface RunAuditedExtractionOptions {
+  aiexDir: string
+  config: ReturnType<typeof createMigrationConfig>
+  aiConfig: AIConfig
+  schemaName: string
+  source:
+    | { type: 'file', filePath: string }
+    | { type: 'text', text: string }
+  modelOverride?: AIModelConfig
+  retryOf?: string
+  insert?: boolean
+  force?: boolean
+  quiet?: boolean
+}
+
+export interface RunAuditedExtractionResult {
+  success: boolean
+  skipped?: boolean
+  error?: string
+  outputPath?: string
+  outputName?: string
+  tablesInserted?: Array<{ table: string, rowId: number }>
+  notionPages?: Array<{ databaseId: string, pageId: string }>
+  tokensUsed?: {
+    prompt: number
+    completion: number
+    total: number
+  }
+  auditId?: string
+  fileHash?: string
+}
+
+export async function runAuditedExtraction(
+  options: RunAuditedExtractionOptions,
+): Promise<RunAuditedExtractionResult> {
+  const {
+    aiexDir,
+    config,
+    aiConfig,
+    schemaName,
+    source,
+    modelOverride,
+    retryOf,
+    insert,
+    force,
+    quiet = false,
+  } = options
 
   let fileHash: string | undefined
-  try {
-    fileHash = await getFileHash(filePath)
-  }
-  catch (e) {
-    consola.warn(`Failed to calculate file hash for ${path.basename(filePath)}: ${e instanceof Error ? e.message : String(e)}`)
-  }
+  let isPlainTextFile = false
 
-  if (fileHash && !isPlainTextFile && !options?.force) {
-    const existing = await findSucceededAuditByHash(aiexDir, schemaName, fileHash)
-    if (existing) {
-      consola.info(
-        `File ${pc.cyan(path.basename(filePath))} (hash: ${fileHash.slice(0, 8)}) has already been processed successfully. Skipping.`,
-      )
-      return true
+  if (source.type === 'file') {
+    const ext = path.extname(source.filePath).toLowerCase().replace('.', '')
+    isPlainTextFile = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'yaml', 'yml'].includes(ext)
+
+    try {
+      fileHash = await getFileHash(source.filePath)
+    }
+    catch (e) {
+      if (!quiet) {
+        consola.warn(
+          `Failed to calculate file hash for ${path.basename(source.filePath)}: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        )
+      }
+    }
+
+    if (fileHash && !isPlainTextFile && !force) {
+      const existing = await findSucceededAuditByHash(aiexDir, schemaName, fileHash)
+      if (existing) {
+        if (!quiet) {
+          consola.info(
+            `File ${pc.cyan(path.basename(source.filePath))} (hash: ${fileHash.slice(0, 8)}) has already been processed successfully. Skipping.`,
+          )
+        }
+        return {
+          success: true,
+          skipped: true,
+          auditId: existing.id,
+          fileHash,
+          outputPath: existing.outputPath,
+          outputName: existing.outputName,
+          tablesInserted: existing.tablesInserted,
+          notionPages: existing.notionPages,
+          tokensUsed: existing.tokensUsed,
+        }
+      }
     }
   }
 
   const audit = await createExtractionAuditRecord(aiexDir, {
     schemaName,
     modelName: modelOverride?.name,
-    source: { type: 'file', filePath, fileName: path.basename(filePath), fileHash },
+    source: source.type === 'file'
+      ? { type: 'file', filePath: source.filePath, fileName: path.basename(source.filePath), fileHash }
+      : { type: 'text', text: source.text },
+    retryOf,
   })
 
   try {
-    const input = await readExtractFileInput(filePath, aiConfig, modelOverride)
+    let text = ''
+    let filePath: string | undefined
+
+    if (source.type === 'file') {
+      const input = await readExtractFileInput(source.filePath, aiConfig, modelOverride)
+      text = input.text
+      filePath = input.filePath
+    }
+    else {
+      text = source.text
+    }
 
     const r = await extractSingle(
       aiexDir,
       config,
       aiConfig,
       schemaName,
-      input.text,
-      input.filePath,
+      text,
+      filePath,
       modelOverride,
-      { quiet: false, insert: options?.insert },
+      { quiet, insert },
     )
 
     if (r.success) {
@@ -403,7 +477,9 @@ export async function processOneFile(
       if (shouldSyncNotion(aiConfig, schemaName)) {
         try {
           notionPages = await syncResultToNotion(aiConfig, schemaName, r.data)
-          consola.success(`Synced to Notion: ${notionPages.length} page(s)`)
+          if (!quiet) {
+            consola.success(`Synced to Notion: ${notionPages.length} page(s)`)
+          }
         }
         catch (error) {
           await updateExtractionAuditRecord(aiexDir, audit.id, {
@@ -414,12 +490,19 @@ export async function processOneFile(
             tokensUsed: r.tokensUsed,
             error: error instanceof Error ? error.message : String(error),
           })
-          consola.error(`Notion sync failed: ${error instanceof Error ? error.message : String(error)}`)
-          return false
+          if (!quiet) {
+            consola.error(`Notion sync failed: ${error instanceof Error ? error.message : String(error)}`)
+          }
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+            auditId: audit.id,
+            fileHash,
+          }
         }
       }
 
-      await updateExtractionAuditRecord(aiexDir, audit.id, {
+      const updated = await updateExtractionAuditRecord(aiexDir, audit.id, {
         status: 'succeeded',
         outputPath: r.outputPath,
         outputName: r.outputPath ? path.basename(r.outputPath) : undefined,
@@ -427,16 +510,32 @@ export async function processOneFile(
         notionPages,
         tokensUsed: r.tokensUsed,
       })
-      consola.success(`Processed: ${path.basename(filePath)}`)
-      return true
+
+      return {
+        success: true,
+        outputPath: updated.outputPath,
+        outputName: updated.outputName,
+        tablesInserted: updated.tablesInserted,
+        notionPages: updated.notionPages,
+        tokensUsed: updated.tokensUsed,
+        auditId: updated.id,
+        fileHash,
+      }
     }
     else {
       await updateExtractionAuditRecord(aiexDir, audit.id, {
         status: 'failed',
         error: r.error || 'Extraction failed',
       })
-      consola.error(`Failed: ${r.error}`)
-      return false
+      if (!quiet) {
+        consola.error(`Failed: ${r.error}`)
+      }
+      return {
+        success: false,
+        error: r.error,
+        auditId: audit.id,
+        fileHash,
+      }
     }
   }
   catch (e) {
@@ -444,9 +543,48 @@ export async function processOneFile(
       status: 'failed',
       error: e instanceof Error ? e.message : String(e),
     })
-    consola.error(`Error processing ${path.basename(filePath)}: ${e instanceof Error ? e.message : String(e)}`)
-    return false
+    if (!quiet) {
+      const name = source.type === 'file' ? path.basename(source.filePath) : 'text input'
+      consola.error(`Error processing ${name}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+      auditId: audit.id,
+      fileHash,
+    }
   }
+}
+
+export async function processOneFile(
+  aiexDir: string,
+  config: ReturnType<typeof createMigrationConfig>,
+  aiConfig: AIConfig,
+  schemaName: string,
+  filePath: string,
+  modelOverride: AIModelConfig | undefined,
+  options?: { insert?: boolean, force?: boolean },
+): Promise<boolean> {
+  const result = await runAuditedExtraction({
+    aiexDir,
+    config,
+    aiConfig,
+    schemaName,
+    source: { type: 'file', filePath },
+    modelOverride,
+    insert: options?.insert,
+    force: options?.force,
+    quiet: false,
+  })
+
+  if (result.success) {
+    if (!result.skipped) {
+      consola.success(`Processed: ${path.basename(filePath)}`)
+    }
+    return true
+  }
+
+  return false
 }
 
 export async function runBatchExtraction(
