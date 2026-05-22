@@ -25,6 +25,7 @@ catalog:
   ajv: ^8.17.1
   ajv-formats: ^3.0.1
   better-sqlite3: ^11.0.0
+  chokidar: ^5.0.0
   citty: ^0.2.2
   cli-table3: ^0.6.5
   clsx: ^2.1.1

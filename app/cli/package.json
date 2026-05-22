@@ -65,6 +65,7 @@
     "@opentelemetry/sdk-trace-node": "catalog:",
     "ai": "catalog:",
     "better-sqlite3": "catalog:",
+    "chokidar": "catalog:",
     "citty": "catalog:",
     "cli-table3": "catalog:",
     "conf": "catalog:",

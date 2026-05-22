@@ -43,7 +43,7 @@ function formatSource(source: { type: 'text' | 'file', fileName?: string }): str
   return source.type === 'file' ? source.fileName || 'file' : 'text'
 }
 
-async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
+export async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
   const aiConfig = await readAIConfig(aiexDir)
   if (!aiConfig) {
     failCommand('AI configuration not found. Please run "aiex web" to configure AI settings first')
@@ -63,7 +63,7 @@ async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
   return aiConfig
 }
 
-function resolveModelOverride(aiConfig: AIConfig, modelName?: string): AIModelConfig | undefined | null {
+export function resolveModelOverride(aiConfig: AIConfig, modelName?: string): AIModelConfig | undefined | null {
   if (!modelName)
     return undefined
   const matched = aiConfig.provider.models.find(m => m.name === modelName)

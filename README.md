@@ -24,6 +24,7 @@ npm install -g aiex-cli
 aiex web                                # configure schemas, AI, integrations, and inspect data
 aiex schema                             # generate SQLite from JSON Schema files
 aiex extract -s invoice -f invoice.pdf  # extract data with AI and insert into database
+aiex watch -s invoice -d ./watch_folder # watch folder daemon for automatic extraction
 ```
 
 <br>
@@ -92,6 +93,14 @@ By default, aiex automatically selects a model based on your input type (vision-
 
 Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records include the run status (`running`, `succeeded`, `failed`, or `stale`), schema name, input source, output file, token usage, inserted table rows, synced Notion pages, retry lineage, and error message. Deleting an audit record removes its cached upload, but keeps extracted JSON result files to avoid accidental data loss.
 
+### 4. Watch Folder Daemon (Auto-Extraction)
+
+```bash
+aiex watch -s <schema> -d <folder>
+```
+
+Runs a background watcher daemon to monitor a folder for new incoming files (such as scanned documents or downloads), automatically performing offline data extraction, database insertion, and system notifications.
+
 <br>
 
 ## 📖 Commands
@@ -112,6 +121,8 @@ Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records
 | `aiex extract retry <audit-id>` | Retry a previous extraction run |
 | `aiex extract retry <audit-id> --no-insert` | Retry without inserting into SQLite |
 | `aiex extract rm <audit-id>` | Delete an audit record and its cached upload |
+| `aiex watch -s <name> -d <dir>` | Watch a directory for new files and automatically extract data |
+| `aiex watch -s <name> -d <dir> --no-insert` | Watch and save JSON without inserting into SQLite |
 | `aiex doctor` | System and configuration diagnostics |
 | `aiex completion bash\|zsh\|fish` | Generate shell completion scripts |
 

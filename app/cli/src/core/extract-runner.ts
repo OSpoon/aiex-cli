@@ -346,7 +346,7 @@ export async function extractSingle(
   }
 }
 
-async function processOneFile(
+export async function processOneFile(
   aiexDir: string,
   config: ReturnType<typeof createMigrationConfig>,
   aiConfig: AIConfig,
