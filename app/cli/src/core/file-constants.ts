@@ -1,6 +1,6 @@
-export const MAX_UPLOAD_SIZE = 150 * 1024 * 1024
+export const MAX_UPLOAD_SIZE = 30 * 1024 * 1024
 
-export const MAX_UPLOAD_SIZE_TEXT = '150MB'
+export const MAX_UPLOAD_SIZE_TEXT = '30MB'
 
 export const SUPPORTED_FILE_TYPES_TEXT = 'images, PDF, text, markdown, CSV, JSON, HTML, XML, YAML'
 

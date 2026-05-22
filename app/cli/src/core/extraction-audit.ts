@@ -25,6 +25,7 @@ export interface ExtractionAuditRecord {
     text?: string
     filePath?: string
     fileName?: string
+    fileHash?: string
   }
   retryOf?: string
   outputName?: string
@@ -217,4 +218,23 @@ export async function deleteExtractionAuditRecord(aiexDir: string, id: string): 
   await fs.unlink(auditPath(aiexDir, id)).catch(() => {})
   clearRecordCache(aiexDir)
   return true
+}
+
+/**
+ * Finds the first succeeded extraction audit record matching a schema and file hash.
+ */
+export async function findSucceededAuditByHash(
+  aiexDir: string,
+  schemaName: string,
+  fileHash: string,
+): Promise<ExtractionAuditRecord | null> {
+  const records = await listExtractionAuditRecords(aiexDir)
+  return (
+    records.find(
+      r =>
+        r.schemaName === schemaName
+        && r.status === 'succeeded'
+        && r.source.fileHash === fileHash,
+    ) || null
+  )
 }

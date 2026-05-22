@@ -15,6 +15,7 @@ import { ZodError } from 'zod'
 import { extractStructuredData, insertExtractedData } from '@/core/ai-extraction'
 import {
   createExtractionAuditRecord,
+  findSucceededAuditByHash,
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
 import {
@@ -29,6 +30,7 @@ import {
   JsonSchemaDefinitionSchema,
   parseJsonSchema,
 } from '@/core/schema-sqlite'
+import { getFileHash } from '@/utils/hash'
 
 const FILE_PART_EXTENSIONS = new Set([
   'png',
@@ -353,12 +355,33 @@ export async function processOneFile(
   schemaName: string,
   filePath: string,
   modelOverride: AIModelConfig | undefined,
-  options?: { insert?: boolean },
+  options?: { insert?: boolean, force?: boolean },
 ): Promise<boolean> {
+  const ext = path.extname(filePath).toLowerCase().replace('.', '')
+  const isPlainTextFile = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'yaml', 'yml'].includes(ext)
+
+  let fileHash: string | undefined
+  try {
+    fileHash = await getFileHash(filePath)
+  }
+  catch (e) {
+    consola.warn(`Failed to calculate file hash for ${path.basename(filePath)}: ${e instanceof Error ? e.message : String(e)}`)
+  }
+
+  if (fileHash && !isPlainTextFile && !options?.force) {
+    const existing = await findSucceededAuditByHash(aiexDir, schemaName, fileHash)
+    if (existing) {
+      consola.info(
+        `File ${pc.cyan(path.basename(filePath))} (hash: ${fileHash.slice(0, 8)}) has already been processed successfully. Skipping.`,
+      )
+      return true
+    }
+  }
+
   const audit = await createExtractionAuditRecord(aiexDir, {
     schemaName,
     modelName: modelOverride?.name,
-    source: { type: 'file', filePath, fileName: path.basename(filePath) },
+    source: { type: 'file', filePath, fileName: path.basename(filePath), fileHash },
   })
 
   try {
@@ -434,7 +457,7 @@ export async function runBatchExtraction(
   dir: string,
   globPattern: string | undefined,
   modelOverride: AIModelConfig | undefined,
-  options?: { insert?: boolean },
+  options?: { insert?: boolean, force?: boolean },
 ): Promise<BatchExtractionResult> {
   consola.info(`Scanning ${pc.cyan(dir)} for supported files...`)
 
@@ -458,7 +481,7 @@ export async function runBatchExtraction(
     const file = files[i]
     consola.info(`\n[${i + 1}/${files.length}] Processing: ${pc.cyan(path.basename(file))}`)
 
-    const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, options)
+    const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, { insert: options?.insert, force: options?.force })
     if (ok)
       successCount++
     else

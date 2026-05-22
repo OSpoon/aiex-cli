@@ -16,6 +16,7 @@ import {
 import {
   createExtractionAuditRecord,
   deleteExtractionAuditRecord,
+  findSucceededAuditByHash,
   listExtractionAuditRecords,
   readExtractionAuditRecord,
   updateExtractionAuditRecord,
@@ -25,6 +26,7 @@ import { writeNotionPage } from '@/core/notion-sink'
 import {
   createMigrationConfig,
 } from '@/core/schema-sqlite'
+import { getFileHash } from '@/utils/hash'
 
 function getIdArg(args: Record<string, unknown>): string {
   if (typeof args.id === 'string')
@@ -82,11 +84,37 @@ async function runAuditedSingleExtraction(input: {
   schemaName: string
   text: string
   filePath?: string
-  source: { type: 'text' | 'file', text?: string, filePath?: string, fileName?: string }
+  source: { type: 'text' | 'file', text?: string, filePath?: string, fileName?: string, fileHash?: string }
   modelOverride?: AIModelConfig
   retryOf?: string
   insert?: boolean
+  force?: boolean
 }): Promise<boolean> {
+  if (input.source.type === 'file' && input.source.filePath) {
+    const hashPath = input.source.filePath
+    const ext = path.extname(hashPath).toLowerCase().replace('.', '')
+    const isPlainTextFile = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'yaml', 'yml'].includes(ext)
+
+    let fileHash: string | undefined
+    try {
+      fileHash = await getFileHash(hashPath)
+      input.source.fileHash = fileHash
+    }
+    catch (e) {
+      consola.warn(`Failed to calculate file hash: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    if (fileHash && !isPlainTextFile && !input.force) {
+      const existing = await findSucceededAuditByHash(input.aiexDir, input.schemaName, fileHash)
+      if (existing) {
+        consola.info(
+          `File ${pc.cyan(path.basename(hashPath))} has already been processed successfully. Skipping. Use --force to extract again.`,
+        )
+        return true
+      }
+    }
+  }
+
   const audit = await createExtractionAuditRecord(input.aiexDir, {
     schemaName: input.schemaName,
     modelName: input.modelOverride?.name,
@@ -357,6 +385,11 @@ export const extractCommand = defineCommand({
       description: 'Extract and save JSON without inserting into SQLite',
       default: false,
     },
+    force: {
+      type: 'boolean',
+      description: 'Force re-extraction even if the file has already been processed successfully',
+      default: false,
+    },
   },
   async run({ args, rawArgs }) {
     if (isExtractSubCommand(rawArgs))
@@ -402,7 +435,7 @@ export const extractCommand = defineCommand({
         failCommand('Schema name (-s) is required in batch mode')
         return
       }
-      const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride, { insert: !args.noInsert })
+      const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride, { insert: !args.noInsert, force: args.force })
       if (!result.ok) {
         failCommand(result.error)
         return
@@ -458,11 +491,12 @@ export const extractCommand = defineCommand({
       schemaName: args.schema as string,
       text,
       filePath,
-      source: filePath
+      source: args.file
         ? { type: 'file', filePath: args.file as string, fileName: path.basename(args.file as string) }
         : { type: 'text', text },
       modelOverride,
       insert: !args.noInsert,
+      force: args.force,
     })
     if (!ok) {
       failCommand()

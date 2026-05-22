@@ -1,7 +1,6 @@
 import type { FSWatcher } from 'chokidar'
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
 import type { createMigrationConfig } from '@/core/schema-sqlite'
-import crypto from 'node:crypto'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -10,6 +9,7 @@ import * as chokidar from 'chokidar'
 import { consola } from 'consola'
 import { execa } from 'execa'
 import pc from 'picocolors'
+import { getFileHash } from '@/utils/hash'
 import { processOneFile } from './extract-runner'
 
 const PDF_EXT_REGEXP = /\.pdf$/i
@@ -43,17 +43,6 @@ interface RegistryItem {
 
 interface RegistryData {
   processed: Record<string, RegistryItem>
-}
-
-// Helper to compute SHA-256 hash of a file
-export function getFileHash(filePath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash('sha256')
-    const stream = fs.createReadStream(filePath)
-    stream.on('data', data => hash.update(data))
-    stream.on('end', () => resolve(hash.digest('hex')))
-    stream.on('error', err => reject(err))
-  })
 }
 
 // WatchRegistry handles tracking of processed files in `.aiex/watch-registry.json`

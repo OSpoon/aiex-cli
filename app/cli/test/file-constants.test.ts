@@ -6,6 +6,7 @@ import {
   isAllowedMimeType,
   isMissingUploadFileError,
   MAX_UPLOAD_SIZE,
+  MAX_UPLOAD_SIZE_TEXT,
   SUPPORTED_FILE_TYPES_TEXT,
   unsupportedFileTypeMessage,
   validateFileUpload,
@@ -79,7 +80,7 @@ describe('file-constants', () => {
       const file = { size: MAX_UPLOAD_SIZE + 1, type: 'text/plain' } as File
 
       expect(() => validateFileUpload(file)).toThrow(FileValidationError)
-      expect(() => validateFileUpload(file)).toThrow('exceeds 150MB limit')
+      expect(() => validateFileUpload(file)).toThrow(`exceeds ${MAX_UPLOAD_SIZE_TEXT} limit`)
     })
 
     it('rejects unsupported MIME types', () => {
