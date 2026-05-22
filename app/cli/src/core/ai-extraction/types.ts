@@ -32,7 +32,7 @@ export interface ImageOcrConfig {
   ocrMinConfidence?: number
 }
 
-export type PdfConverterKind = 'unpdf' | 'mineru' | 'markitdown' | 'external'
+export type PdfConverterKind = 'unpdf' | 'mineru' | 'markitdown' | 'marker' | 'external'
 
 export interface ExternalPdfConverterConfig {
   command: string
@@ -47,6 +47,7 @@ export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
   markitdown?: ExternalPdfConverterConfig
+  marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 
@@ -146,10 +147,20 @@ export const DEFAULT_MARKITDOWN_CONFIG: ExternalPdfConverterConfig = {
   keepOutput: true,
 }
 
+export const DEFAULT_MARKER_CONFIG: ExternalPdfConverterConfig = {
+  command: 'marker_single',
+  args: ['{input}', '--output_dir', '{outputDir}'],
+  outputFile: '{outputDir}/{basename}/{basename}.md',
+  timeout: 600,
+  fallbackToUnpdf: true,
+  keepOutput: true,
+}
+
 export const DEFAULT_PDF_CONFIG: PdfConfig = {
   converter: 'unpdf',
   mineru: DEFAULT_MINERU_CONFIG,
   markitdown: DEFAULT_MARKITDOWN_CONFIG,
+  marker: DEFAULT_MARKER_CONFIG,
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {

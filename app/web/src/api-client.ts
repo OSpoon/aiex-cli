@@ -113,7 +113,7 @@ export interface ImageOcrConfig {
   ocrMinConfidence?: number
 }
 
-export type PdfConverterKind = "unpdf" | "mineru" | "markitdown" | "external"
+export type PdfConverterKind = "unpdf" | "mineru" | "markitdown" | "marker" | "external"
 
 export interface ExternalPdfConverterConfig {
   command: string
@@ -128,6 +128,7 @@ export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
   markitdown?: ExternalPdfConverterConfig
+  marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 

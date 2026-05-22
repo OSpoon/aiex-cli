@@ -45,6 +45,20 @@ const markitdownTimeout = ref(600)
 const markitdownFallbackToUnpdf = ref(true)
 const markitdownKeepOutput = ref(true)
 
+const markerCommand = ref("marker_single")
+const markerArgs = ref("{input}\n--output_dir\n{outputDir}")
+const markerOutputFile = ref("{outputDir}/{basename}/{basename}.md")
+const markerTimeout = ref(600)
+const markerFallbackToUnpdf = ref(true)
+const markerKeepOutput = ref(true)
+
+const externalCommand = ref("")
+const externalArgs = ref("")
+const externalOutputFile = ref("")
+const externalTimeout = ref(600)
+const externalFallbackToUnpdf = ref(true)
+const externalKeepOutput = ref(true)
+
 const imageOcrFallback = ref<ImageOcrFallbackMode>("auto")
 const imageOcrLanguages = ref("en-US, zh-Hans")
 const imageOcrMinConfidence = ref(0)
@@ -199,6 +213,8 @@ const canSave = computed(() =>
   && (!notionEnabled.value || !!notionToken.value.trim())
   && (pdfConverter.value !== "mineru" || !!mineruCommand.value.trim())
   && (pdfConverter.value !== "markitdown" || !!markitdownCommand.value.trim())
+  && (pdfConverter.value !== "marker" || !!markerCommand.value.trim())
+  && (pdfConverter.value !== "external" || !!externalCommand.value.trim())
 )
 
 function parseNotionFieldMap(): Record<string, string> | undefined {
@@ -309,9 +325,11 @@ async function loadSelectedNotionSchemaFields() {
 }
 
 const pdfConverterOptions = [
-  { label: "Built-in text extraction", value: "unpdf" },
-  { label: "MinerU command", value: "mineru" },
-  { label: "MarkItDown command", value: "markitdown" }
+  { label: "Built-in text extraction (unpdf)", value: "unpdf" },
+  { label: "MinerU (mineru)", value: "mineru" },
+  { label: "MarkItDown (markitdown)", value: "markitdown" },
+  { label: "Marker (marker_single)", value: "marker" },
+  { label: "Custom External Command", value: "external" }
 ]
 
 const imageOcrFallbackOptions = [
@@ -355,6 +373,18 @@ async function loadConfig() {
     markitdownTimeout.value = config.pdf?.markitdown?.timeout ?? 600
     markitdownFallbackToUnpdf.value = config.pdf?.markitdown?.fallbackToUnpdf ?? true
     markitdownKeepOutput.value = config.pdf?.markitdown?.keepOutput ?? true
+    markerCommand.value = config.pdf?.marker?.command ?? "marker_single"
+    markerArgs.value = (config.pdf?.marker?.args ?? ["{input}", "--output_dir", "{outputDir}"]).join("\n")
+    markerOutputFile.value = config.pdf?.marker?.outputFile ?? "{outputDir}/{basename}/{basename}.md"
+    markerTimeout.value = config.pdf?.marker?.timeout ?? 600
+    markerFallbackToUnpdf.value = config.pdf?.marker?.fallbackToUnpdf ?? true
+    markerKeepOutput.value = config.pdf?.marker?.keepOutput ?? true
+    externalCommand.value = config.pdf?.external?.command ?? ""
+    externalArgs.value = (config.pdf?.external?.args ?? []).join("\n")
+    externalOutputFile.value = config.pdf?.external?.outputFile ?? ""
+    externalTimeout.value = config.pdf?.external?.timeout ?? 600
+    externalFallbackToUnpdf.value = config.pdf?.external?.fallbackToUnpdf ?? true
+    externalKeepOutput.value = config.pdf?.external?.keepOutput ?? true
     imageOcrFallback.value = config.image?.ocrFallback ?? "auto"
     imageOcrLanguages.value = config.image?.ocrLanguages ?? "en-US, zh-Hans"
     imageOcrMinConfidence.value = config.image?.ocrMinConfidence ?? 0
@@ -416,6 +446,22 @@ async function handleSave() {
           timeout: markitdownTimeout.value,
           fallbackToUnpdf: markitdownFallbackToUnpdf.value,
           keepOutput: markitdownKeepOutput.value || undefined
+        },
+        marker: {
+          command: markerCommand.value,
+          args: markerArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+          outputFile: markerOutputFile.value.trim() || undefined,
+          timeout: markerTimeout.value,
+          fallbackToUnpdf: markerFallbackToUnpdf.value,
+          keepOutput: markerKeepOutput.value || undefined
+        },
+        external: {
+          command: externalCommand.value,
+          args: externalArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+          outputFile: externalOutputFile.value.trim() || undefined,
+          timeout: externalTimeout.value,
+          fallbackToUnpdf: externalFallbackToUnpdf.value,
+          keepOutput: externalKeepOutput.value || undefined
         }
       },
       langfuse: langfuseEnabled.value
@@ -716,10 +762,7 @@ onUnmounted(() => {
               <label class="text-xs text-muted-foreground">Arguments</label>
               <Textarea v-model="markitdownArgs" rows="4" auto-resize class="text-xs font-mono" />
             </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Output File</label>
-              <InputText v-model="markitdownOutputFile" size="small" class="text-xs font-mono" placeholder="{outputDir}/{basename}.md" />
-            </div>
+
             <div class="flex flex-col gap-1">
               <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
               <InputText :value="String(markitdownTimeout)" type="number" size="small" placeholder="600" :min="1" @input="markitdownTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
@@ -736,6 +779,67 @@ onUnmounted(() => {
               Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
               <code class="bg-secondary px-1 rounded">{outputDir}</code>,
               <code class="bg-secondary px-1 rounded">{basename}</code>
+            </div>
+          </div>
+
+          <div v-if="pdfConverter === 'marker'" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Command</label>
+              <InputText v-model="markerCommand" size="small" placeholder="marker_single" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Arguments</label>
+              <Textarea v-model="markerArgs" rows="4" auto-resize class="text-xs font-mono" />
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <InputText :value="String(markerTimeout)" type="number" size="small" placeholder="600" :min="1" @input="markerTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="markerFallbackToUnpdf" :binary="true" input-id="marker-fallback" />
+              <label for="marker-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="markerKeepOutput" :binary="true" input-id="marker-keep-output" />
+              <label for="marker-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
+            </div>
+            <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              <code class="bg-secondary px-1 rounded">{outputDir}</code>,
+              <code class="bg-secondary px-1 rounded">{basename}</code>
+            </div>
+          </div>
+
+          <div v-if="pdfConverter === 'external'" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Command</label>
+              <InputText v-model="externalCommand" size="small" placeholder="pdf2markdown" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Arguments</label>
+              <Textarea v-model="externalArgs" rows="4" auto-resize class="text-xs font-mono" placeholder="-i&#10;{input}&#10;-o&#10;{outputDir}/{basename}.md" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Output File (optional)</label>
+              <InputText v-model="externalOutputFile" size="small" class="text-xs font-mono" placeholder="{outputDir}/{basename}.md" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <InputText :value="String(externalTimeout)" type="number" size="small" placeholder="600" :min="1" @input="externalTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="externalFallbackToUnpdf" :binary="true" input-id="external-fallback" />
+              <label for="external-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="externalKeepOutput" :binary="true" input-id="external-keep-output" />
+              <label for="external-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
+            </div>
+            <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              <code class="bg-secondary px-1 rounded">{outputDir}</code>,
+              <code class="bg-secondary px-1 rounded">{basename}</code>. If Output File is blank, the first generated .md file will be selected automatically.
             </div>
           </div>
         </div>

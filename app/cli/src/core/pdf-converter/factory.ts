@@ -1,11 +1,11 @@
 import type { PdfConversionResult, PdfConverter } from './types'
 import type { ExternalPdfConverterConfig, PdfConfig } from '@/core/ai-extraction/types'
 import { consola } from 'consola'
-import { DEFAULT_MARKITDOWN_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
+import { DEFAULT_MARKER_CONFIG, DEFAULT_MARKITDOWN_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
 import { ExternalCommandPdfConverter } from './external'
 import { UnpdfConverter } from './unpdf'
 
-export type PdfConverterType = 'unpdf' | 'mineru' | 'markitdown' | 'external'
+export type PdfConverterType = 'unpdf' | 'mineru' | 'markitdown' | 'marker' | 'external'
 
 const registry = new Map<PdfConverterType, PdfConverter>()
 
@@ -54,6 +54,11 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
     if (config.converter === 'markitdown') {
       const markitdownConfig = config.markitdown ?? DEFAULT_MARKITDOWN_CONFIG
       return withFallback(new ExternalCommandPdfConverter('markitdown', markitdownConfig), markitdownConfig)
+    }
+
+    if (config.converter === 'marker') {
+      const markerConfig = config.marker ?? DEFAULT_MARKER_CONFIG
+      return withFallback(new ExternalCommandPdfConverter('marker', markerConfig), markerConfig)
     }
 
     if (config.converter === 'external') {

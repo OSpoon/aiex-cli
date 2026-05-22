@@ -486,6 +486,18 @@ describe('createPdfConverter', () => {
     expect(converter.name).toBe('markitdown')
   })
 
+  it('creates a marker converter from pdf config', () => {
+    const converter = createPdfConverter({
+      converter: 'marker',
+      marker: {
+        command: 'marker_single',
+        args: ['{input}', '--output_dir', '{outputDir}'],
+        outputFile: '{outputDir}/{basename}/{basename}.md',
+      },
+    })
+    expect(converter.name).toBe('marker')
+  })
+
   it('rejects external converter without command config', () => {
     expect(() => createPdfConverter({ converter: 'external' })).toThrow(/no external command/i)
   })
@@ -514,6 +526,13 @@ describe('createPdfConverter', () => {
       converter: 'markitdown',
     })
     expect(converter.name).toBe('markitdown')
+  })
+
+  it('creates marker converter with default config when marker config is omitted', () => {
+    const converter = createPdfConverter({
+      converter: 'marker',
+    })
+    expect(converter.name).toBe('marker')
   })
 
   it('creates mineru converter without fallback when opted out', () => {
