@@ -5,7 +5,6 @@ import path from 'node:path'
 import { writeFile as writeJsonFile } from 'jsonfile'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACTION_CONFIG, DEFAULT_PROMPT_CONFIG } from '@/core/ai-extraction/types'
-import { MISSING_UPLOAD_FILE_TEXT } from '@/core/file-constants'
 import { extractRoutes } from '@/server/routes/extract'
 
 interface ErrorResponse {
