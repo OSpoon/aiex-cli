@@ -128,10 +128,6 @@ describe('extractCommand.run', () => {
     expect(readAIConfig).not.toHaveBeenCalled()
   })
 
-  it('should fail when combining --dir and --text', async () => {
-    await cmd.run({ args: { dir: os.tmpdir(), text: 'hello' } })
-    expect(process.exitCode).toBe(1)
-  })
 
   it('should fail without crash for empty batch directory', async () => {
     const dir = path.join(os.tmpdir(), `test-extract-empty-${Date.now()}`)
@@ -219,6 +215,9 @@ describe('extractCommand.run', () => {
     const projectDir = createProjectFixture()
     process.chdir(projectDir)
 
+    const inputFile = path.join(projectDir, 'sample.txt')
+    fs.writeFileSync(inputFile, 'Alice is 30')
+
     mockAIConfig()
     vi.mocked(extractStructuredData).mockResolvedValue({
       success: true,
@@ -226,7 +225,7 @@ describe('extractCommand.run', () => {
       outputPath: path.join(projectDir, '.aiex', 'extracted', 'test_table-result.json'),
     })
 
-    await cmd.run({ args: { schema: 'test', text: 'Alice', noInsert: true } })
+    await cmd.run({ args: { schema: 'test', file: inputFile, noInsert: true } })
 
     expect(process.exitCode).toBe(0)
     expect(insertExtractedData).not.toHaveBeenCalled()
@@ -238,7 +237,7 @@ describe('extractCommand.run', () => {
     expect(audit).toMatchObject({
       status: 'succeeded',
       schemaName: 'test',
-      source: { type: 'text', text: 'Alice' },
+      source: { type: 'file', filePath: inputFile },
       outputName: 'test_table-result.json',
     })
 

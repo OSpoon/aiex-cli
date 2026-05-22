@@ -4,7 +4,6 @@
 flowchart TD
   A["用户运行 aiex extract"] --> B{"输入来源"}
 
-  B -->|"--text / 交互文本"| T1["直接使用文本"]
   B -->|"--file 单文件"| F1["readExtractFileInput(file)"]
   B -->|"--dir 批量目录"| D1["listSupportedFiles 扫描支持文件"]
   D1 --> F1
@@ -12,7 +11,7 @@ flowchart TD
   F1 --> F2{"文件扩展名"}
 
   F2 -->|"txt / md / csv / json / html / xml / yaml / yml"| TX1["fs.readFile UTF-8"]
-  TX1 --> T1
+  TX1 --> T1["文本内容"]
 
   F2 -->|"pdf"| P1["读取 PDF Buffer"]
   P1 --> P2["createPdfConverter(aiConfig.pdf)"]

@@ -33,7 +33,7 @@ aiex watch -s invoice -d ./watch_folder # watch folder daemon for automatic extr
 
 - **JSON Schema → SQLite** — Define tables as JSON Schema files, generate Drizzle ORM schema, and migrate to SQLite
 - **Web Configuration & Viewer** — Browser-based UI for designing schemas, configuring integrations, previewing prompts, and browsing extracted data
-- **AI Extraction** — Extract structured data from text, images, and PDFs using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
+- **AI Extraction** — Extract structured data from files (text, images, PDFs) using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
 - **Interactive Mode** — Run `aiex extract` without arguments for a guided extraction workflow
 - **Batch Mode** — `aiex extract -d <dir>` processes entire directories with optional glob filtering
 - **Incremental Extraction** — File hash deduplication skips already-processed files; use `--force` to override
@@ -67,9 +67,8 @@ Converts your JSON Schema files into a SQLite database with full migration suppo
 ```bash
 aiex extract                              # interactive mode (prompts for schema & input)
 aiex extract -s <schema> -f <file>        # from file (txt, pdf, png, jpg, ...)
-aiex extract -s <schema> -t <text>        # from text
 aiex extract -s <schema> -f <file> -m <model>      # specify AI model (overrides auto-selection)
-aiex extract -s <schema> -f <file> --no-insert      # extract and save JSON without inserting into SQLite
+aiex extract -s <schema> -f <file> --no-insert     # extract and save JSON without inserting into SQLite
 aiex extract -s <schema> -f <file> --force         # force re-extraction even if already processed
 aiex extract -s <schema> -d <directory>            # batch extract all supported files in a directory
 aiex extract -s <schema> -d <dir> -g "*.pdf"       # batch with glob filter
@@ -85,7 +84,7 @@ The AI reads your document and outputs structured JSON matching your schema.
 ```bash
 aiex extract                                       # interactive mode
 aiex extract -s paper -f research.pdf              # save result to .aiex/extracted/ and insert into database
-aiex extract -s paper -f research.pdf --no-insert   # save result only, skip database insert
+aiex extract -s paper -f research.pdf --no-insert  # save result only, skip database insert
 aiex extract -s paper -f research.pdf -m gpt-4o    # use a specific model
 aiex extract -s paper -f research.pdf --force      # force re-extraction even if already processed
 aiex extract -s paper -d ./papers -g "*.pdf"       # batch extract PDFs from a directory
@@ -124,8 +123,8 @@ Exports all extracted data for a given schema (or table) from the SQLite databas
 | `aiex schema` | Parse JSON Schema files and migrate to SQLite |
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
 | `aiex web` | Launch visual schema/configuration UI and data viewer in browser |
-| `aiex extract` | Interactive mode — prompts for schema and input source |
-| `aiex extract -s <name> -f <file>` | Extract structured data from documents and insert into SQLite database |
+| `aiex extract` | Interactive mode — prompts for schema and file/directory input |
+| `aiex extract -s <name> -f <file>` | Extract structured data from a file and insert into SQLite database |
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
 | `aiex extract -s <name> -f <file> --no-insert` | Extract and save JSON without inserting into SQLite |
 | `aiex extract -s <name> -f <file> --force` | Force re-extraction even if the file has already been processed |

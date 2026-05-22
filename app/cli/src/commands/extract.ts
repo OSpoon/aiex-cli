@@ -36,7 +36,7 @@ function isExtractSubCommand(rawArgs: unknown): boolean {
 }
 
 function formatSource(source: { type: 'text' | 'file', fileName?: string }): string {
-  return source.type === 'file' ? source.fileName || 'file' : 'text'
+  return source.type === 'file' ? source.fileName || 'file' : 'unknown'
 }
 
 export async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
@@ -241,11 +241,6 @@ export const extractCommand = defineCommand({
       alias: 's',
       description: 'Schema name (without .json extension)',
     },
-    text: {
-      type: 'string',
-      alias: 't',
-      description: 'Text content to extract',
-    },
     file: {
       type: 'string',
       alias: 'f',
@@ -288,10 +283,6 @@ export const extractCommand = defineCommand({
     const aiexDir = path.dirname(config.schemaPath)
 
     // ── Arg conflict validation ──
-    if (args.dir && args.text) {
-      failCommand('Cannot combine -t/--text with -d/--dir')
-      return
-    }
     if (args.dir && args.file) {
       failCommand('Cannot combine -f/--file with -d/--dir')
       return
@@ -307,7 +298,7 @@ export const extractCommand = defineCommand({
       return
 
     // ── Interactive mode (when no args provided) ──
-    if (!args.schema && !args.text && !args.file && !args.dir) {
+    if (!args.schema && !args.file && !args.dir) {
       const ok = await runInteractive(aiexDir, config, aiConfig, modelOverride)
       if (ok) {
         outro('Done!')
@@ -336,32 +327,23 @@ export const extractCommand = defineCommand({
       return
     }
 
-    // ── Single extraction mode ──
+    // ── Single file extraction mode ──
     if (!args.schema) {
       failCommand('Please provide a schema name (-s) to extract from')
       return
     }
 
-    if (!args.text && !args.file) {
-      failCommand('Please provide text (-t) or a file (-f) to extract from')
+    if (!args.file) {
+      failCommand('Please provide a file (-f) to extract from')
       return
     }
-
-    if (args.text && args.file) {
-      failCommand('-t and -f cannot be used together')
-      return
-    }
-
-    const source = args.file
-      ? { type: 'file' as const, filePath: args.file as string }
-      : { type: 'text' as const, text: args.text as string }
 
     const result = await runAuditedExtraction({
       aiexDir,
       config,
       aiConfig,
       schemaName: args.schema as string,
-      source,
+      source: { type: 'file', filePath: args.file as string },
       modelOverride,
       insert: !args.noInsert,
       force: args.force,
@@ -402,7 +384,6 @@ async function runInteractive(
   const inputSource = await select({
     message: 'Choose input source:',
     options: [
-      { label: 'Text content', value: 'text', hint: 'Paste or type text directly' },
       { label: 'Single file', value: 'file', hint: 'Extract from a file (txt, pdf, image)' },
       { label: 'Batch directory', value: 'dir', hint: 'Extract all supported files in a directory' },
     ],
@@ -413,32 +394,7 @@ async function runInteractive(
     return false
   }
 
-  if (inputSource === 'text') {
-    const textContent = await text({
-      message: 'Enter text content to extract:',
-      validate(value) {
-        if (!value || value.trim().length === 0)
-          return 'Please enter some text'
-        return undefined
-      },
-    })
-
-    if (isCancel(textContent)) {
-      cancel('Cancelled')
-      return false
-    }
-
-    const result = await runAuditedExtraction({
-      aiexDir,
-      config,
-      aiConfig,
-      schemaName: schemaName as string,
-      source: { type: 'text', text: textContent as string },
-      modelOverride,
-    })
-    return result.success
-  }
-  else if (inputSource === 'file') {
+  if (inputSource === 'file') {
     const filePathStr = await text({
       message: 'Enter file path:',
       validate(value) {
