@@ -12,10 +12,10 @@ import { failCommand } from '@/commands/utils'
 import { loadSchema } from '@/core/extract-runner'
 import { createMigrationConfig } from '@/core/schema-sqlite'
 
-export const exportCommand = defineCommand({
+export const dumpCommand = defineCommand({
   meta: {
-    name: 'export',
-    description: 'Export SQLite database table to Excel (.xlsx) or CSV (.csv)',
+    name: 'dump',
+    description: 'Dump SQLite database table to Excel (.xlsx) or CSV (.csv)',
   },
   args: {
     table: {
@@ -40,7 +40,7 @@ export const exportCommand = defineCommand({
     },
   },
   async run({ args }) {
-    intro(pc.inverse(' aiex export '))
+    intro(pc.inverse(' aiex dump '))
 
     if (!args.table && !args.schema) {
       failCommand('Either table name (--table / -t) or schema name (--schema / -s) is required')
@@ -111,7 +111,7 @@ export const exportCommand = defineCommand({
     }
 
     if (format !== 'csv' && format !== 'xlsx') {
-      failCommand(`Unsupported export format: "${format}". Supported formats: csv, xlsx`)
+      failCommand(`Unsupported dump format: "${format}". Supported formats: csv, xlsx`)
       return
     }
 
@@ -242,8 +242,8 @@ export const exportCommand = defineCommand({
         const bom = '\uFEFF'
         fs.writeFileSync(resolvedOutput, bom + csv, 'utf8')
       }
-      s3.stop('Export completed successfully')
-      consola.success(`Successfully exported ${rows.length} row(s) to ${pc.cyan(resolvedOutput)}`)
+      s3.stop('Dump completed successfully')
+      consola.success(`Successfully dumped ${rows.length} row(s) to ${pc.cyan(resolvedOutput)}`)
     }
     catch (error) {
       s3.stop('File write failed')

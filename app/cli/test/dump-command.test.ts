@@ -4,7 +4,7 @@ import path from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as XLSX from 'xlsx'
-import { exportCommand } from '@/commands/export'
+import { dumpCommand } from '@/commands/dump'
 
 vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('@clack/prompts', () => ({
   })),
 }))
 
-const cmd = exportCommand as any
+const cmd = dumpCommand as any
 const originalCwd = process.cwd()
 const cleanupDirs = new Set<string>()
 
@@ -61,10 +61,10 @@ function createProjectFixture(): { dir: string, dbPath: string } {
   return { dir, dbPath }
 }
 
-describe('exportCommand definition', () => {
+describe('dumpCommand definition', () => {
   it('should have correct name and description', () => {
-    expect(cmd.meta.name).toBe('export')
-    expect(cmd.meta.description).toContain('Export SQLite database table')
+    expect(cmd.meta.name).toBe('dump')
+    expect(cmd.meta.description).toContain('Dump SQLite database table')
   })
 
   it('should define table, schema, format, and output args', () => {
@@ -75,7 +75,7 @@ describe('exportCommand definition', () => {
   })
 })
 
-describe('exportCommand.run', () => {
+describe('dumpCommand.run', () => {
   beforeEach(() => {
     process.exitCode = 0
   })
