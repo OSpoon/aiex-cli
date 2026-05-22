@@ -37,7 +37,7 @@
     "pre-commit": "pnpm exec lint-staged"
   },
   "lint-staged": {
-    "app/cli/**/*": "eslint --fix --config app/cli/eslint.config.mjs",
-    "app/web/**/*": "eslint --fix --config app/web/eslint.config.mjs"
+    "app/cli/**/*": "node scripts/lint-staged-eslint.mjs app/cli",
+    "app/web/**/*": "node scripts/lint-staged-eslint.mjs app/web"
   }
 }

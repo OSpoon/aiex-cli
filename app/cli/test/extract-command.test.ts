@@ -129,8 +129,6 @@ describe('extractCommand.run', () => {
   })
 
   it('should fail without crash for empty batch directory', async () => {
-
-
     const dir = path.join(os.tmpdir(), `test-extract-empty-${Date.now()}`)
     fs.mkdirSync(dir, { recursive: true })
 
