@@ -28,6 +28,12 @@ export const ExtractionConfigSchema = z.object({
   outputDir: z.string().min(1),
 })
 
+export const ImageOcrConfigSchema = z.object({
+  ocrFallback: z.enum(['auto', 'off', 'local']).default('auto').optional(),
+  ocrLanguages: z.string().min(1).optional(),
+  ocrMinConfidence: z.number().min(0).max(1).optional(),
+})
+
 export const ExternalPdfConverterConfigSchema = z.object({
   command: z.string().min(1),
   args: z.array(z.string()),
@@ -66,6 +72,7 @@ export const AIConfigSchema = z.object({
   provider: AIProviderConfigSchema,
   prompt: PromptConfigSchema,
   extraction: ExtractionConfigSchema,
+  image: ImageOcrConfigSchema.optional(),
   pdf: PdfConfigSchema.optional(),
   langfuse: LangfuseConfigSchema.optional(),
   notion: NotionConfigSchema.optional(),

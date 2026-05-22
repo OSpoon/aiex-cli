@@ -3,13 +3,16 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import { createConfig } from '@/config'
 import { readAIConfig } from '@/core/ai-extraction/config'
 import { buildDoctorDiagnostics } from '@/core/doctor'
+import { checkImageOcrAvailability } from '@/core/image-ocr'
 import { createMigrationConfig } from '@/core/schema-sqlite'
 import pkg from '~/package.json'
 
 const V1_SUFFIX_RE = /\/v1\/?$/
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 export interface CollectDoctorDiagnosticsOptions {
   config?: ReturnType<typeof createConfig>
@@ -28,12 +31,36 @@ async function checkConnection(baseURL: string): Promise<boolean | null> {
   }
 }
 
+async function findImageOcrSelfCheckLogo(): Promise<string | undefined> {
+  const candidates = [
+    path.resolve(MODULE_DIR, 'logo.png'),
+    path.resolve(MODULE_DIR, 'assets/logo.png'),
+    path.resolve(MODULE_DIR, '../../assets/logo.png'),
+    path.resolve(MODULE_DIR, '../../../web/public/logo.png'),
+    path.resolve(MODULE_DIR, '../../web/public/logo.png'),
+    path.resolve(MODULE_DIR, '../../dist/web/logo.png'),
+    path.resolve(MODULE_DIR, 'web/logo.png'),
+  ]
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate)
+      return candidate
+    }
+    catch {
+      // try next candidate
+    }
+  }
+  return undefined
+}
+
 export async function collectDoctorDiagnostics(
   options: CollectDoctorDiagnosticsOptions = {},
 ): Promise<DoctorDiagnostics> {
   const config = options.config ?? createConfig()
   const cwd = process.cwd()
   const errors: string[] = []
+  const imageOcrLogoPath = await findImageOcrSelfCheckLogo()
 
   const migConfig = createMigrationConfig(cwd)
   const aiexDir = path.dirname(migConfig.schemaPath)
@@ -103,6 +130,7 @@ export async function collectDoctorDiagnostics(
     osType: os.type(),
     osRelease: os.release(),
     cwd,
+    imageOcr: await checkImageOcrAvailability(imageOcrLogoPath),
     configPath: config.path,
     configStoreKeys: Object.keys(config.store),
     project: {

@@ -438,7 +438,7 @@ export const extractCommand = defineCommand({
 
     if (args.file) {
       try {
-        const input = await readExtractFileInput(args.file as string, aiConfig)
+        const input = await readExtractFileInput(args.file as string, aiConfig, modelOverride)
         text = input.text
         filePath = input.filePath
       }
@@ -552,7 +552,7 @@ async function runInteractive(
     const fp = filePathStr as string
 
     try {
-      const input = await readExtractFileInput(fp, aiConfig)
+      const input = await readExtractFileInput(fp, aiConfig, modelOverride)
       return runAuditedSingleExtraction({
         aiexDir,
         config,

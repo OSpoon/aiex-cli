@@ -22,6 +22,7 @@ import {
   MAX_UPLOAD_SIZE,
   MAX_UPLOAD_SIZE_TEXT,
 } from '@/core/file-constants'
+import { recognizeImageText, shouldUseImageOcrFallback } from '@/core/image-ocr'
 import { writeNotionPage } from '@/core/notion-sink'
 import { createPdfConverter } from '@/core/pdf-converter'
 import {
@@ -188,13 +189,18 @@ export function isImageFile(filePath: string): boolean {
   return FILE_PART_EXTENSIONS.has(ext)
 }
 
-export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig): Promise<ExtractFileInput> {
+export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig, modelOverride?: AIModelConfig): Promise<ExtractFileInput> {
   const stat = fs.statSync(filePath)
   if (stat.size > MAX_UPLOAD_SIZE) {
     throw new Error(`File size (${bytesToMB(stat.size).toFixed(1)}MB) exceeds ${MAX_UPLOAD_SIZE_TEXT} limit: ${filePath}`)
   }
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   if (FILE_PART_EXTENSIONS.has(ext)) {
+    if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
+      const result = await recognizeImageText(filePath, aiConfig?.image)
+      consola.info(`Extracted image text via local OCR (confidence: ${(result.confidence * 100).toFixed(1)}%)`)
+      return { text: result.text }
+    }
     return { text: '', filePath }
   }
   if (ext === 'pdf') {
@@ -356,7 +362,7 @@ async function processOneFile(
   })
 
   try {
-    const input = await readExtractFileInput(filePath, aiConfig)
+    const input = await readExtractFileInput(filePath, aiConfig, modelOverride)
 
     const r = await extractSingle(
       aiexDir,

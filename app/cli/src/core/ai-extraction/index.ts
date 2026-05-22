@@ -8,7 +8,7 @@ export type { InsertResult } from './inserter'
 export { safeParseJSON } from './json-utils'
 export { getRegistrySize, lookupModel } from './model-registry'
 export { generateExtractionPrompt, generatePromptSnapshot, schemaToDescription } from './prompt-generator'
-export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, LangfuseConfigSchema, NotionConfigSchema, NotionSchemaConfigSchema, PdfConfigSchema } from './schemas'
+export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, ImageOcrConfigSchema, LangfuseConfigSchema, NotionConfigSchema, NotionSchemaConfigSchema, PdfConfigSchema } from './schemas'
 export { savePromptSnapshot } from './snapshot'
 export type {
   AIConfig,
@@ -17,6 +17,8 @@ export type {
   ExternalPdfConverterConfig,
   ExtractionConfig,
   ExtractionResult,
+  ImageOcrConfig,
+  ImageOcrFallbackMode,
   LangfuseConfig,
   NotionConfig,
   NotionSchemaConfig,
@@ -27,6 +29,7 @@ export type {
 export {
   DEFAULT_AI_CONFIG,
   DEFAULT_EXTRACTION_CONFIG,
+  DEFAULT_IMAGE_OCR_CONFIG,
   DEFAULT_MARKITDOWN_CONFIG,
   DEFAULT_MINERU_CONFIG,
   DEFAULT_MODELS,

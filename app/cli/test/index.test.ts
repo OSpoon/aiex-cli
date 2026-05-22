@@ -21,6 +21,15 @@ const defaultProject = {
   errors: [] as string[],
 }
 
+const defaultImageOcr = {
+  platformSupported: true,
+  dependencyLoaded: true,
+  ocrOk: true,
+  imagePath: '/project/app/web/public/logo.png',
+  recognizedText: 'aiex',
+  confidence: 0.96,
+}
+
 describe('core logic', () => {
   it('should build and format doctor diagnostics', () => {
     const diagnostics = buildDoctorDiagnostics({
@@ -34,6 +43,7 @@ describe('core logic', () => {
       osType: 'Darwin',
       osRelease: '25.0.0',
       cwd: '/tmp/fixture',
+      imageOcr: defaultImageOcr,
       configPath: '/tmp/config.json',
       configStoreKeys: ['version', 'name'],
       project: defaultProject,
@@ -56,6 +66,13 @@ describe('core logic', () => {
       osType: 'Darwin',
       osRelease: '25.0.0',
       cwd: '/project',
+      imageOcr: {
+        platformSupported: true,
+        dependencyLoaded: true,
+        ocrOk: false,
+        imagePath: '/project/app/web/public/logo.png',
+        error: 'OCR failed',
+      },
       configPath: '/tmp/config.json',
       configStoreKeys: ['name'],
       project: {
@@ -84,6 +101,11 @@ describe('core logic', () => {
     expect(rows).toContainEqual(['aiModels', 'gpt-4o, gpt-4o-vision'])
     expect(rows).toContainEqual(['aiProvider', 'https://api.openai.com/v1'])
     expect(rows).toContainEqual(['aiConnectionOk', 'true'])
+    expect(rows).toContainEqual(['imageOcrPlatform', 'true'])
+    expect(rows).toContainEqual(['imageOcrDependency', 'true'])
+    expect(rows).toContainEqual(['imageOcrOk', 'false'])
+    expect(rows).toContainEqual(['imageOcrImage', '/project/app/web/public/logo.png'])
+    expect(rows).toContainEqual(['imageOcrError', 'OCR failed'])
     expect(rows).toContainEqual(['hasDatabase', 'true'])
     expect(rows).toContainEqual(['migrations', '3'])
     expect(rows).toContainEqual(['error', 'Could not read schema directory'])

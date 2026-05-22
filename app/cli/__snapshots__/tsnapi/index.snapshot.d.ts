@@ -18,6 +18,15 @@ export interface DoctorDiagnostics {
     os: string;
     cwd: string;
   };
+  imageOcr: {
+    platformSupported: boolean;
+    dependencyLoaded: boolean;
+    ocrOk: boolean | null;
+    imagePath?: string;
+    recognizedText?: string;
+    confidence?: number;
+    error?: string;
+  };
   config: {
     path: string;
     keys: string[];
@@ -120,6 +129,7 @@ export declare function buildDoctorDiagnostics(_: {
   osType: string;
   osRelease: string;
   cwd: string;
+  imageOcr: DoctorDiagnostics['imageOcr'];
   configPath: string;
   configStoreKeys: string[];
   project: DoctorDiagnostics['project'];

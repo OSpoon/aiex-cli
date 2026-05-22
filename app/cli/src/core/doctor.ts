@@ -15,6 +15,15 @@ export interface DoctorDiagnostics {
     os: string
     cwd: string
   }
+  imageOcr: {
+    platformSupported: boolean
+    dependencyLoaded: boolean
+    ocrOk: boolean | null
+    imagePath?: string
+    recognizedText?: string
+    confidence?: number
+    error?: string
+  }
   config: {
     path: string
     keys: string[]
@@ -47,6 +56,7 @@ export function buildDoctorDiagnostics(input: {
   osType: string
   osRelease: string
   cwd: string
+  imageOcr: DoctorDiagnostics['imageOcr']
   configPath: string
   configStoreKeys: string[]
   project: DoctorDiagnostics['project']
@@ -68,6 +78,7 @@ export function buildDoctorDiagnostics(input: {
       os: `${input.osType} ${input.osRelease}`,
       cwd: input.cwd,
     },
+    imageOcr: { ...input.imageOcr },
     config: {
       path: input.configPath,
       keys: [...input.configStoreKeys].sort(),
@@ -104,6 +115,17 @@ export function doctorDiagnosticsTableRows(
   rows.push(['aiModels', p.aiModelCount ? p.aiModels.join(', ') : 'none'])
   rows.push(['aiProvider', p.aiProvider ?? 'none'])
   rows.push(['aiConnectionOk', p.aiConnectionOk === null ? 'not tested' : String(p.aiConnectionOk)])
+  rows.push(['imageOcrPlatform', String(d.imageOcr.platformSupported)])
+  rows.push(['imageOcrDependency', String(d.imageOcr.dependencyLoaded)])
+  rows.push(['imageOcrOk', d.imageOcr.ocrOk === null ? 'not tested' : String(d.imageOcr.ocrOk)])
+  if (d.imageOcr.imagePath)
+    rows.push(['imageOcrImage', d.imageOcr.imagePath])
+  if (d.imageOcr.recognizedText)
+    rows.push(['imageOcrText', d.imageOcr.recognizedText])
+  if (typeof d.imageOcr.confidence === 'number')
+    rows.push(['imageOcrConfidence', `${(d.imageOcr.confidence * 100).toFixed(1)}%`])
+  if (d.imageOcr.error)
+    rows.push(['imageOcrError', d.imageOcr.error])
   rows.push(['hasDatabase', String(p.hasDatabase)])
   rows.push(['migrations', String(p.migrationCount)])
 

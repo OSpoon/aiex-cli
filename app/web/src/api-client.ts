@@ -105,6 +105,14 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
+export type ImageOcrFallbackMode = "auto" | "off" | "local"
+
+export interface ImageOcrConfig {
+  ocrFallback?: ImageOcrFallbackMode
+  ocrLanguages?: string
+  ocrMinConfidence?: number
+}
+
 export type PdfConverterKind = "unpdf" | "mineru" | "markitdown" | "external"
 
 export interface ExternalPdfConverterConfig {
@@ -160,6 +168,7 @@ export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
+  image?: ImageOcrConfig
   pdf?: PdfConfig
   langfuse?: LangfuseConfig
   notion?: NotionConfig

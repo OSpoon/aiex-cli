@@ -89,6 +89,9 @@
     "update-notifier": "catalog:",
     "zod": "catalog:"
   },
+  "optionalDependencies": {
+    "@napi-rs/system-ocr": "catalog:"
+  },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:cli",
     "@antfu/ni": "catalog:cli",

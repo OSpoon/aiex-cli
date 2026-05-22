@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AIConfig, AIModelConfig, ModelCapabilities, NotionDatabaseProperty, NotionSchemaConfig, PdfConverterKind } from "@/api-client"
+import type { AIConfig, AIModelConfig, ImageOcrFallbackMode, ModelCapabilities, NotionDatabaseProperty, NotionSchemaConfig, PdfConverterKind } from "@/api-client"
 import Button from "primevue/button"
 import Checkbox from "primevue/checkbox"
 import Dialog from "primevue/dialog"
@@ -44,6 +44,11 @@ const markitdownOutputFile = ref("{outputDir}/{basename}.md")
 const markitdownTimeout = ref(600)
 const markitdownFallbackToUnpdf = ref(true)
 const markitdownKeepOutput = ref(true)
+
+const imageOcrFallback = ref<ImageOcrFallbackMode>("auto")
+const imageOcrLanguages = ref("en-US, zh-Hans")
+const imageOcrMinConfidence = ref(0)
+const imageOcrAdvancedOpen = ref(false)
 
 const langfuseEnabled = ref(false)
 const langfusePublicKey = ref("")
@@ -155,6 +160,34 @@ const notionConnectionSummary = computed(() => {
   if (notionSchemaFields.value.length === 0)
     return `Connected · ${notionProperties.value.length} properties loaded`
   return `Connected · ${notionMappedFieldCount.value}/${notionSchemaFields.value.length} fields mapped`
+})
+
+const hasVisionModel = computed(() => models.value.some(model => model.capabilities.vision))
+
+const imageInputModeLabel = computed(() => {
+  if (imageOcrFallback.value === "off")
+    return "OCR disabled"
+  if (imageOcrFallback.value === "local")
+    return "Require local OCR"
+  return "Auto"
+})
+
+const imageInputSummary = computed(() => {
+  if (hasVisionModel.value)
+    return "Image files will use your configured vision model first."
+  if (imageOcrFallback.value === "off")
+    return "No vision model is configured, and local OCR fallback is disabled."
+  if (imageOcrFallback.value === "local")
+    return "No vision model is configured. Image text will require local OCR on macOS or Windows."
+  return "No vision model is configured. On macOS or Windows, local OCR will be tried automatically for text-heavy images."
+})
+
+const imageInputStatusClass = computed(() => {
+  if (hasVisionModel.value)
+    return "border-green-200 bg-green-50 text-green-800"
+  if (imageOcrFallback.value === "off")
+    return "border-yellow-200 bg-yellow-50 text-yellow-800"
+  return "border-blue-200 bg-blue-50 text-blue-800"
 })
 
 const canSave = computed(() =>
@@ -281,6 +314,12 @@ const pdfConverterOptions = [
   { label: "MarkItDown command", value: "markitdown" }
 ]
 
+const imageOcrFallbackOptions = [
+  { label: "Auto on macOS or Windows when no vision model exists", value: "auto" },
+  { label: "Off", value: "off" },
+  { label: "Require local OCR", value: "local" }
+]
+
 const defaultSystemTemplate = `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
 
 {schema}
@@ -316,6 +355,9 @@ async function loadConfig() {
     markitdownTimeout.value = config.pdf?.markitdown?.timeout ?? 600
     markitdownFallbackToUnpdf.value = config.pdf?.markitdown?.fallbackToUnpdf ?? true
     markitdownKeepOutput.value = config.pdf?.markitdown?.keepOutput ?? true
+    imageOcrFallback.value = config.image?.ocrFallback ?? "auto"
+    imageOcrLanguages.value = config.image?.ocrLanguages ?? "en-US, zh-Hans"
+    imageOcrMinConfidence.value = config.image?.ocrMinConfidence ?? 0
     langfuseEnabled.value = !!config.langfuse
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
@@ -352,6 +394,11 @@ async function handleSave() {
       },
       extraction: {
         outputDir: ".aiex/extracted"
+      },
+      image: {
+        ocrFallback: imageOcrFallback.value,
+        ocrLanguages: imageOcrLanguages.value.trim() || undefined,
+        ocrMinConfidence: imageOcrMinConfidence.value
       },
       pdf: {
         converter: pdfConverter.value,
@@ -561,6 +608,57 @@ onUnmounted(() => {
             size="small"
             @click="addingModel = true"
           />
+        </div>
+      </section>
+
+      <!-- Image Input -->
+      <section>
+        <h3 class="text-sm font-semibold mb-3 text-foreground">
+          Image Input
+        </h3>
+        <div class="space-y-3">
+          <div class="rounded border p-3 text-sm" :class="imageInputStatusClass">
+            <div class="flex items-center justify-between gap-3">
+              <span class="font-medium">{{ imageInputModeLabel }}</span>
+              <span v-if="hasVisionModel" class="text-xs">Vision model configured</span>
+              <span v-else class="text-xs">No vision model</span>
+            </div>
+            <p class="mt-1 text-xs leading-relaxed">
+              {{ imageInputSummary }}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            @click="imageOcrAdvancedOpen = !imageOcrAdvancedOpen"
+          >
+            {{ imageOcrAdvancedOpen ? "Hide advanced image settings" : "Advanced image settings" }}
+          </button>
+
+          <div v-if="imageOcrAdvancedOpen" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">OCR fallback</label>
+              <Select
+                v-model="imageOcrFallback"
+                :options="imageOcrFallbackOptions"
+                option-label="label"
+                option-value="value"
+                size="small"
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Languages</label>
+              <InputText v-model="imageOcrLanguages" size="small" placeholder="en-US, zh-Hans" :disabled="imageOcrFallback === 'off'" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">Minimum confidence</label>
+              <InputText :value="String(imageOcrMinConfidence)" type="number" size="small" placeholder="0" :min="0" :max="1" :step="0.05" :disabled="imageOcrFallback === 'off'" @input="imageOcrMinConfidence = Math.min(1, Math.max(0, Number(($event.target as HTMLInputElement).value) || 0))" />
+            </div>
+            <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+              Image extraction always prefers a vision model. OCR fallback is only used when no vision model is available.
+            </div>
+          </div>
         </div>
       </section>
 

@@ -310,6 +310,21 @@ describe('ai config schema', () => {
     expect(result.pdf?.markitdown?.keepOutput).toBe(false)
   })
 
+  it('accepts image OCR fallback config', () => {
+    const result = AIConfigSchema.parse({
+      ...validConfig,
+      image: {
+        ocrFallback: 'local',
+        ocrLanguages: 'en-US, zh-Hans',
+        ocrMinConfidence: 0.4,
+      },
+    })
+
+    expect(result.image?.ocrFallback).toBe('local')
+    expect(result.image?.ocrLanguages).toBe('en-US, zh-Hans')
+    expect(result.image?.ocrMinConfidence).toBe(0.4)
+  })
+
   it('rejects empty mineru command', () => {
     expect(() => AIConfigSchema.parse({
       ...validConfig,

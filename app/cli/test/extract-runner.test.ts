@@ -1,8 +1,20 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { isImageFile, listSchemas, listSupportedFiles, loadSchema, readExtractFileInput } from '@/core/extract-runner'
 
-import { isImageFile, listSchemas, listSupportedFiles, loadSchema } from '@/core/extract-runner'
+const imageOcrMock = vi.hoisted(() => ({
+  recognizeImageText: vi.fn(),
+  shouldUseImageOcrFallback: vi.fn(() => false),
+}))
+
+vi.mock('@/core/image-ocr', () => imageOcrMock)
+
+afterEach(() => {
+  imageOcrMock.recognizeImageText.mockReset()
+  imageOcrMock.shouldUseImageOcrFallback.mockReset()
+  imageOcrMock.shouldUseImageOcrFallback.mockReturnValue(false)
+})
 
 describe('listSupportedFiles', () => {
   it('should filter files by supported extensions', () => {
@@ -130,5 +142,61 @@ describe('isImageFile', () => {
     expect(isImageFile('document.pdf')).toBe(false)
     expect(isImageFile('notes.txt')).toBe(false)
     expect(isImageFile('data.json')).toBe(false)
+  })
+})
+
+describe('readExtractFileInput', () => {
+  it('keeps image files as file input when OCR fallback is not selected', async () => {
+    const dir = `/tmp/test-read-image-file-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'receipt.png')
+    fs.writeFileSync(filePath, 'png')
+
+    const input = await readExtractFileInput(filePath)
+
+    expect(input).toEqual({ text: '', filePath })
+    expect(imageOcrMock.recognizeImageText).not.toHaveBeenCalled()
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('returns OCR text instead of file input when image OCR fallback is selected', async () => {
+    const dir = `/tmp/test-read-image-ocr-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'receipt.png')
+    fs.writeFileSync(filePath, 'png')
+
+    const aiConfig = {
+      provider: {
+        baseURL: 'http://localhost:11434/v1',
+        apiKey: 'test-key',
+        models: [{ name: 'text-model', capabilities: { vision: false, structuredOutput: true } }],
+      },
+      prompt: {
+        systemTemplate: '{schema}',
+        userTemplate: '{text}',
+      },
+      extraction: {
+        outputDir: '.aiex/extracted',
+      },
+      image: {
+        ocrFallback: 'local' as const,
+        ocrLanguages: 'en-US',
+      },
+    }
+
+    imageOcrMock.shouldUseImageOcrFallback.mockReturnValue(true)
+    imageOcrMock.recognizeImageText.mockResolvedValue({
+      text: 'total 12.50',
+      confidence: 0.91,
+    })
+
+    const input = await readExtractFileInput(filePath, aiConfig)
+
+    expect(input).toEqual({ text: 'total 12.50' })
+    expect(imageOcrMock.shouldUseImageOcrFallback).toHaveBeenCalledWith(aiConfig, undefined)
+    expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath, aiConfig.image)
+
+    fs.rmSync(dir, { recursive: true })
   })
 })

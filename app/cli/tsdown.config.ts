@@ -15,8 +15,9 @@ export default defineConfig({
   },
   dts: true,
   exports: true,
+  external: ['@napi-rs/system-ocr'],
   publint: true,
-  copy: ['schemas'],
+  copy: ['schemas', 'assets'],
   plugins: [
     ApiSnapshot({
       // TODO: remove this when the library is stable to guard against breaking changes

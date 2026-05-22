@@ -24,6 +24,14 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
+export type ImageOcrFallbackMode = 'auto' | 'off' | 'local'
+
+export interface ImageOcrConfig {
+  ocrFallback?: ImageOcrFallbackMode
+  ocrLanguages?: string
+  ocrMinConfidence?: number
+}
+
 export type PdfConverterKind = 'unpdf' | 'mineru' | 'markitdown' | 'external'
 
 export interface ExternalPdfConverterConfig {
@@ -64,6 +72,7 @@ export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
+  image?: ImageOcrConfig
   pdf?: PdfConfig
   langfuse?: LangfuseConfig
   notion?: NotionConfig
@@ -114,6 +123,12 @@ export const DEFAULT_EXTRACTION_CONFIG: ExtractionConfig = {
   outputDir: '.aiex/extracted',
 }
 
+export const DEFAULT_IMAGE_OCR_CONFIG: ImageOcrConfig = {
+  ocrFallback: 'auto',
+  ocrLanguages: 'en-US, zh-Hans',
+  ocrMinConfidence: 0,
+}
+
 export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
   command: 'mineru',
   args: ['-p', '{input}', '-o', '{outputDir}'],
@@ -141,5 +156,6 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   provider: DEFAULT_PROVIDER_CONFIG,
   prompt: DEFAULT_PROMPT_CONFIG,
   extraction: DEFAULT_EXTRACTION_CONFIG,
+  image: DEFAULT_IMAGE_OCR_CONFIG,
   pdf: DEFAULT_PDF_CONFIG,
 }
