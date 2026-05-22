@@ -144,7 +144,9 @@ Dumps all extracted data for a given schema (or table) from the SQLite database 
 
 ### Shell Completions
 
-Enable tab completion for commands and options:
+Each release ships pre-generated completion files in `dist/completions/`. You can use either the dynamic method or install them permanently.
+
+**Dynamic (session only):**
 
 ```bash
 # bash
@@ -157,9 +159,25 @@ source <(aiex completion zsh)
 aiex completion fish | source
 ```
 
-To make it permanent, add the `source` line to your shell config file (`~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`).
+**Permanent install (recommended):**
 
-> Completions are dynamically generated from the command definitions — no manual updates needed when commands or options change.
+```bash
+# bash — write to system completions directory
+aiex completion bash > /etc/bash_completion.d/aiex
+# or for user-level (no sudo):
+mkdir -p ~/.local/share/bash-completion/completions
+aiex completion bash > ~/.local/share/bash-completion/completions/aiex
+
+# zsh — write to a directory in $fpath
+aiex completion zsh > "${fpath[1]}/_aiex"
+# or use the pre-built file from the package:
+# $(npm root -g)/aiex-cli/dist/completions/aiex.zsh
+
+# fish — write to fish completions directory
+aiex completion fish > ~/.config/fish/completions/aiex.fish
+```
+
+> Pre-built completion files are also available in the installed package at `node_modules/aiex-cli/dist/completions/`, so Homebrew formulae, oh-my-zsh plugins, and other package managers can reference them directly without running `aiex completion`.
 
 <br>
 

@@ -51,7 +51,7 @@
     "coverage": "vitest --coverage",
     "typecheck": "tsc",
     "lint": "eslint .",
-    "prepack": "cp ../../README.md .",
+    "prepack": "cp ../../README.md . && node scripts/generate-completions.mjs",
     "postpack": "rm -f README.md",
     "prepublishOnly": "pnpm run build"
   },
