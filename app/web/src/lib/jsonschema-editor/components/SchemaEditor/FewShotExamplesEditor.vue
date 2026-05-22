@@ -153,7 +153,7 @@ function generateTemplate(idx: number) {
         type="button"
         size="small"
         severity="secondary"
-        class="flex items-center gap-1.5"
+        class="flex items-center gap-1.5 whitespace-nowrap shrink-0"
         @click="addExample"
       >
         <Plus :size="14" />
@@ -211,31 +211,31 @@ function generateTemplate(idx: number) {
           </Button>
         </div>
 
-        <!-- Content Split Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Left: Input Text -->
+        <!-- Content: Stacked layout (Input → Output) -->
+        <div class="flex flex-col gap-4">
+          <!-- Input Text -->
           <div class="flex flex-col gap-1.5">
             <label class="text-xs font-medium text-foreground/80">Input Text Example</label>
             <Textarea
               :model-value="item.text"
               @update:model-value="handleTextChange(idx, $event)"
               placeholder="Paste raw unstructured text example here..."
-              rows="6"
+              rows="5"
               class="w-full text-xs font-sans p-3 bg-secondary/30 border border-border/60 rounded-md focus:border-primary/60 focus:ring-1 focus:ring-primary/60! resize-y jscb"
               :disabled="readOnly"
             />
           </div>
 
-          <!-- Right: Output JSON -->
+          <!-- Output JSON -->
           <div class="flex flex-col gap-1.5">
-            <div class="flex items-center justify-between">
-              <label class="text-xs font-medium text-foreground/80">Expected JSON Output</label>
+            <div class="flex items-center justify-between gap-3">
+              <label class="text-xs font-medium text-foreground/80 shrink-0">Expected JSON Output</label>
 
               <div class="flex items-center gap-2">
                 <!-- Validation Badge -->
                 <span
                   v-if="item.outputJsonStr.trim()"
-                  class="text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 font-medium" :class="[
+                  class="text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 font-medium shrink-0" :class="[
                     item.isValidJson
                       ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                       : 'bg-red-500/10 text-red-400 border border-red-500/20',
@@ -251,7 +251,7 @@ function generateTemplate(idx: number) {
                   severity="secondary"
                   text
                   size="small"
-                  class="text-[10px] p-0 px-2 h-6 border border-border/80 hover:bg-secondary/80 rounded-md!"
+                  class="text-[10px] p-0 px-2 h-6 border border-border/80 hover:bg-secondary/80 rounded-md! shrink-0"
                   @click="generateTemplate(idx)"
                   title="Generate JSON layout based on schema"
                 >
@@ -265,7 +265,7 @@ function generateTemplate(idx: number) {
               :model-value="item.outputJsonStr"
               @update:model-value="handleJsonChange(idx, $event)"
               placeholder="{ ... }"
-              rows="6"
+              rows="5"
               class="w-full text-xs font-mono p-3 bg-secondary/30 border border-border/60 rounded-md focus:border-primary/60 focus:ring-1 focus:ring-primary/60! resize-y jscb"
               :disabled="readOnly"
             />
