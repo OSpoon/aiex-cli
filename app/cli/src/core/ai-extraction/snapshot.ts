@@ -6,6 +6,36 @@ import { readAIConfig } from './config'
 import { generatePromptSnapshot } from './prompt-generator'
 import { DEFAULT_PROMPT_CONFIG } from './types'
 
+export interface PromptSnapshot {
+  system: string
+  user: string
+}
+
+const SYSTEM_PROMPT_REGEX = /## System Prompt\n([\s\S]*?)(?=## User Prompt|$)/
+const USER_PROMPT_REGEX = /## User Prompt Template\n([\s\S]*)$/
+
+export async function loadPromptSnapshot(aiexDir: string, tableName: string): Promise<PromptSnapshot | null> {
+  const snapshotPath = path.join(aiexDir, 'extracted', `${tableName}.prompt.md`)
+
+  try {
+    const content = await fs.readFile(snapshotPath, 'utf-8')
+
+    const systemMatch = content.match(SYSTEM_PROMPT_REGEX)
+    const userMatch = content.match(USER_PROMPT_REGEX)
+
+    if (systemMatch && userMatch) {
+      return {
+        system: systemMatch[1].trim(),
+        user: userMatch[1].trim(),
+      }
+    }
+  }
+  catch {
+  }
+
+  return null
+}
+
 export async function savePromptSnapshot(
   schema: JsonSchemaDefinition,
   aiexDir: string,
