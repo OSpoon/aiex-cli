@@ -151,6 +151,12 @@ catalogs:
     hono:
       specifier: ^4.0.0
       version: 4.12.18
+    i18next:
+      specifier: ^26.2.0
+      version: 26.2.0
+    i18next-fs-backend:
+      specifier: ^2.6.6
+      version: 2.6.6
     json-source-map:
       specifier: ^0.6.1
       version: 0.6.1
@@ -341,6 +347,12 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.12.18
+      i18next:
+        specifier: 'catalog:'
+        version: 26.2.0(typescript@6.0.2)
+      i18next-fs-backend:
+        specifier: 'catalog:'
+        version: 2.6.6
       jsonfile:
         specifier: 'catalog:'
         version: 6.2.1
@@ -3332,6 +3344,17 @@ packages:
   human-signals@8.0.1:
     resolution: {integrity: sha512-eKCa6bwnJhvxj14kZk5NCPc6Hb6BdsU9DZcOnmQKSnO1VKrfV0zCvtttPZUsBvjmNDn8rpcJfpwSYnHBjc95MQ==}
     engines: {node: '>=18.18.0'}
+
+  i18next-fs-backend@2.6.6:
+    resolution: {integrity: sha512-mYGu6Nt8RIp3X/U8Y+Gej1wo5xmYWmGKLqBGMCC2OCAou5rW5epeHgHmVcw20mJs9Z9+DAPHIxQPNCgFyPRMeg==}
+
+  i18next@26.2.0:
+    resolution: {integrity: sha512-zwBHldHdTmwN7r6UNc7lC6GWNN+YYg3DrRSeHR5PRRBf5QnJZcYHrQc0uaU26qZeYxR7iFZD+Y315dPnKP47wA==}
+    peerDependencies:
+      typescript: ^5 || ^6
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
@@ -7365,6 +7388,12 @@ snapshots:
       - supports-color
 
   human-signals@8.0.1: {}
+
+  i18next-fs-backend@2.6.6: {}
+
+  i18next@26.2.0(typescript@6.0.2):
+    optionalDependencies:
+      typescript: 6.0.2
 
   iconv-lite@0.6.3:
     dependencies:

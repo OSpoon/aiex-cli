@@ -34,7 +34,8 @@
     "simple-git-hooks": "catalog:cli"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm exec lint-staged"
+    "pre-commit": "pnpm exec lint-staged",
+    "pre-push": "pnpm install --frozen-lockfile"
   },
   "lint-staged": {
     "app/cli/**/*": "node scripts/lint-staged-eslint.mjs app/cli",
