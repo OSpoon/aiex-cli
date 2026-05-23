@@ -52,7 +52,7 @@ export async function readExtractFileInput(
   if (FILE_PART_EXTENSIONS.has(ext)) {
     if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
       const result = await recognizeImageText(filePath, aiConfig?.image)
-      consola.info(t('extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
+      consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
       return { text: result.text }
     }
     return { text: '', filePath }
@@ -62,22 +62,22 @@ export async function readExtractFileInput(
     const converter = createPdfConverter(aiConfig?.pdf)
     const result = await converter.convert(buffer, filePath)
     if (result.metadata?.fallback === 'true') {
-      consola.info(t('extract.file.pdfFallback', { count: result.pageCount }))
+      consola.info(t('command.extract.file.pdfFallback', { count: result.pageCount }))
     }
     else {
-      consola.info(t('extract.file.pdfConverted', { name: converter.name, count: result.pageCount }))
+      consola.info(t('command.extract.file.pdfConverted', { name: converter.name, count: result.pageCount }))
     }
     // Save markdown alongside source PDF for reference
     const mdPath = filePath.replace(PDF_EXT_RE, '.md')
     try {
       await fsp.writeFile(mdPath, result.text)
-      consola.info(t('extract.file.markdownSaved', { path: mdPath }))
+      consola.info(t('command.extract.file.markdownSaved', { path: mdPath }))
     }
     catch {
       // Fallback: save to temp when source dir is not writable
       const fallbackMd = path.join(os.tmpdir(), `${path.basename(filePath, '.pdf')}.md`)
       await fsp.writeFile(fallbackMd, result.text)
-      consola.info(t('extract.file.markdownSaved', { path: fallbackMd }))
+      consola.info(t('command.extract.file.markdownSaved', { path: fallbackMd }))
     }
     return { text: result.text }
   }

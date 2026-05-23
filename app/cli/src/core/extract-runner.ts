@@ -144,7 +144,7 @@ export async function extractSingle(
 
   const s = spinner()
   if (!options?.quiet) {
-    s.start(filePath ? t('extract.file.extractedFrom', { file: path.basename(filePath) }) : t('extract.file.extracting'))
+    s.start(filePath ? t('command.extract.file.extractedFrom', { file: path.basename(filePath) }) : t('command.extract.file.extracting'))
   }
 
   const result = await extractStructuredData({
@@ -156,30 +156,30 @@ export async function extractSingle(
     modelOverride,
     onRetry(info: RetryInfo) {
       if (!options?.quiet) {
-        s.message(t('extract.file.extractRetry', { code: info.statusCode, delay: info.delayMs / 1000, attempt: info.attempt, max: info.maxRetries }))
+        s.message(t('command.extract.file.extractRetry', { code: info.statusCode, delay: info.delayMs / 1000, attempt: info.attempt, max: info.maxRetries }))
       }
     },
   })
 
   if (!result.success) {
     if (!options?.quiet) {
-      s.stop(t('extract.file.extractFail'))
+      s.stop(t('command.extract.file.extractFail'))
       consola.error(result.error || t('common.unknownError'))
     }
     return { success: false, error: result.error || t('common.unknownError') }
   }
 
   if (!options?.quiet) {
-    s.stop(t('extract.file.extractComplete'))
+    s.stop(t('command.extract.file.extractComplete'))
   }
 
   if (result.outputPath && !options?.quiet) {
-    consola.success(t('extract.file.resultSaved', { path: pc.cyan(result.outputPath) }))
+    consola.success(t('command.extract.file.resultSaved', { path: pc.cyan(result.outputPath) }))
   }
 
   if (result.tokensUsed && !options?.quiet) {
     consola.info(
-      pc.gray(t('extract.file.tokenUsage', {
+      pc.gray(t('command.extract.file.tokenUsage', {
         prompt: result.tokensUsed.prompt,
         completion: result.tokensUsed.completion,
         total: result.tokensUsed.total,
@@ -190,12 +190,12 @@ export async function extractSingle(
   if (result.data && options?.insert !== false) {
     const s2 = spinner()
     if (!options?.quiet)
-      s2.start(t('extract.file.insertingDb'))
+      s2.start(t('command.extract.file.insertingDb'))
 
     const dbError = await ensureDatabaseReady(config.databasePath, schemaLoad.schema)
     if (dbError) {
       if (!options?.quiet)
-        s2.stop(t('extract.file.dbNotReady'))
+        s2.stop(t('command.extract.file.dbNotReady'))
       consola.error(dbError)
       return { success: false, error: dbError }
     }
@@ -206,7 +206,7 @@ export async function extractSingle(
         const insertResult = insertExtractedData(db, schemaLoad.schema, result.data as Record<string, unknown>)
         if (insertResult.success) {
           if (!options?.quiet) {
-            s2.stop(t('extract.file.insertedTables', { count: insertResult.tablesInserted.length }))
+            s2.stop(t('command.extract.file.insertedTables', { count: insertResult.tablesInserted.length }))
           }
           return {
             success: true,
@@ -218,7 +218,7 @@ export async function extractSingle(
         }
         else {
           if (!options?.quiet)
-            s2.stop(t('extract.file.dbInsertFail'))
+            s2.stop(t('command.extract.file.dbInsertFail'))
           consola.error(insertResult.error || t('common.unknownError'))
           return { success: false, error: insertResult.error }
         }
@@ -229,7 +229,7 @@ export async function extractSingle(
     }
     catch (e) {
       if (!options?.quiet)
-        s2.stop(t('extract.file.dbInsertFail'))
+        s2.stop(t('command.extract.file.dbInsertFail'))
       consola.error(e instanceof Error ? e.message : String(e))
       return { success: false, error: String(e) }
     }
@@ -303,7 +303,7 @@ export async function runAuditedExtraction(
     }
     catch (e) {
       if (!quiet) {
-        consola.warn(t('extract.file.hashWarning', {
+        consola.warn(t('command.extract.file.hashWarning', {
           file: path.basename(source.filePath),
           error: e instanceof Error ? e.message : String(e),
         }))
@@ -314,7 +314,7 @@ export async function runAuditedExtraction(
       const existing = await findSucceededAuditByHash(aiexDir, schemaName, fileHash)
       if (existing) {
         if (!quiet) {
-          consola.info(t('extract.file.alreadyProcessed', {
+          consola.info(t('command.extract.file.alreadyProcessed', {
             file: pc.cyan(path.basename(source.filePath)),
             hash: fileHash.slice(0, 8),
           }))
@@ -373,7 +373,7 @@ export async function runAuditedExtraction(
         try {
           notionPages = await syncResultToNotion(aiConfig, schemaName, r.data)
           if (!quiet) {
-            consola.success(t('extract.file.notionSynced', { count: notionPages.length }))
+            consola.success(t('command.extract.file.notionSynced', { count: notionPages.length }))
           }
         }
         catch (error) {
@@ -386,7 +386,7 @@ export async function runAuditedExtraction(
             error: error instanceof Error ? error.message : String(error),
           })
           if (!quiet) {
-            consola.error(t('extract.file.notionSyncFail', { error: error instanceof Error ? error.message : String(error) }))
+            consola.error(t('command.extract.file.notionSyncFail', { error: error instanceof Error ? error.message : String(error) }))
           }
           await triggerWebhook(
             aiConfig,
@@ -446,7 +446,7 @@ export async function runAuditedExtraction(
         error: r.error || 'Extraction failed',
       })
       if (!quiet) {
-        consola.error(t('extract.file.extractionFailed', { error: r.error }))
+        consola.error(t('command.extract.file.extractionFailed', { error: r.error }))
       }
       await triggerWebhook(
         aiConfig,
@@ -474,7 +474,7 @@ export async function runAuditedExtraction(
     })
     if (!quiet) {
       const name = source.type === 'file' ? path.basename(source.filePath) : 'text input'
-      consola.error(t('extract.file.errorProcessing', { name, error: e instanceof Error ? e.message : String(e) }))
+      consola.error(t('command.extract.file.errorProcessing', { name, error: e instanceof Error ? e.message : String(e) }))
     }
     await triggerWebhook(
       aiConfig,

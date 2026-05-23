@@ -51,12 +51,12 @@ export async function triggerWebhook(
       tokensUsed,
     })
     if (!quiet) {
-      consola.success(t('extract.file.webhookSynced'))
+      consola.success(t('command.extract.file.webhookSynced'))
     }
   }
   catch (err) {
     if (!quiet) {
-      consola.error(t('extract.file.webhookSyncFail', { error: err instanceof Error ? err.message : String(err) }))
+      consola.error(t('command.extract.file.webhookSyncFail', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 }

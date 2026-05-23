@@ -70,7 +70,7 @@ export async function processOneFile(
 
   if (result.success) {
     if (!result.skipped) {
-      consola.success(t('extract.file.processSuccess', { file: path.basename(filePath) }))
+      consola.success(t('command.extract.file.processSuccess', { file: path.basename(filePath) }))
     }
     return true
   }
@@ -88,27 +88,27 @@ export async function runBatchExtraction(
   modelOverride: AIModelConfig | undefined,
   options?: { insert?: boolean, force?: boolean },
 ): Promise<BatchExtractionResult> {
-  consola.info(t('extract.batch.scanning', { dir: pc.cyan(dir) }))
+  consola.info(t('command.extract.batch.scanning', { dir: pc.cyan(dir) }))
 
   let files: string[]
   try {
     files = listSupportedFiles(dir, globPattern)
   }
   catch {
-    return { ok: false, successCount: 0, failCount: 0, error: t('extract.batch.errors.cannotReadDir', { dir }) }
+    return { ok: false, successCount: 0, failCount: 0, error: t('command.extract.batch.errors.cannotReadDir', { dir }) }
   }
   if (files.length === 0) {
-    return { ok: false, successCount: 0, failCount: 0, error: t('extract.batch.errors.noSupportedFiles', { dir }) }
+    return { ok: false, successCount: 0, failCount: 0, error: t('command.extract.batch.errors.noSupportedFiles', { dir }) }
   }
 
-  consola.info(t('extract.batch.found', { count: files.length }))
+  consola.info(t('command.extract.batch.found', { count: files.length }))
 
   let successCount = 0
   let failCount = 0
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    consola.info(`\n${t('extract.batch.processing', { current: i + 1, total: files.length, file: pc.cyan(path.basename(file)) })}`)
+    consola.info(`\n${t('command.extract.batch.processing', { current: i + 1, total: files.length, file: pc.cyan(path.basename(file)) })}`)
 
     const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, { insert: options?.insert, force: options?.force })
     if (ok)
@@ -117,6 +117,6 @@ export async function runBatchExtraction(
       failCount++
   }
 
-  consola.info(`\n${t('extract.batch.complete', { success: pc.green(successCount), fail: pc.red(failCount), total: files.length })}`)
+  consola.info(`\n${t('command.extract.batch.complete', { success: pc.green(successCount), fail: pc.red(failCount), total: files.length })}`)
   return { ok: true, successCount, failCount }
 }
