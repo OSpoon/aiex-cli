@@ -11,6 +11,7 @@ import {
   getErrorMessage,
   JsonSchemaDefinitionSchema,
 } from '@/core/schema-sqlite'
+import { t } from '@/locales'
 
 const schemaFileNameSchema = z
   .string()
@@ -49,7 +50,7 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   })
 
   // Get a specific schema
-  app.get('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse('Invalid schema file name')), async (c) => {
+  app.get('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse(t('server.invalidTableName'))), async (c) => {
     const { name } = c.req.valid('param')
     const filePath = path.join(schemaDir, name)
 
@@ -57,12 +58,12 @@ export function schemaRoutes(config: MigrationConfig): Hono {
       return c.json(await readJsonFile(filePath))
     }
     catch {
-      return c.json({ error: 'Schema not found' }, 404)
+      return c.json({ error: t('server.schemaNotFound') }, 404)
     }
   })
 
   // Save a schema
-  app.post('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse('Invalid schema file name')), async (c) => {
+  app.post('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse(t('server.invalidTableName'))), async (c) => {
     const { name } = c.req.valid('param')
     const filePath = path.join(schemaDir, name)
 
@@ -84,12 +85,12 @@ export function schemaRoutes(config: MigrationConfig): Hono {
       return c.json({ success: true })
     }
     catch {
-      return c.json({ error: 'Failed to save schema' }, 500)
+      return c.json({ error: t('server.saveSchemaFailed') }, 500)
     }
   })
 
   // Get prompt snapshot for a schema
-  app.get('/prompt-snapshot/:name', zValidator('param', tableNameParamSchema, invalidParamResponse('Invalid table name')), async (c) => {
+  app.get('/prompt-snapshot/:name', zValidator('param', tableNameParamSchema, invalidParamResponse(t('server.invalidTableName'))), async (c) => {
     const { name } = c.req.valid('param')
     const aiexDir = path.dirname(schemaDir)
     const snapshotPath = path.join(aiexDir, 'extracted', `${name}.prompt.md`)
@@ -99,12 +100,12 @@ export function schemaRoutes(config: MigrationConfig): Hono {
       return c.json({ success: true, content })
     }
     catch {
-      return c.json({ success: false, error: 'Prompt snapshot not found. Save the schema first.' }, 404)
+      return c.json({ success: false, error: t('server.promptSnapshotNotAvailable') }, 404)
     }
   })
 
   // Delete a schema
-  app.delete('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse('Invalid schema file name')), async (c) => {
+  app.delete('/schema/:name', zValidator('param', schemaFileParamSchema, invalidParamResponse(t('server.invalidTableName'))), async (c) => {
     const { name } = c.req.valid('param')
     const filePath = path.join(schemaDir, name)
 
@@ -127,7 +128,7 @@ export function schemaRoutes(config: MigrationConfig): Hono {
       return c.json({ success: true })
     }
     catch {
-      return c.json({ error: 'Failed to delete schema' }, 500)
+      return c.json({ error: t('server.deleteSchemaFailed') }, 500)
     }
   })
 
@@ -138,7 +139,7 @@ export function schemaRoutes(config: MigrationConfig): Hono {
       const result = await runSchemaSync(config)
       if (!result.success) {
         const status = result.schemaCount === 0 ? 400 : 500
-        return c.json({ success: false, error: result.error || 'Migration failed' }, status)
+        return c.json({ success: false, error: result.error || t('server.migrationFailed') }, status)
       }
 
       return c.json({

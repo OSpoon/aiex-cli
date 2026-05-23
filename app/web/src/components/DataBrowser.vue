@@ -2,6 +2,7 @@
 import { useDebounceFn } from "@vueuse/core"
 import Button from "primevue/button"
 import { computed, ref } from "vue"
+import { useI18n } from "vue-i18n"
 import { toast } from "vue-sonner"
 import { VxeColumn, VxeTable } from "vxe-table"
 import * as XLSX from "xlsx"
@@ -53,6 +54,8 @@ const emit = defineEmits<{
   notionSynced: []
 }>()
 
+const { t } = useI18n()
+
 // ── search ──
 
 const searchInput = ref(props.searchQuery)
@@ -90,14 +93,14 @@ function rowAction(rowIndex: number): RowAction | undefined {
 }
 
 function notionStatusLabel(status: RowAction["notionStatus"]): string {
-  if (status === "synced") return "Synced"
-  if (status === "failed") return "Failed"
-  return "Pending"
+  if (status === "synced") return t("app.notionSynced")
+  if (status === "failed") return t("app.notionFailed")
+  return t("app.notionPending")
 }
 
 function notionActionLabel(status: RowAction["notionStatus"]): string {
-  if (status === "failed") return "Retry"
-  return "Sync"
+  if (status === "failed") return t("app.notionRetry")
+  return t("app.notionSync")
 }
 
 function notionActionTooltip(status: RowAction["notionStatus"]): string | null {
@@ -112,10 +115,10 @@ async function syncExtractionToNotion(action: RowAction) {
   syncingExtraction.value = action.extractionName
   try {
     const result = await retryNotionSync(action.extractionName)
-    toast.success(`Synced to Notion (${result.notionPages?.length ?? 0} page)`)
+    toast.success(t("app.notionSyncedToNotionDetail", { count: result.notionPages?.length ?? 0 }))
     emit("notionSynced")
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : "Notion sync failed")
+    toast.error(error instanceof Error ? error.message : t("app.notionSyncFailed"))
     emit("notionSynced")
   }
   syncingExtraction.value = null
@@ -168,7 +171,7 @@ async function fetchAllRows() {
     const data = await getTableData(props.tableName, { all: true })
     return data
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : "Failed to load full table data")
+    toast.error(error instanceof Error ? error.message : t("app.failedToLoadFullTableData"))
     return null
   } finally {
     exporting.value = false
@@ -273,14 +276,14 @@ async function exportJSON() {
         <div class="flex-1 flex flex-col items-center justify-center text-muted-foreground">
           <i class="pi pi-database text-4xl mb-3 opacity-50" />
           <p class="text-sm">
-            Select a table from the sidebar
+            {{ $t("app.selectTable") }}
           </p>
         </div>
       </template>
 
       <template v-else-if="props.loading">
         <div class="flex-1 flex items-center justify-center text-muted-foreground">
-          Loading...
+          {{ $t("app.loading") }}
         </div>
       </template>
 
@@ -291,7 +294,7 @@ async function exportJSON() {
               {{ props.tableName }}
             </h2>
             <span class="text-xs text-muted-foreground shrink-0">
-              {{ props.tableData.total }} row(s)
+              {{ props.tableData.total }} {{ $t("app.rowCount") }}
             </span>
           </div>
 
@@ -301,7 +304,7 @@ async function exportJSON() {
               <input
                 v-model="searchInput"
                 type="text"
-                placeholder="Search..."
+                :placeholder="$t('app.search')"
                 class="h-7 w-44 rounded-md border border-border bg-background pl-6 pr-7 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
                 @input="onSearchInput"
               >
@@ -315,7 +318,7 @@ async function exportJSON() {
             </div>
             <Button
               icon="pi pi-file-excel"
-              label="Excel"
+              :label="$t('app.exportExcel')"
               severity="secondary"
               size="small"
               outlined
@@ -324,7 +327,7 @@ async function exportJSON() {
             />
             <Button
               icon="pi pi-file-export"
-              label="CSV"
+              :label="$t('app.exportCSV')"
               severity="secondary"
               size="small"
               outlined
@@ -333,7 +336,7 @@ async function exportJSON() {
             />
             <Button
               icon="pi pi-code"
-              label="JSON"
+              :label="$t('app.exportJSON')"
               severity="secondary"
               size="small"
               outlined
@@ -356,7 +359,7 @@ async function exportJSON() {
             @sort-change="sortChange"
           >
             <VxeColumn type="seq" title="#" width="60" fixed="left" />
-            <VxeColumn title="Actions" width="180" align="center" fixed="right">
+            <VxeColumn :title="$t('app.actions')" width="180" align="center" fixed="right">
               <template #default="{ rowIndex }: any">
                 <div v-if="rowAction(rowIndex)" class="flex items-center justify-center">
                   <span
@@ -376,8 +379,8 @@ async function exportJSON() {
                     severity="secondary"
                     size="small"
                     text
-                    v-tooltip.top="'View JSON'"
-                    aria-label="View extraction JSON"
+                    v-tooltip.top="$t('app.viewJson')"
+                    :aria-label="$t('app.viewExtractionJson')"
                     @click="emit('selectExtraction', rowAction(rowIndex)!.extractionName)"
                   />
                   <Button
@@ -412,7 +415,7 @@ async function exportJSON() {
 
         <div class="flex items-center justify-between mt-3 shrink-0 gap-2">
           <div class="flex items-center gap-1">
-            <span class="text-xs text-muted-foreground shrink-0">Rows per page:</span>
+            <span class="text-xs text-muted-foreground shrink-0">{{ $t("app.rowsPerPage") }}</span>
             <select
               class="h-7 rounded border border-border bg-background px-1 text-xs text-foreground outline-none"
               :value="props.tableData.pageSize"
@@ -426,7 +429,7 @@ async function exportJSON() {
 
           <div class="flex items-center gap-1">
             <span class="text-xs text-muted-foreground shrink-0 mr-1">
-              {{ (props.tableData.page - 1) * props.tableData.pageSize + 1 }}–{{ Math.min(props.tableData.page * props.tableData.pageSize, props.tableData.total) }} of {{ props.tableData.total }}
+              {{ (props.tableData.page - 1) * props.tableData.pageSize + 1 }}–{{ Math.min(props.tableData.page * props.tableData.pageSize, props.tableData.total) }} {{ $t("app.of") }} {{ props.tableData.total }}
             </span>
             <button
               class="flex items-center justify-center h-7 w-7 rounded text-xs text-foreground disabled:opacity-30 hover:bg-secondary disabled:hover:bg-transparent transition-colors"

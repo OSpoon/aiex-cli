@@ -1,4 +1,5 @@
 import type { AIModelConfig } from './types'
+import { t } from '@/locales'
 
 export interface SelectModelInput {
   models: AIModelConfig[]
@@ -29,7 +30,7 @@ export function selectModel(input: SelectModelInput): SelectedModel {
   const { models, isImage, fileName, inputTokens, outputTokens } = input
 
   if (models.length === 0) {
-    throw new Error('No AI models configured. Please add at least one model in AI Settings.')
+    throw new Error(t('errors.ai.noModels'))
   }
 
   let candidates = filterCompatible(models, inputTokens, outputTokens)
@@ -42,11 +43,9 @@ export function selectModel(input: SelectModelInput): SelectedModel {
     if (!visionModel) {
       const hint = fileName ? ` (${fileName})` : ''
       const msg = inputTokens
-        ? `No vision-capable model with sufficient context window (≥${inputTokens} tokens) found${hint}.`
-        : `Image input requires a model with vision capability${hint}.`
-      throw new Error(
-        `${msg} Please add a suitable vision-capable model in AI Settings.`,
-      )
+        ? t('errors.ai.noVisionModelContext', { tokens: inputTokens, hint })
+        : t('errors.ai.noVisionModel', { hint })
+      throw new Error(msg + t('errors.ai.addSuitableModel'))
     }
     return { name: visionModel.name, capabilities: visionModel.capabilities }
   }

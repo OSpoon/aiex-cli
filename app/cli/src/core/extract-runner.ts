@@ -30,6 +30,7 @@ import {
   JsonSchemaDefinitionSchema,
   parseJsonSchema,
 } from '@/core/schema-sqlite'
+import { t } from '@/locales'
 import { getFileHash } from '@/utils/hash'
 
 const FILE_PART_EXTENSIONS = new Set([
@@ -85,7 +86,7 @@ async function syncResultToNotion(
   data: unknown,
 ): Promise<Array<{ databaseId: string, pageId: string }>> {
   if (!data || typeof data !== 'object' || Array.isArray(data))
-    throw new Error('Extraction result is not an object and cannot be written to Notion.')
+    throw new Error(t('errors.ai.extractionNotObject'))
 
   const page = await writeNotionPage(aiConfig.notion, schemaName, data as Record<string, unknown>)
   return [{ databaseId: page.databaseId, pageId: page.pageId }]
@@ -107,7 +108,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
     await fsp.access(dbPath)
   }
   catch {
-    return `Database not found at ${pc.cyan('.aiex/database.db')}. Run ${pc.cyan('aiex schema')} first to create the database.`
+    return t('errors.db.notFound', { path: pc.cyan('.aiex/database.db'), cmd: pc.cyan('aiex schema') })
   }
 
   try {
@@ -119,7 +120,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
           `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
         ).get(table.name)
         if (!row) {
-          return `Table "${table.name}" not found in database. Run ${pc.cyan('aiex schema')} first to create tables.`
+          return t('errors.db.tableNotFound', { name: table.name, cmd: pc.cyan('aiex schema') })
         }
       }
     }
@@ -128,7 +129,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
     }
   }
   catch (e) {
-    return `Cannot verify database: ${e instanceof Error ? e.message : String(e)}`
+    return t('errors.db.cannotVerify', { error: e instanceof Error ? e.message : String(e) })
   }
 
   return null
@@ -136,7 +137,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
 
 export function listSupportedFiles(dir: string, pattern?: string): string[] {
   if (!fs.statSync(dir).isDirectory())
-    throw new Error(`Not a directory: ${dir}`)
+    throw new Error(t('errors.file.notADirectory', { dir }))
 
   return globSync(pattern ?? SUPPORTED_FILE_PATTERN, {
     cwd: dir,
@@ -159,14 +160,14 @@ export async function loadSchema(config: ReturnType<typeof createMigrationConfig
   }
   catch (e) {
     if (e instanceof ZodError) {
-      return { schema: null, error: `Schema validation failed: ${schemaName}.json\n${e.issues.map(i => `  - ${i.path.join('.')}: ${i.message}`).join('\n')}` }
+      return { schema: null, error: t('errors.schema.validationFailed', { name: `${schemaName}.json`, issues: e.issues.map(i => `  - ${i.path.join('.')}: ${i.message}`).join('\n') }) }
     }
     const nodeError = e as NodeJS.ErrnoException
     if (nodeError.code === 'ENOENT') {
-      return { schema: null, error: `Cannot read schema file: ${schemaName}.json` }
+      return { schema: null, error: t('errors.schema.cannotRead', { name: `${schemaName}.json` }) }
     }
     if (e instanceof SyntaxError) {
-      return { schema: null, error: `Invalid JSON in schema file: ${schemaName}.json` }
+      return { schema: null, error: t('errors.schema.invalidJson', { name: `${schemaName}.json` }) }
     }
     return { schema: null, error: String(e) }
   }
@@ -194,13 +195,13 @@ export function isImageFile(filePath: string): boolean {
 export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig, modelOverride?: AIModelConfig): Promise<ExtractFileInput> {
   const stat = fs.statSync(filePath)
   if (stat.size > MAX_UPLOAD_SIZE) {
-    throw new Error(`File size (${bytesToMB(stat.size).toFixed(1)}MB) exceeds ${MAX_UPLOAD_SIZE_TEXT} limit: ${filePath}`)
+    throw new Error(t('errors.file.sizeExceeded', { size: bytesToMB(stat.size).toFixed(1), limit: MAX_UPLOAD_SIZE_TEXT, file: filePath }))
   }
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   if (FILE_PART_EXTENSIONS.has(ext)) {
     if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
       const result = await recognizeImageText(filePath, aiConfig?.image)
-      consola.info(`Extracted image text via local OCR (confidence: ${(result.confidence * 100).toFixed(1)}%)`)
+      consola.info(t('extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
       return { text: result.text }
     }
     return { text: '', filePath }
@@ -210,22 +211,22 @@ export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig
     const converter = createPdfConverter(aiConfig?.pdf)
     const result = await converter.convert(buffer, filePath)
     if (result.metadata?.fallback === 'true') {
-      consola.info(`Fell back to unpdf — ${result.pageCount} page(s) extracted`)
+      consola.info(t('extract.file.pdfFallback', { count: result.pageCount }))
     }
     else {
-      consola.info(`Converted PDF via ${converter.name}, ${result.pageCount} page(s)`)
+      consola.info(t('extract.file.pdfConverted', { name: converter.name, count: result.pageCount }))
     }
     // Save markdown alongside source PDF for reference
     const mdPath = filePath.replace(PDF_EXT_RE, '.md')
     try {
       await fsp.writeFile(mdPath, result.text)
-      consola.info(`Markdown saved: ${mdPath}`)
+      consola.info(t('extract.file.markdownSaved', { path: mdPath }))
     }
     catch {
       // Fallback: save to temp when source dir is not writable
       const fallbackMd = path.join(os.tmpdir(), `${path.basename(filePath, '.pdf')}.md`)
       await fsp.writeFile(fallbackMd, result.text)
-      consola.info(`Markdown saved: ${fallbackMd}`)
+      consola.info(t('extract.file.markdownSaved', { path: fallbackMd }))
     }
     return { text: result.text }
   }
@@ -251,7 +252,7 @@ export async function extractSingle(
 
   const s = spinner()
   if (!options?.quiet) {
-    s.start(filePath ? `Extracting from ${path.basename(filePath)}...` : 'Extracting data...')
+    s.start(filePath ? t('extract.file.extractedFrom', { file: path.basename(filePath) }) : t('extract.file.extracting'))
   }
 
   const result = await extractStructuredData({
@@ -263,44 +264,46 @@ export async function extractSingle(
     modelOverride,
     onRetry(info: RetryInfo) {
       if (!options?.quiet) {
-        s.message(`API responded with ${info.statusCode}, retrying in ${info.delayMs / 1000}s (${info.attempt}/${info.maxRetries})...`)
+        s.message(t('extract.file.extractRetry', { code: info.statusCode, delay: info.delayMs / 1000, attempt: info.attempt, max: info.maxRetries }))
       }
     },
   })
 
   if (!result.success) {
     if (!options?.quiet) {
-      s.stop('Extraction failed')
-      consola.error(result.error || 'Unknown error')
+      s.stop(t('extract.file.extractFail'))
+      consola.error(result.error || t('common.unknownError'))
     }
-    return { success: false, error: result.error || 'Unknown error' }
+    return { success: false, error: result.error || t('common.unknownError') }
   }
 
   if (!options?.quiet) {
-    s.stop('Extraction complete')
+    s.stop(t('extract.file.extractComplete'))
   }
 
   if (result.outputPath && !options?.quiet) {
-    consola.success(`Result saved: ${pc.cyan(result.outputPath)}`)
+    consola.success(t('extract.file.resultSaved', { path: pc.cyan(result.outputPath) }))
   }
 
   if (result.tokensUsed && !options?.quiet) {
     consola.info(
-      pc.gray(
-        `Token usage: prompt=${result.tokensUsed.prompt}, completion=${result.tokensUsed.completion}, total=${result.tokensUsed.total}`,
-      ),
+      pc.gray(t('extract.file.tokenUsage', {
+        prompt: result.tokensUsed.prompt,
+        completion: result.tokensUsed.completion,
+        total: result.tokensUsed.total,
+      })),
     )
   }
 
   if (result.data && options?.insert !== false) {
     const s2 = spinner()
     if (!options?.quiet)
-      s2.start('Inserting into database...')
+      s2.start(t('extract.file.insertingDb'))
 
     const dbError = await ensureDatabaseReady(config.databasePath, schemaLoad.schema)
     if (dbError) {
       if (!options?.quiet)
-        s2.stop('Database not ready')
+        s2.stop(t('extract.file.dbNotReady'))
       consola.error(dbError)
       return { success: false, error: dbError }
     }
@@ -311,7 +314,7 @@ export async function extractSingle(
         const insertResult = insertExtractedData(db, schemaLoad.schema, result.data as Record<string, unknown>)
         if (insertResult.success) {
           if (!options?.quiet) {
-            s2.stop(`Inserted into ${insertResult.tablesInserted.length} table(s)`)
+            s2.stop(t('extract.file.insertedTables', { count: insertResult.tablesInserted.length }))
           }
           return {
             success: true,
@@ -323,8 +326,8 @@ export async function extractSingle(
         }
         else {
           if (!options?.quiet)
-            s2.stop('Database insert failed')
-          consola.error(insertResult.error || 'Unknown error')
+            s2.stop(t('extract.file.dbInsertFail'))
+          consola.error(insertResult.error || t('common.unknownError'))
           return { success: false, error: insertResult.error }
         }
       }
@@ -334,7 +337,7 @@ export async function extractSingle(
     }
     catch (e) {
       if (!options?.quiet)
-        s2.stop('Database insert failed')
+        s2.stop(t('extract.file.dbInsertFail'))
       consola.error(e instanceof Error ? e.message : String(e))
       return { success: false, error: String(e) }
     }
@@ -408,11 +411,10 @@ export async function runAuditedExtraction(
     }
     catch (e) {
       if (!quiet) {
-        consola.warn(
-          `Failed to calculate file hash for ${path.basename(source.filePath)}: ${
-            e instanceof Error ? e.message : String(e)
-          }`,
-        )
+        consola.warn(t('extract.file.hashWarning', {
+          file: path.basename(source.filePath),
+          error: e instanceof Error ? e.message : String(e),
+        }))
       }
     }
 
@@ -420,9 +422,10 @@ export async function runAuditedExtraction(
       const existing = await findSucceededAuditByHash(aiexDir, schemaName, fileHash)
       if (existing) {
         if (!quiet) {
-          consola.info(
-            `File ${pc.cyan(path.basename(source.filePath))} (hash: ${fileHash.slice(0, 8)}) has already been processed successfully. Skipping.`,
-          )
+          consola.info(t('extract.file.alreadyProcessed', {
+            file: pc.cyan(path.basename(source.filePath)),
+            hash: fileHash.slice(0, 8),
+          }))
         }
         return {
           success: true,
@@ -478,7 +481,7 @@ export async function runAuditedExtraction(
         try {
           notionPages = await syncResultToNotion(aiConfig, schemaName, r.data)
           if (!quiet) {
-            consola.success(`Synced to Notion: ${notionPages.length} page(s)`)
+            consola.success(t('extract.file.notionSynced', { count: notionPages.length }))
           }
         }
         catch (error) {
@@ -491,7 +494,7 @@ export async function runAuditedExtraction(
             error: error instanceof Error ? error.message : String(error),
           })
           if (!quiet) {
-            consola.error(`Notion sync failed: ${error instanceof Error ? error.message : String(error)}`)
+            consola.error(t('extract.file.notionSyncFail', { error: error instanceof Error ? error.message : String(error) }))
           }
           return {
             success: false,
@@ -528,7 +531,7 @@ export async function runAuditedExtraction(
         error: r.error || 'Extraction failed',
       })
       if (!quiet) {
-        consola.error(`Failed: ${r.error}`)
+        consola.error(t('extract.file.extractionFailed', { error: r.error }))
       }
       return {
         success: false,
@@ -545,7 +548,7 @@ export async function runAuditedExtraction(
     })
     if (!quiet) {
       const name = source.type === 'file' ? path.basename(source.filePath) : 'text input'
-      consola.error(`Error processing ${name}: ${e instanceof Error ? e.message : String(e)}`)
+      consola.error(t('extract.file.errorProcessing', { name, error: e instanceof Error ? e.message : String(e) }))
     }
     return {
       success: false,
@@ -579,7 +582,7 @@ export async function processOneFile(
 
   if (result.success) {
     if (!result.skipped) {
-      consola.success(`Processed: ${path.basename(filePath)}`)
+      consola.success(t('extract.file.processSuccess', { file: path.basename(filePath) }))
     }
     return true
   }
@@ -597,27 +600,27 @@ export async function runBatchExtraction(
   modelOverride: AIModelConfig | undefined,
   options?: { insert?: boolean, force?: boolean },
 ): Promise<BatchExtractionResult> {
-  consola.info(`Scanning ${pc.cyan(dir)} for supported files...`)
+  consola.info(t('extract.batch.scanning', { dir: pc.cyan(dir) }))
 
   let files: string[]
   try {
     files = listSupportedFiles(dir, globPattern)
   }
   catch {
-    return { ok: false, successCount: 0, failCount: 0, error: `Cannot read directory: ${dir}` }
+    return { ok: false, successCount: 0, failCount: 0, error: t('extract.batch.errors.cannotReadDir', { dir }) }
   }
   if (files.length === 0) {
-    return { ok: false, successCount: 0, failCount: 0, error: `No supported files found in ${dir}` }
+    return { ok: false, successCount: 0, failCount: 0, error: t('extract.batch.errors.noSupportedFiles', { dir }) }
   }
 
-  consola.info(`Found ${files.length} file(s) to process`)
+  consola.info(t('extract.batch.found', { count: files.length }))
 
   let successCount = 0
   let failCount = 0
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    consola.info(`\n[${i + 1}/${files.length}] Processing: ${pc.cyan(path.basename(file))}`)
+    consola.info(`\n${t('extract.batch.processing', { current: i + 1, total: files.length, file: pc.cyan(path.basename(file)) })}`)
 
     const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, { insert: options?.insert, force: options?.force })
     if (ok)
@@ -626,6 +629,6 @@ export async function runBatchExtraction(
       failCount++
   }
 
-  consola.info(`\nBatch complete: ${pc.green(`${successCount} succeeded`)}, ${pc.red(`${failCount} failed`)}, ${files.length} total`)
+  consola.info(`\n${t('extract.batch.complete', { success: pc.green(successCount), fail: pc.red(failCount), total: files.length })}`)
   return { ok: true, successCount, failCount }
 }

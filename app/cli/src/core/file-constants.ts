@@ -1,10 +1,12 @@
+import { t } from '@/locales'
+
 export const MAX_UPLOAD_SIZE = 30 * 1024 * 1024
 
 export const MAX_UPLOAD_SIZE_TEXT = '30MB'
 
 export const SUPPORTED_FILE_TYPES_TEXT = 'images, PDF, text, markdown, CSV, JSON, HTML, XML, YAML'
 
-export const MISSING_UPLOAD_FILE_TEXT = 'Uploaded file is no longer available. Re-run extraction with the original file.'
+export const MISSING_UPLOAD_FILE_TEXT = t('errors.file.missingUpload')
 
 export const SUPPORTED_MIME_TYPES = new Set([
   'image/png',
@@ -64,7 +66,7 @@ export function isAllowedMimeType(mimeType: string): boolean {
 }
 
 export function unsupportedFileTypeMessage(mimeType: string): string {
-  return `Unsupported file type "${mimeType}". Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`
+  return t('errors.file.unsupportedType', { type: mimeType, supported: SUPPORTED_FILE_TYPES_TEXT })
 }
 
 export function isMissingUploadFileError(error: unknown): boolean {
@@ -80,11 +82,11 @@ export class FileValidationError extends Error {
 
 export function validateFileUpload(file: File): void {
   if (file.size === 0) {
-    throw new FileValidationError('Uploaded file is empty')
+    throw new FileValidationError(t('errors.file.empty'))
   }
   if (file.size > MAX_UPLOAD_SIZE) {
     throw new FileValidationError(
-      `File size (${bytesToMB(file.size).toFixed(1)}MB) exceeds ${MAX_UPLOAD_SIZE_TEXT} limit`,
+      t('errors.file.sizeExceeded', { size: bytesToMB(file.size).toFixed(1), limit: MAX_UPLOAD_SIZE_TEXT, file: file.name }),
     )
   }
   if (!isAllowedMimeType(file.type)) {

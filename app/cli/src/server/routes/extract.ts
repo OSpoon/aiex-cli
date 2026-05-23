@@ -21,6 +21,7 @@ import {
   validateFileUpload,
 } from '@/core/file-constants'
 import { createMigrationConfig } from '@/core/schema-sqlite'
+import { t } from '@/locales'
 
 interface ExtractResponse {
   success: boolean
@@ -101,15 +102,15 @@ export function extractRoutes(config: MigrationConfig): Hono {
       const file = getFormFile(body.file)
 
       if (!schemaName) {
-        return c.json<ExtractResponse>({ success: false, error: 'Schema is required' }, 400)
+        return c.json<ExtractResponse>({ success: false, error: t('server.schemaRequired') }, 400)
       }
 
       if (!text && !file) {
-        return c.json<ExtractResponse>({ success: false, error: 'Provide text or upload a file to extract' }, 400)
+        return c.json<ExtractResponse>({ success: false, error: t('server.provideTextOrFile') }, 400)
       }
 
       if (text && file) {
-        return c.json<ExtractResponse>({ success: false, error: 'Text and file input cannot be used together' }, 400)
+        return c.json<ExtractResponse>({ success: false, error: t('server.conflictTextAndFile') }, 400)
       }
 
       // Validate and save uploaded file early, before AI config checks
@@ -136,20 +137,20 @@ export function extractRoutes(config: MigrationConfig): Hono {
 
       const aiConfig = await readAIConfig(aiexDir)
       if (!aiConfig) {
-        return c.json<ExtractResponse>({ success: false, error: 'AI configuration not found. Configure AI settings first.' }, 400)
+        return c.json<ExtractResponse>({ success: false, error: t('server.aiConfigNotFound') }, 400)
       }
       if (!aiConfig.provider.apiKey) {
-        return c.json<ExtractResponse>({ success: false, error: 'API Key not configured. Configure AI settings first.' }, 400)
+        return c.json<ExtractResponse>({ success: false, error: t('server.apiKeyNotConfigured') }, 400)
       }
       if (!aiConfig.provider.models?.length) {
-        return c.json<ExtractResponse>({ success: false, error: 'No models configured. Add at least one model in AI Settings.' }, 400)
+        return c.json<ExtractResponse>({ success: false, error: t('server.noModelsConfigured') }, 400)
       }
 
       const modelOverride = modelName
         ? aiConfig.provider.models.find(model => model.name === modelName)
         : undefined
       if (modelName && !modelOverride) {
-        return c.json<ExtractResponse>({ success: false, error: `Model "${modelName}" not found in AI settings` }, 400)
+        return c.json<ExtractResponse>({ success: false, error: t('server.modelNotFound', { name: modelName }) }, 400)
       }
 
       const result = await runAuditedExtraction({
@@ -191,25 +192,25 @@ export function extractRoutes(config: MigrationConfig): Hono {
     const id = c.req.param('id')
     const original = await readExtractionAuditRecord(aiexDir, id)
     if (!original) {
-      return c.json<ExtractResponse>({ success: false, error: 'Extraction record not found' }, 404)
+      return c.json<ExtractResponse>({ success: false, error: t('server.extractionRecordNotFound') }, 404)
     }
 
     const aiConfig = await readAIConfig(aiexDir)
     if (!aiConfig) {
-      return c.json<ExtractResponse>({ success: false, error: 'AI configuration not found. Configure AI settings first.' }, 400)
+      return c.json<ExtractResponse>({ success: false, error: t('server.aiConfigNotFound') }, 400)
     }
     if (!aiConfig.provider.apiKey) {
-      return c.json<ExtractResponse>({ success: false, error: 'API Key not configured. Configure AI settings first.' }, 400)
+      return c.json<ExtractResponse>({ success: false, error: t('server.apiKeyNotConfigured') }, 400)
     }
     if (!aiConfig.provider.models?.length) {
-      return c.json<ExtractResponse>({ success: false, error: 'No models configured. Add at least one model in AI Settings.' }, 400)
+      return c.json<ExtractResponse>({ success: false, error: t('server.noModelsConfigured') }, 400)
     }
 
     const modelOverride = original.modelName
       ? aiConfig.provider.models.find(m => m.name === original.modelName)
       : undefined
     if (original.modelName && !modelOverride) {
-      return c.json<ExtractResponse>({ success: false, error: `Model "${original.modelName}" not found in AI settings` }, 400)
+      return c.json<ExtractResponse>({ success: false, error: t('server.modelNotFound', { name: original.modelName }) }, 400)
     }
 
     const source = original.source.type === 'file' && original.source.filePath
@@ -247,7 +248,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
     const id = c.req.param('id')
     const record = await readExtractionAuditRecord(aiexDir, id)
     if (!record) {
-      return c.json({ success: false, error: 'Extraction record not found' }, 404)
+      return c.json({ success: false, error: t('server.extractionRecordNotFound') }, 404)
     }
     await deleteExtractionAuditRecord(aiexDir, id)
     return c.json({ success: true })

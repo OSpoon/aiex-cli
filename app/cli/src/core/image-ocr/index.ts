@@ -1,5 +1,6 @@
 import type { AIConfig, AIModelConfig, ImageOcrConfig } from '@/core/ai-extraction/types'
 import process from 'node:process'
+import { t } from '@/locales'
 
 type LocalOcr = typeof import('@napi-rs/system-ocr')
 
@@ -78,10 +79,10 @@ export async function recognizeImageText(
 ): Promise<ImageOcrTextResult> {
   const mode = imageOcrMode(config)
   if (!isLocalOcrPlatform(runtime.platform)) {
-    throw new Error(`Local OCR is only available on macOS or Windows. Current platform: ${runtime.platform}.`)
+    throw new Error(t('errors.ocr.platformUnsupported', { platform: runtime.platform }))
   }
   if (mode === 'off') {
-    throw new Error('Image OCR fallback is disabled in AI settings.')
+    throw new Error(t('errors.ocr.disabled'))
   }
 
   let localOcr: LocalOcr
@@ -90,7 +91,7 @@ export async function recognizeImageText(
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Local OCR is unavailable. Install optional dependency @napi-rs/system-ocr and approve its native build scripts. ${message}`)
+    throw new Error(t('errors.ocr.unavailable', { error: message }))
   }
 
   const result = await localOcr.recognize(
@@ -101,12 +102,12 @@ export async function recognizeImageText(
 
   const text = result.text.trim()
   if (!text)
-    throw new Error('Local OCR did not recognize any text in the image.')
+    throw new Error(t('errors.ocr.noText'))
 
   const confidence = result.confidence
   const minConfidence = config?.ocrMinConfidence ?? 0
   if (confidence < minConfidence)
-    throw new Error(`Local OCR confidence ${(confidence * 100).toFixed(1)}% is below the configured minimum ${(minConfidence * 100).toFixed(1)}%.`)
+    throw new Error(t('errors.ocr.lowConfidence', { confidence: (confidence * 100).toFixed(1), min: (minConfidence * 100).toFixed(1) }))
 
   return {
     text,
@@ -128,7 +129,7 @@ export async function checkImageOcrAvailability(
       dependencyLoaded: false,
       ocrOk: null,
       imagePath,
-      error: `Local OCR is only available on macOS or Windows. Current platform: ${runtime.platform}.`,
+      error: t('errors.ocr.platformUnsupported', { platform: runtime.platform }),
     }
   }
 

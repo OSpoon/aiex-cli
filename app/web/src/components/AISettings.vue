@@ -8,6 +8,7 @@ import Password from "primevue/password"
 import Select from "primevue/select"
 import Textarea from "primevue/textarea"
 import { computed, onMounted, onUnmounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
 import { toast } from "vue-sonner"
 import {
   getAIConfig,
@@ -21,6 +22,8 @@ const props = defineProps<{
   schemas: string[]
 }>()
 const visible = defineModel<boolean>("visible", { default: false })
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -128,14 +131,14 @@ function removeModel(index: number) {
 
 const systemSchemaError = computed(() => {
   if (!systemTemplate.value.includes("{schema}")) {
-    return "System prompt must contain the {schema} placeholder"
+    return t("app.systemPromptValidation")
   }
   return ""
 })
 
 const userSchemaError = computed(() => {
   if (!userTemplate.value.includes("{text}")) {
-    return "User prompt must contain the {text} placeholder"
+    return t("app.userPromptValidation")
   }
   return ""
 })
@@ -149,14 +152,14 @@ const notionFieldMapError = computed(() => {
   try {
     const parsed = JSON.parse(text)
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-      return "Field map must be a JSON object"
+      return t("app.fieldMapObject")
     for (const [key, value] of Object.entries(parsed)) {
       if (typeof value !== "string")
-        return `Field map value for "${key}" must be a string`
+        return t("app.fieldMapString", { key })
     }
     return ""
   } catch {
-    return "Field map must be valid JSON"
+    return t("app.fieldMapValidJson")
   }
 })
 
@@ -172,28 +175,28 @@ const notionConnectionSummary = computed(() => {
   if (notionProperties.value.length === 0)
     return ""
   if (notionSchemaFields.value.length === 0)
-    return `Connected · ${notionProperties.value.length} properties loaded`
-  return `Connected · ${notionMappedFieldCount.value}/${notionSchemaFields.value.length} fields mapped`
+    return t("app.notionPropertiesLoaded", { count: notionProperties.value.length })
+  return t("app.notionFieldsMapped", { count: notionMappedFieldCount.value, total: notionSchemaFields.value.length })
 })
 
 const hasVisionModel = computed(() => models.value.some(model => model.capabilities.vision))
 
 const imageInputModeLabel = computed(() => {
   if (imageOcrFallback.value === "off")
-    return "OCR disabled"
+    return t("app.ocrDisabled")
   if (imageOcrFallback.value === "local")
-    return "Require local OCR"
-  return "Auto"
+    return t("app.requireLocalOcr")
+  return t("app.ocrAuto")
 })
 
 const imageInputSummary = computed(() => {
   if (hasVisionModel.value)
-    return "Image files will use your configured vision model first."
+    return t("app.imageSummaryVisionModel")
   if (imageOcrFallback.value === "off")
-    return "No vision model is configured, and local OCR fallback is disabled."
+    return t("app.imageSummaryOcrOff")
   if (imageOcrFallback.value === "local")
-    return "No vision model is configured. Image text will require local OCR on macOS or Windows."
-  return "No vision model is configured. On macOS or Windows, local OCR will be tried automatically for text-heavy images."
+    return t("app.imageSummaryOcrLocal")
+  return t("app.imageSummaryNoVision")
 })
 
 const imageInputStatusClass = computed(() => {
@@ -324,19 +327,19 @@ async function loadSelectedNotionSchemaFields() {
   loadSelectedNotionSchema()
 }
 
-const pdfConverterOptions = [
-  { label: "Built-in text extraction (unpdf)", value: "unpdf" },
-  { label: "MinerU (mineru)", value: "mineru" },
-  { label: "MarkItDown (markitdown)", value: "markitdown" },
-  { label: "Marker (marker_single)", value: "marker" },
-  { label: "Custom External Command", value: "external" }
-]
+const pdfConverterOptions = computed(() => [
+  { label: t("app.pdfConverterUnpdf"), value: "unpdf" },
+  { label: t("app.pdfConverterMineru"), value: "mineru" },
+  { label: t("app.pdfConverterMarkitdown"), value: "markitdown" },
+  { label: t("app.pdfConverterMarker"), value: "marker" },
+  { label: t("app.pdfConverterExternal"), value: "external" }
+])
 
-const imageOcrFallbackOptions = [
-  { label: "Auto on macOS or Windows when no vision model exists", value: "auto" },
-  { label: "Off", value: "off" },
-  { label: "Require local OCR", value: "local" }
-]
+const imageOcrFallbackOptions = computed(() => [
+  { label: t("app.ocrFallbackAuto"), value: "auto" },
+  { label: t("app.ocrFallbackOff"), value: "off" },
+  { label: t("app.ocrFallbackLocal"), value: "local" }
+])
 
 const defaultSystemTemplate = `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
 
@@ -480,7 +483,7 @@ async function handleSave() {
     await saveAIConfig(config)
     visible.value = false
   } catch (e: any) {
-    toast.error(e.message || "Failed to save")
+    toast.error(e.message || t("app.toastSaveFailed"))
   } finally {
     saving.value = false
   }
@@ -488,15 +491,15 @@ async function handleSave() {
 
 async function handleInspectNotion() {
   if (!selectedNotionSchema.value) {
-    toast.error("Select a schema first")
+    toast.error(t("app.toastSelectSchema"))
     return
   }
   if (!notionToken.value.trim()) {
-    toast.error("Enter a Notion integration token")
+    toast.error(t("app.toastEnterToken"))
     return
   }
   if (!notionDatabaseId.value.trim()) {
-    toast.error("Enter a Notion database or data source URL/ID")
+    toast.error(t("app.toastEnterDatabaseId"))
     return
   }
   if (notionFieldMapError.value) {
@@ -525,9 +528,9 @@ async function handleInspectNotion() {
       : ""
     notionProperties.value = result.properties ?? []
     persistSelectedNotionSchema()
-    toast.success(`Connected to Notion (${notionProperties.value.length} properties)`)
+    toast.success(t("app.notionConnected", { count: notionProperties.value.length }))
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : "Notion connection failed")
+    toast.error(error instanceof Error ? error.message : t("app.notionConnectionFailed"))
   } finally {
     notionTesting.value = false
   }
@@ -545,7 +548,7 @@ onUnmounted(() => {
   <Dialog
     v-model:visible="visible"
     modal
-    header="AI Settings"
+    :header="$t('app.aiSettings')"
     :style="{ width: '680px' }"
     :draggable="false"
   >
@@ -557,19 +560,19 @@ onUnmounted(() => {
       <!-- Provider Config -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
-          Provider
+          {{ $t("app.provider") }}
         </h3>
         <div class="space-y-3">
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">Base URL</label>
+            <label class="text-xs text-muted-foreground">{{ $t("app.baseUrl") }}</label>
             <InputText v-model="baseURL" size="small" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">API Key</label>
+            <label class="text-xs text-muted-foreground">{{ $t("app.apiKey") }}</label>
             <Password v-model="apiKey" :feedback="false" toggle-mask size="small" placeholder="sk-xxx" input-class="w-full" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+            <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
             <InputText :value="String(timeout)" type="number" size="small" placeholder="300" :min="1" @input="timeout = Number(($event.target as HTMLInputElement).value) || 300" />
           </div>
         </div>
@@ -578,7 +581,7 @@ onUnmounted(() => {
       <!-- Models -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
-          Models
+          {{ $t("app.models") }}
         </h3>
         <div class="space-y-2">
           <div
@@ -592,14 +595,14 @@ onUnmounted(() => {
               :class="m.capabilities.structuredOutput ? 'bg-green-500/10 text-green-600' : 'bg-yellow-500/10 text-yellow-600'"
             >
               <i :class="m.capabilities.structuredOutput ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'" class="text-[10px]" />
-              {{ m.capabilities.structuredOutput ? 'Structured Output' : 'Text-only Output' }}
+              {{ m.capabilities.structuredOutput ? $t('app.structuredOutput') : $t('app.textOnlyOutput') }}
             </span>
             <span
               class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
               :class="m.capabilities.vision ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'"
             >
               <i :class="m.capabilities.vision ? 'pi pi-check-circle' : 'pi pi-times-circle'" class="text-[10px]" />
-              {{ m.capabilities.vision ? 'Vision Supported' : 'Vision Unsupported' }}
+              {{ m.capabilities.vision ? $t('app.visionSupported') : $t('app.visionUnsupported') }}
             </span>
             <Button icon="pi pi-times" severity="danger" text size="small" @click="removeModel(i)" />
           </div>
@@ -610,7 +613,7 @@ onUnmounted(() => {
               <InputText
                 v-model="newModelName"
                 size="small"
-                placeholder="Model name (e.g. gpt-4o)"
+                :placeholder="$t('app.modelName')"
                 class="flex-1 font-mono"
                 @input="onModelNameInput"
                 @keyup.enter="confirmAddModel"
@@ -626,7 +629,7 @@ onUnmounted(() => {
                   input-id="add-so"
                 />
                 <span :class="newModelCaps.structuredOutput ? 'text-green-600' : 'text-muted-foreground'">
-                  Structured Output
+                  {{ $t("app.structuredOutput") }}
                 </span>
               </label>
               <label class="flex items-center gap-1.5 cursor-pointer">
@@ -636,18 +639,18 @@ onUnmounted(() => {
                   input-id="add-vision"
                 />
                 <span :class="newModelCaps.vision ? 'text-green-600' : 'text-muted-foreground'">
-                  Vision
+                  {{ $t("app.visionSupported") }}
                 </span>
               </label>
               <span v-if="newModelSource === 'registry'" class="text-muted-foreground ml-auto">
-                <i class="pi pi-database mr-0.5" />Registry
+                <i class="pi pi-database mr-0.5" />{{ $t("app.modelCapsRegistry") }}
               </span>
             </div>
           </div>
 
           <Button
             v-else
-            label="Add Model"
+            :label="$t('app.addModel')"
             icon="pi pi-plus"
             severity="secondary"
             text
@@ -660,14 +663,14 @@ onUnmounted(() => {
       <!-- Image Input -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
-          Image Input
+          {{ $t("app.imageInput") }}
         </h3>
         <div class="space-y-3">
           <div class="rounded border p-3 text-sm" :class="imageInputStatusClass">
             <div class="flex items-center justify-between gap-3">
               <span class="font-medium">{{ imageInputModeLabel }}</span>
-              <span v-if="hasVisionModel" class="text-xs">Vision model configured</span>
-              <span v-else class="text-xs">No vision model</span>
+              <span v-if="hasVisionModel" class="text-xs">{{ $t("app.visionModelConfigured") }}</span>
+              <span v-else class="text-xs">{{ $t("app.noVisionModel") }}</span>
             </div>
             <p class="mt-1 text-xs leading-relaxed">
               {{ imageInputSummary }}
@@ -679,12 +682,12 @@ onUnmounted(() => {
             class="text-xs text-muted-foreground hover:text-foreground transition-colors"
             @click="imageOcrAdvancedOpen = !imageOcrAdvancedOpen"
           >
-            {{ imageOcrAdvancedOpen ? "Hide advanced image settings" : "Advanced image settings" }}
+            {{ imageOcrAdvancedOpen ? $t('app.hideAdvancedImageSettings') : $t('app.advancedImageSettings') }}
           </button>
 
           <div v-if="imageOcrAdvancedOpen" class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">OCR fallback</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.ocrFallback") }}</label>
               <Select
                 v-model="imageOcrFallback"
                 :options="imageOcrFallbackOptions"
@@ -694,15 +697,15 @@ onUnmounted(() => {
               />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Languages</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.ocrLanguages") }}</label>
               <InputText v-model="imageOcrLanguages" size="small" placeholder="en-US, zh-Hans" :disabled="imageOcrFallback === 'off'" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Minimum confidence</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.ocrMinConfidence") }}</label>
               <InputText :value="String(imageOcrMinConfidence)" type="number" size="small" placeholder="0" :min="0" :max="1" :step="0.05" :disabled="imageOcrFallback === 'off'" @input="imageOcrMinConfidence = Math.min(1, Math.max(0, Number(($event.target as HTMLInputElement).value) || 0))" />
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-              Image extraction always prefers a vision model. OCR fallback is only used when no vision model is available.
+              {{ $t("app.ocrHint") }}
             </div>
           </div>
         </div>
@@ -711,11 +714,11 @@ onUnmounted(() => {
       <!-- PDF Conversion -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
-          PDF Conversion
+          {{ $t("app.pdfConversion") }}
         </h3>
         <div class="space-y-3">
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">Converter</label>
+            <label class="text-xs text-muted-foreground">{{ $t("app.converter") }}</label>
             <Select
               v-model="pdfConverter"
               :options="pdfConverterOptions"
@@ -727,27 +730,27 @@ onUnmounted(() => {
 
           <div v-if="pdfConverter === 'mineru'" class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Command</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.command") }}</label>
               <InputText v-model="mineruCommand" size="small" placeholder="mineru" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Arguments</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.arguments") }}</label>
               <Textarea v-model="mineruArgs" rows="4" auto-resize class="text-xs font-mono" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
               <InputText :value="String(mineruTimeout)" type="number" size="small" placeholder="600" :min="1" @input="mineruTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="mineruFallbackToUnpdf" :binary="true" input-id="mineru-fallback" />
-              <label for="mineru-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+              <label for="mineru-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="mineruKeepOutput" :binary="true" input-id="mineru-keep-output" />
-              <label for="mineru-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
+              <label for="mineru-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
               <code class="bg-secondary px-1 rounded">{outputDir}</code>,
               <code class="bg-secondary px-1 rounded">{basename}</code>
             </div>
@@ -755,28 +758,28 @@ onUnmounted(() => {
 
           <div v-if="pdfConverter === 'markitdown'" class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Command</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.command") }}</label>
               <InputText v-model="markitdownCommand" size="small" placeholder="markitdown" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Arguments</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.arguments") }}</label>
               <Textarea v-model="markitdownArgs" rows="4" auto-resize class="text-xs font-mono" />
             </div>
 
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
               <InputText :value="String(markitdownTimeout)" type="number" size="small" placeholder="600" :min="1" @input="markitdownTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="markitdownFallbackToUnpdf" :binary="true" input-id="markitdown-fallback" />
-              <label for="markitdown-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+              <label for="markitdown-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="markitdownKeepOutput" :binary="true" input-id="markitdown-keep-output" />
-              <label for="markitdown-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
+              <label for="markitdown-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
               <code class="bg-secondary px-1 rounded">{outputDir}</code>,
               <code class="bg-secondary px-1 rounded">{basename}</code>
             </div>
@@ -784,28 +787,28 @@ onUnmounted(() => {
 
           <div v-if="pdfConverter === 'marker'" class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Command</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.command") }}</label>
               <InputText v-model="markerCommand" size="small" placeholder="marker_single" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Arguments</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.arguments") }}</label>
               <Textarea v-model="markerArgs" rows="4" auto-resize class="text-xs font-mono" />
             </div>
 
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
               <InputText :value="String(markerTimeout)" type="number" size="small" placeholder="600" :min="1" @input="markerTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="markerFallbackToUnpdf" :binary="true" input-id="marker-fallback" />
-              <label for="marker-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+              <label for="marker-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="markerKeepOutput" :binary="true" input-id="marker-keep-output" />
-              <label for="marker-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
+              <label for="marker-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
               <code class="bg-secondary px-1 rounded">{outputDir}</code>,
               <code class="bg-secondary px-1 rounded">{basename}</code>
             </div>
@@ -813,33 +816,33 @@ onUnmounted(() => {
 
           <div v-if="pdfConverter === 'external'" class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Command</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.command") }}</label>
               <InputText v-model="externalCommand" size="small" placeholder="pdf2markdown" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Arguments</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.arguments") }}</label>
               <Textarea v-model="externalArgs" rows="4" auto-resize class="text-xs font-mono" placeholder="-i&#10;{input}&#10;-o&#10;{outputDir}/{basename}.md" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Output File (optional)</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.outputFile") }}</label>
               <InputText v-model="externalOutputFile" size="small" class="text-xs font-mono" placeholder="{outputDir}/{basename}.md" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Timeout (seconds)</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
               <InputText :value="String(externalTimeout)" type="number" size="small" placeholder="600" :min="1" @input="externalTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="externalFallbackToUnpdf" :binary="true" input-id="external-fallback" />
-              <label for="external-fallback" class="text-sm cursor-pointer">Fallback to built-in converter</label>
+              <label for="external-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
             </div>
             <div class="flex items-center gap-2">
               <Checkbox v-model="externalKeepOutput" :binary="true" input-id="external-keep-output" />
-              <label for="external-keep-output" class="text-sm cursor-pointer">Keep converted files on disk</label>
+              <label for="external-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
             </div>
             <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-              Placeholders: <code class="bg-secondary px-1 rounded">{input}</code>,
+              {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
               <code class="bg-secondary px-1 rounded">{outputDir}</code>,
-              <code class="bg-secondary px-1 rounded">{basename}</code>. If Output File is blank, the first generated .md file will be selected automatically.
+              <code class="bg-secondary px-1 rounded">{basename}</code>. {{ $t("app.externalHint") }}
             </div>
           </div>
         </div>
@@ -848,24 +851,24 @@ onUnmounted(() => {
       <!-- Langfuse Tracing -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
-          Langfuse Tracing
+          {{ $t("app.langfuseTracing") }}
         </h3>
         <div class="space-y-3">
           <div class="flex items-center gap-2">
             <Checkbox v-model="langfuseEnabled" :binary="true" input-id="lf-enabled" />
-            <label for="lf-enabled" class="text-sm cursor-pointer">Enabled</label>
+            <label for="lf-enabled" class="text-sm cursor-pointer">{{ $t("app.enabled") }}</label>
           </div>
           <div v-if="langfuseEnabled" class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Secret Key</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.secretKey") }}</label>
               <Password v-model="langfuseSecretKey" :feedback="false" toggle-mask size="small" placeholder="sk-lf-..." input-class="w-full" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Public Key</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.publicKey") }}</label>
               <InputText v-model="langfusePublicKey" size="small" placeholder="pk-lf-..." />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Host (optional)</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.host") }}</label>
               <InputText v-model="langfuseHost" size="small" placeholder="https://us.cloud.langfuse.com" />
             </div>
           </div>
@@ -875,35 +878,35 @@ onUnmounted(() => {
       <!-- Notion Export -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
-          Notion Export
+          {{ $t("app.notionExport") }}
         </h3>
         <div class="space-y-3">
           <div class="flex items-center gap-2">
             <Checkbox v-model="notionEnabled" :binary="true" input-id="notion-enabled" />
-            <label for="notion-enabled" class="text-sm cursor-pointer">Enabled</label>
+            <label for="notion-enabled" class="text-sm cursor-pointer">{{ $t("app.enabled") }}</label>
           </div>
           <div class="space-y-3 pl-6 border-l-2 border-border">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Integration Token</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.integrationToken") }}</label>
               <Password v-model="notionToken" :feedback="false" toggle-mask size="small" placeholder="secret_..." input-class="w-full" />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Schema Binding</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.schemaBinding") }}</label>
               <Select
                 v-model="selectedNotionSchema"
                 :options="schemaOptions"
                 size="small"
-                placeholder="Select a schema"
+                :placeholder="$t('app.selectSchema')"
                 :disabled="schemaOptions.length === 0"
               />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-muted-foreground">Database/Data Source URL or ID</label>
+              <label class="text-xs text-muted-foreground">{{ $t("app.databaseUrl") }}</label>
               <InputText v-model="notionDatabaseId" size="small" placeholder="https://www.notion.so/... or xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
             </div>
             <div class="flex items-center gap-2">
               <Button
-                label="Connect & Map"
+                :label="$t('app.connectAndMap')"
                 icon="pi pi-bolt"
                 severity="secondary"
                 size="small"
@@ -921,19 +924,19 @@ onUnmounted(() => {
                 class="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary"
                 @click="notionAdvancedOpen = !notionAdvancedOpen"
               >
-                <span>Advanced mapping</span>
+                <span>{{ $t("app.advancedMapping") }}</span>
                 <i :class="notionAdvancedOpen ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" class="text-[10px]" />
               </button>
               <div v-if="notionAdvancedOpen" class="space-y-3 border-t border-border p-3">
                 <div class="flex flex-col gap-1">
-                  <label class="text-xs text-muted-foreground">Title Property (optional)</label>
-                  <InputText v-model="notionTitleProperty" size="small" placeholder="Name" />
+                  <label class="text-xs text-muted-foreground">{{ $t("app.titleProperty") }}</label>
+                  <InputText v-model="notionTitleProperty" size="small" :placeholder="$t('app.titleProperty')" />
                 </div>
                 <div class="flex flex-col gap-1">
                   <div class="flex items-center justify-between gap-2">
-                    <label class="text-xs text-muted-foreground">Field Map JSON</label>
+                    <label class="text-xs text-muted-foreground">{{ $t("app.fieldMapJson") }}</label>
                     <span v-if="notionSchemaFields.length > 0" class="text-xs text-muted-foreground">
-                      {{ notionMappedFieldCount }} / {{ notionSchemaFields.length }} mapped
+                      {{ $t('app.fieldsMapped', { count: notionMappedFieldCount, total: notionSchemaFields.length }) }}
                     </span>
                   </div>
                   <Textarea v-model="notionFieldMap" rows="5" auto-resize class="text-xs font-mono" placeholder="{&#10;  &quot;invoiceNo&quot;: &quot;Invoice No&quot;,&#10;  &quot;issuedAt&quot;: &quot;Issued At&quot;&#10;}" />
@@ -942,7 +945,7 @@ onUnmounted(() => {
                   </p>
                 </div>
                 <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-                  Selecting a schema fills the left-side keys. Nested objects use dot paths such as <code class="bg-secondary px-1 rounded">student.name</code>. Object arrays are skipped; model them as separate Notion data sources later if needed.
+                  {{ $t("app.notionMappingHint") }}
                 </div>
               </div>
             </div>
@@ -953,26 +956,25 @@ onUnmounted(() => {
       <!-- Prompt Config -->
       <section>
         <h3 class="text-sm font-semibold mb-3 text-foreground">
-          Prompt Templates
+          {{ $t("app.promptTemplates") }}
         </h3>
         <div class="space-y-3">
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">System Prompt</label>
+            <label class="text-xs text-muted-foreground">{{ $t("app.systemPrompt") }}</label>
             <Textarea v-model="systemTemplate" rows="6" auto-resize class="text-xs font-mono" />
             <p v-if="systemSchemaError" class="text-xs text-red-500 mt-1">
               {{ systemSchemaError }}
             </p>
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">User Prompt</label>
+            <label class="text-xs text-muted-foreground">{{ $t("app.userPromptTemplate") }}</label>
             <Textarea v-model="userTemplate" rows="6" auto-resize class="text-xs font-mono" />
             <p v-if="userSchemaError" class="text-xs text-red-500 mt-1">
               {{ userSchemaError }}
             </p>
           </div>
           <div class="text-xs text-muted-foreground p-2 rounded border border-border">
-            Placeholders: <code class="bg-secondary px-1 rounded">{schema}</code> JSON Schema structure description,
-            <code class="bg-secondary px-1 rounded">{text}</code> text to extract from
+            {{ $t("app.promptPlaceholderHint") }}
           </div>
         </div>
       </section>
@@ -980,8 +982,8 @@ onUnmounted(() => {
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <Button label="Cancel" severity="secondary" text @click="visible = false" />
-        <Button label="Save" icon="pi pi-check" :loading="saving" :disabled="!canSave" @click="handleSave" />
+        <Button :label="$t('app.cancel')" severity="secondary" text @click="visible = false" />
+        <Button :label="$t('app.save')" icon="pi pi-check" :loading="saving" :disabled="!canSave" @click="handleSave" />
       </div>
     </template>
   </Dialog>

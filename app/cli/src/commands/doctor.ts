@@ -7,14 +7,15 @@ import {
   formatDoctorDiagnosticsJson,
 } from '@/core/doctor'
 import { collectDoctorDiagnostics } from '@/core/doctor-collector'
+import { t } from '@/locales'
 
 export const doctorCommand = defineCommand({
   meta: {
     name: 'doctor',
-    description: 'Print environment and configuration diagnostics',
+    description: t('command.doctor.description'),
   },
   args: {
-    json: { type: 'boolean', description: 'Print diagnostics as JSON' },
+    json: { type: 'boolean', description: t('command.doctor.args.json') },
   },
   async run({ args }) {
     try {
@@ -27,17 +28,17 @@ export const doctorCommand = defineCommand({
 
       consola.info(`${diagnostics.cli.name} ${diagnostics.cli.version}`)
 
-      const t = new CliTable3({
-        head: ['key', 'value'],
+      const table = new CliTable3({
+        head: [t('command.doctor.headers.0'), t('command.doctor.headers.1')],
         colAligns: ['right', 'left'],
         style: { compact: true },
       })
-      t.push(...doctorDiagnosticsTableRows(diagnostics))
+      table.push(...doctorDiagnosticsTableRows(diagnostics))
 
-      process.stdout.write(`${t.toString()}\n`)
+      process.stdout.write(`${table.toString()}\n`)
     }
     catch (err) {
-      consola.error(`Doctor diagnostics failed: ${err}`)
+      consola.error(t('command.doctor.diagnosticsFailed', { error: err }))
     }
   },
 })

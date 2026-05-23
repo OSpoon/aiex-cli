@@ -9,6 +9,7 @@ import {
   resolveHelperPath,
   resolveTsxPath,
 } from '@/core/schema-sqlite'
+import { t } from '@/locales'
 
 const execFileAsync = promisify(execFile)
 
@@ -92,15 +93,15 @@ export function parseMigrationOutput(stdout: string, stderr: string): MigrationR
     const lines = stdout.trim().split('\n')
     const jsonLine = lines.find(l => l.startsWith('{') && l.endsWith('}'))
     if (!jsonLine)
-      return { success: false, error: 'Migration helper did not return valid output' }
+      return { success: false, error: t('errors.schema.migrationHelperInvalidOutput') }
 
     const result = JSON.parse(jsonLine) as MigrationResult
     if (!result.success)
-      return { success: false, error: result.error || 'Migration failed' }
+      return { success: false, error: result.error || t('errors.schema.migrationFailed') }
     return result
   }
   catch {
-    return { success: false, error: stderr || stdout || 'Migration helper failed' }
+    return { success: false, error: stderr || stdout || t('errors.schema.migrationHelperFailed') }
   }
 }
 
@@ -140,7 +141,7 @@ export async function runSchemaSync(
   if (schemaFiles.length === 0) {
     return {
       success: false,
-      error: 'No schema files found',
+      error: t('errors.schema.noFiles'),
       warnings: [],
       schemaCount: 0,
       tables: 0,

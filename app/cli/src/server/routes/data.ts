@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { readAIConfig } from '@/core/ai-extraction'
 import { createExtractionAuditRecord, listExtractionAuditRecords, updateExtractionAuditRecord } from '@/core/extraction-audit'
 import { writeNotionPage } from '@/core/notion-sink'
+import { t } from '@/locales'
 
 const FILE_REGEX = /\.json$/
 const EXTRACTION_TIMESTAMP_RE = /-\d{4}-\d{2}-\d{2}T/
@@ -250,7 +251,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
 
   app.get(
     '/data/tables/:name',
-    zValidator('param', tableParamSchema, invalidParamResponse('Invalid table name')),
+    zValidator('param', tableParamSchema, invalidParamResponse(t('server.invalidTableName'))),
     zValidator('query', tableQuerySchema),
     async (c) => {
       const { name: tableName } = c.req.valid('param')
@@ -261,7 +262,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
         db = createReadonlyQueryDb(config.databasePath)
       }
       catch {
-        return c.json({ error: 'Database not found. Run `aiex schema` first.' }, 400)
+        return c.json({ error: t('server.dbNotFound') }, 400)
       }
 
       try {
@@ -272,7 +273,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
         `.execute(db)
 
         if (tableExists.rows.length === 0)
-          return c.json({ error: `Table "${tableName}" not found in database` }, 404)
+          return c.json({ error: t('server.tableNotFound', { name: tableName }) }, 404)
 
         const tableInfo = await sql<SqliteTableInfoRow>`
           pragma table_info(${sql.table(tableName)})
@@ -368,7 +369,7 @@ export function dataRoutes(config: MigrationConfig): Hono {
     },
   )
 
-  app.get('/data/:name', zValidator('param', extractionFileParamSchema, invalidParamResponse('Invalid extraction file name')), async (c) => {
+  app.get('/data/:name', zValidator('param', extractionFileParamSchema, invalidParamResponse(t('server.invalidFileName'))), async (c) => {
     const { name } = c.req.valid('param')
     const filePath = path.join(extractedDir, name)
 
@@ -377,27 +378,27 @@ export function dataRoutes(config: MigrationConfig): Hono {
       return c.json({ success: true, content, name })
     }
     catch {
-      return c.json({ error: 'Extraction result not found' }, 404)
+      return c.json({ error: t('server.extractionNotFound') }, 404)
     }
   })
 
-  app.post('/data/:name/notion/retry', zValidator('param', extractionFileParamSchema, invalidParamResponse('Invalid extraction file name')), async (c) => {
+  app.post('/data/:name/notion/retry', zValidator('param', extractionFileParamSchema, invalidParamResponse(t('server.invalidFileName'))), async (c) => {
     const { name } = c.req.valid('param')
     const filePath = path.join(extractedDir, name)
     const schemaName = schemaNameFromExtractionFile(name)
     if (!schemaName)
-      return c.json({ success: false, error: 'Cannot infer schema name from extraction file name' }, 400)
+      return c.json({ success: false, error: t('server.cannotInferSchema') }, 400)
 
     const aiConfig = await readAIConfig(aiexDir)
     if (!aiConfig?.notion?.enabled)
-      return c.json({ success: false, error: 'Notion export is not enabled. Configure Notion settings first.' }, 400)
+      return c.json({ success: false, error: t('errors.notion.notEnabled') }, 400)
     if (!aiConfig.notion.schemas?.[schemaName]?.databaseId?.trim())
-      return c.json({ success: false, error: `Notion database is not configured for schema "${schemaName}".` }, 400)
+      return c.json({ success: false, error: t('errors.notion.noSchemaConfig', { name: schemaName }) }, 400)
 
     try {
       const data = await readJsonFile(filePath) as unknown
       if (!data || typeof data !== 'object' || Array.isArray(data))
-        return c.json({ success: false, error: 'Extraction result is not a JSON object and cannot be written to Notion.' }, 400)
+        return c.json({ success: false, error: t('errors.ai.extractionNotObject') }, 400)
 
       const page = await writeNotionPage(aiConfig.notion, schemaName, data as Record<string, unknown>)
       const notionPages = [{ databaseId: page.databaseId, pageId: page.pageId }]

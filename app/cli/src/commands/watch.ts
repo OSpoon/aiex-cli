@@ -10,44 +10,46 @@ import { failCommand } from '@/commands/utils'
 import { loadSchema } from '@/core/extract-runner'
 import { createMigrationConfig } from '@/core/schema-sqlite'
 import { startWatcher } from '@/core/watch-service'
+import { initI18n, t } from '@/locales'
 
 export const watchCommand = defineCommand({
   meta: {
     name: 'watch',
-    description: 'Watch a directory for new files and automatically extract data',
+    description: t('command.watch.description'),
   },
   args: {
     schema: {
       type: 'string',
       alias: 's',
-      description: 'Schema name (without .json extension) to use for extraction',
+      description: t('command.watch.args.schema'),
     },
     dir: {
       type: 'string',
       alias: 'd',
-      description: 'Directory path to watch for incoming files',
+      description: t('command.watch.args.dir'),
     },
     model: {
       type: 'string',
       alias: 'm',
-      description: 'AI model to use for extraction (overrides default/auto-selected model)',
+      description: t('command.watch.args.model'),
     },
     noInsert: {
       type: 'boolean',
-      description: 'Extract and save JSON without inserting into SQLite database',
+      description: t('command.watch.args.noInsert'),
       default: false,
     },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex watch '))
+    await initI18n()
 
     if (!args.schema) {
-      failCommand('Schema name (-s) is required')
+      failCommand(t('command.watch.errors.schemaRequired'))
       return
     }
 
     if (!args.dir) {
-      failCommand('Watch directory path (-d) is required')
+      failCommand(t('command.watch.errors.dirRequired'))
       return
     }
 
@@ -58,7 +60,7 @@ export const watchCommand = defineCommand({
     // Verify schema exists
     const schemaLoad = await loadSchema(config, args.schema)
     if (!schemaLoad.schema) {
-      failCommand(schemaLoad.error || `Schema file for "${args.schema}" not found`)
+      failCommand(schemaLoad.error || t('command.watch.errors.schemaNotFound', { name: args.schema }))
       return
     }
 
@@ -68,12 +70,12 @@ export const watchCommand = defineCommand({
       watchDirStat = fs.statSync(args.dir)
     }
     catch (e) {
-      failCommand(`Watch directory does not exist: ${args.dir} — ${e instanceof Error ? e.message : String(e)}`)
+      failCommand(t('command.watch.errors.dirNotExist', { dir: args.dir, error: e instanceof Error ? e.message : String(e) }))
       return
     }
 
     if (!watchDirStat.isDirectory()) {
-      failCommand(`Watch path is not a directory: ${args.dir}`)
+      failCommand(t('command.watch.errors.notADirectory', { dir: args.dir }))
       return
     }
 
@@ -101,15 +103,15 @@ export const watchCommand = defineCommand({
     })
 
     const cleanup = async (): Promise<void> => {
-      consola.info('\nStopping watch directory daemon...')
+      consola.info(t('command.watch.events.stopped'))
       await watcher.close()
-      consola.success('Daemon stopped.')
+      consola.success(t('command.watch.events.stoppedOk'))
       process.exit(0)
     }
 
     process.on('SIGINT', cleanup)
     process.on('SIGTERM', cleanup)
 
-    consola.info('Press Ctrl+C to stop')
+    consola.info(t('command.watch.events.pressCtrlC'))
   },
 })

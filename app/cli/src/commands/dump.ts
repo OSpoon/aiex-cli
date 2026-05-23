@@ -11,39 +11,41 @@ import * as XLSX from 'xlsx'
 import { failCommand } from '@/commands/utils'
 import { loadSchema } from '@/core/extract-runner'
 import { createMigrationConfig } from '@/core/schema-sqlite'
+import { initI18n, t } from '@/locales'
 
 export const dumpCommand = defineCommand({
   meta: {
     name: 'dump',
-    description: 'Dump SQLite database table to Excel (.xlsx) or CSV (.csv)',
+    description: t('command.dump.description'),
   },
   args: {
     table: {
       type: 'string',
       alias: 't',
-      description: 'SQLite table name to export',
+      description: t('command.dump.args.table'),
     },
     schema: {
       type: 'string',
       alias: 's',
-      description: 'Schema name (without .json extension) to export',
+      description: t('command.dump.args.schema'),
     },
     format: {
       type: 'string',
       alias: 'f',
-      description: 'Export format: csv or xlsx (default: inferred from output or csv)',
+      description: t('command.dump.args.format'),
     },
     output: {
       type: 'string',
       alias: 'o',
-      description: 'Output file path (default: ./<tableName>.<format>)',
+      description: t('command.dump.args.output'),
     },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex dump '))
+    await initI18n()
 
     if (!args.table && !args.schema) {
-      failCommand('Either table name (--table / -t) or schema name (--schema / -s) is required')
+      failCommand(t('command.dump.errors.tableOrSchemaRequired'))
       return
     }
 
@@ -58,17 +60,17 @@ export const dumpCommand = defineCommand({
     if (args.schema) {
       const schemaLoad = await loadSchema(config, args.schema)
       if (!schemaLoad.schema) {
-        failCommand(schemaLoad.error || `Schema file for "${args.schema}" not found`)
+        failCommand(schemaLoad.error || t('command.dump.errors.schemaNotFound', { name: args.schema }))
         return
       }
       schema = schemaLoad.schema
       const tName = schema.table?.name
       if (!tName) {
-        failCommand(`Schema "${args.schema}" does not define a database table name.`)
+        failCommand(t('command.dump.errors.noTableName', { name: args.schema }))
         return
       }
       if (tableName && tableName !== tName) {
-        failCommand(`Specified table name "${tableName}" does not match schema table name "${tName}"`)
+        failCommand(t('command.dump.errors.tableMismatch', { table: tableName, schemaTable: tName }))
         return
       }
       tableName = tName
@@ -111,7 +113,7 @@ export const dumpCommand = defineCommand({
     }
 
     if (format !== 'csv' && format !== 'xlsx') {
-      failCommand(`Unsupported dump format: "${format}". Supported formats: csv, xlsx`)
+      failCommand(t('command.dump.errors.unsupportedFormat', { format }))
       return
     }
 
@@ -121,12 +123,12 @@ export const dumpCommand = defineCommand({
 
     // 3. Connect to Database and query records
     if (!fs.existsSync(config.databasePath)) {
-      failCommand(`Database file not found at ${config.databasePath}. Please run "aiex schema" to create the database first.`)
+      failCommand(t('command.dump.errors.dbNotFound', { path: config.databasePath, cmd: 'aiex schema' }))
       return
     }
 
     const s = spinner()
-    s.start(`Loading data from table "${tableName}"...`)
+    s.start(t('command.dump.loading', { name: tableName }))
 
     let columns: any[] = []
     let rows: any[] = []
@@ -141,8 +143,8 @@ export const dumpCommand = defineCommand({
       `).get(tableName)
 
       if (!tableCheck) {
-        s.stop('Database query failed')
-        failCommand(`Table "${tableName}" not found in database. Run "aiex schema" first to migrate.`)
+        s.stop(t('command.dump.dbQueryFailed'))
+        failCommand(t('command.dump.errors.tableNotFound', { name: tableName, cmd: 'aiex schema' }))
         db.close()
         return
       }
@@ -152,22 +154,22 @@ export const dumpCommand = defineCommand({
       db.close()
     }
     catch (error) {
-      s.stop('Database query failed')
+      s.stop(t('command.dump.dbQueryFailed'))
       failCommand(error instanceof Error ? error.message : String(error))
       return
     }
 
     if (rows.length === 0) {
-      s.stop('Empty table')
-      consola.warn(`Table "${tableName}" is empty. Exporting empty file...`)
+      s.stop(t('command.dump.emptyTable'))
+      consola.warn(t('command.dump.errors.tableEmpty', { name: tableName }))
     }
     else {
-      s.stop(`Loaded ${rows.length} row(s)`)
+      s.stop(t('command.dump.loaded', { count: rows.length }))
     }
 
     // 4. Format rows conforming to Schema
     const s2 = spinner()
-    s2.start('Formatting data...')
+    s2.start(t('command.dump.formatting'))
 
     const formattedRows = rows.map((row: any) => {
       const newRow: Record<string, any> = {}
@@ -219,11 +221,11 @@ export const dumpCommand = defineCommand({
       return newRow
     })
 
-    s2.stop('Data formatted')
+    s2.stop(t('command.dump.formatted'))
 
     // 5. Generate and write the output file
     const s3 = spinner()
-    s3.start(`Writing ${format.toUpperCase()} file to ${resolvedOutput}...`)
+    s3.start(t('command.dump.writing', { format: format.toUpperCase(), path: resolvedOutput }))
 
     try {
       const ws = XLSX.utils.json_to_sheet(formattedRows, { header: columns.map(col => col.name) })
@@ -242,15 +244,15 @@ export const dumpCommand = defineCommand({
         const bom = '\uFEFF'
         fs.writeFileSync(resolvedOutput, bom + csv, 'utf8')
       }
-      s3.stop('Dump completed successfully')
-      consola.success(`Successfully dumped ${rows.length} row(s) to ${pc.cyan(resolvedOutput)}`)
+      s3.stop(t('command.dump.dumpCompleted'))
+      consola.success(t('command.dump.successMsg', { count: rows.length, path: pc.cyan(resolvedOutput) }))
     }
     catch (error) {
-      s3.stop('File write failed')
+      s3.stop(t('command.dump.fileWriteFailed'))
       failCommand(error instanceof Error ? error.message : String(error))
       return
     }
 
-    outro('Done!')
+    outro(t('common.done'))
   },
 })

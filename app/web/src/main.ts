@@ -8,6 +8,7 @@ import '@/lib/jsonschema-editor/index.css'
 import 'primeicons/primeicons.css'
 import 'vue-sonner/style.css'
 import { initTheme } from '@/lib/jsonschema-editor/themes/useTheme'
+import { i18n } from '@/locales'
 
 initTheme()
 
@@ -21,6 +22,7 @@ app.use(PrimeVue, {
     },
   },
 })
+app.use(i18n)
 app.directive('tooltip', Tooltip)
 
 app.mount('#app')

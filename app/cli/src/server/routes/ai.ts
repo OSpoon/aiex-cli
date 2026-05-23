@@ -11,6 +11,7 @@ import {
 import { AIConfigSchema } from '@/core/ai-extraction/schemas'
 import { inspectNotionDatabase, parseNotionDatabaseId } from '@/core/notion-sink'
 import { getErrorMessage } from '@/core/schema-sqlite'
+import { t } from '@/locales'
 
 const JSON_EXT_RE = /\.json$/i
 
@@ -92,7 +93,7 @@ export function aiRoutes(config: MigrationConfig): Hono {
       const schemaName = typeof body.schemaName === 'string' ? body.schemaName : ''
 
       if (!schemaName) {
-        return c.json({ success: false, error: 'Schema is required' }, 400)
+        return c.json({ success: false, error: t('server.schemaRequired') }, 400)
       }
 
       const result = await inspectNotionDatabase({
@@ -117,27 +118,27 @@ export function aiRoutes(config: MigrationConfig): Hono {
 
       if (!systemTpl || !systemTpl.includes('{schema}')) {
         return c.json(
-          { success: false, error: 'System prompt must contain the {schema} placeholder' },
+          { success: false, error: t('server.promptSchemaPlaceholder') },
           400,
         )
       }
       if (!userTpl?.includes('{text}')) {
         return c.json(
-          { success: false, error: 'User prompt must contain the {text} placeholder' },
+          { success: false, error: t('server.promptTextPlaceholder') },
           400,
         )
       }
 
       if (!body.provider?.models?.length) {
         return c.json(
-          { success: false, error: 'At least one model must be configured' },
+          { success: false, error: t('server.atLeastOneModel') },
           400,
         )
       }
       if (body.notion?.enabled) {
         if (!body.notion.token?.trim()) {
           return c.json(
-            { success: false, error: 'Notion token is required when Notion export is enabled' },
+            { success: false, error: t('server.notionTokenRequired') },
             400,
           )
         }
@@ -147,7 +148,7 @@ export function aiRoutes(config: MigrationConfig): Hono {
           }
           if (!schemaConfig.databaseId?.trim()) {
             return c.json(
-              { success: false, error: `Notion database ID is required for schema "${schemaName}"` },
+              { success: false, error: t('server.notionDbIdRequired', { name: schemaName }) },
               400,
             )
           }

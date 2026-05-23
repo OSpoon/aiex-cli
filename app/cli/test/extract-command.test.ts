@@ -8,6 +8,9 @@ import { extractCommand } from '@/commands/extract'
 import { extractStructuredData, insertExtractedData, readAIConfig } from '@/core/ai-extraction'
 import { SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
 
+// Force English locale for deterministic test output
+vi.stubEnv('LANG', 'en_US.UTF-8')
+
 // —— vitest mocks ——
 vi.mock('@/core/ai-extraction', () => ({
   extractStructuredData: vi.fn(),

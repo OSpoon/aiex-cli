@@ -2,6 +2,7 @@ import type { PdfConversionResult, PdfConverter } from './types'
 import type { ExternalPdfConverterConfig, PdfConfig } from '@/core/ai-extraction/types'
 import { consola } from 'consola'
 import { DEFAULT_MARKER_CONFIG, DEFAULT_MARKITDOWN_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
+import { t } from '@/locales'
 import { ExternalCommandPdfConverter } from './external'
 import { UnpdfConverter } from './unpdf'
 
@@ -24,7 +25,7 @@ class FallbackPdfConverter implements PdfConverter {
       return await this.primary.convert(input, filePath)
     }
     catch (err) {
-      consola.warn(`${this.primary.name} failed: ${err instanceof Error ? err.message : String(err)}`)
+      consola.warn(t('command.extract.file.errorProcessing', { name: this.primary.name, error: err instanceof Error ? err.message : String(err) }))
       consola.info(`Falling back to ${this.fallback.name}`)
       const result = await this.fallback.convert(input, filePath)
       return {
@@ -63,7 +64,7 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
 
     if (config.converter === 'external') {
       if (!config.external)
-        throw new Error('External PDF converter is selected but no external command is configured.')
+        throw new Error(t('errors.pdf.externalNotConfigured'))
       return withFallback(new ExternalCommandPdfConverter('external', config.external), config.external)
     }
   }
@@ -72,7 +73,7 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
   let instance = registry.get(key)
   if (!instance) {
     if (key !== 'unpdf')
-      throw new Error(`PDF converter "${key}" requires configuration.`)
+      throw new Error(t('errors.pdf.converterRequiresConfig', { name: key }))
     instance = new UnpdfConverter()
     registry.set(key, instance)
   }

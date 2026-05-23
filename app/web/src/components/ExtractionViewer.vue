@@ -2,6 +2,7 @@
 import type { ExtractionRecord } from "@/api-client"
 import Button from "primevue/button"
 import { computed, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
 import { toast } from "vue-sonner"
 import { getExtraction, retryNotionSync } from "@/api-client"
 
@@ -13,13 +14,15 @@ const emit = defineEmits<{
   notionSynced: []
 }>()
 
+const { t } = useI18n()
+
 const extractContent = ref("")
 const loading = ref(false)
 const retryingNotion = ref(false)
 const notionActionLabel = computed(() => {
-  if (props.record?.notionStatus === "synced") return "Synced"
-  if (props.record?.notionStatus === "failed") return "Retry Notion"
-  return "Sync Notion"
+  if (props.record?.notionStatus === "synced") return t("app.notionSynced")
+  if (props.record?.notionStatus === "failed") return t("app.retryNotion")
+  return t("app.syncNotion")
 })
 
 async function loadContent() {
@@ -31,10 +34,10 @@ async function loadContent() {
     if (result.success && result.content) {
       extractContent.value = result.content
     } else {
-      toast.error(result.error || "Failed to load extraction")
+      toast.error(result.error || t("app.failedToLoadExtraction"))
     }
   } catch {
-    toast.error("Failed to load extraction")
+    toast.error(t("app.failedToLoadExtraction"))
   }
   loading.value = false
 }
@@ -57,18 +60,18 @@ async function handleRetryNotion() {
   retryingNotion.value = true
   try {
     const result = await retryNotionSync(props.extractionName)
-    toast.success(`Synced to Notion (${result.notionPages?.length ?? 0} page)`)
+    toast.success(t("app.notionSyncedToNotionDetail", { count: result.notionPages?.length ?? 0 }))
     emit("notionSynced")
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : "Notion sync failed")
+    toast.error(error instanceof Error ? error.message : t("app.notionSyncFailed"))
   }
   retryingNotion.value = false
 }
 
 function notionStatusLabel(status: ExtractionRecord["notionStatus"] | undefined): string {
-  if (status === "synced") return "Synced to Notion"
-  if (status === "failed") return "Notion sync failed"
-  return "Notion not synced"
+  if (status === "synced") return t("app.notionStatusSynced")
+  if (status === "failed") return t("app.notionStatusFailed")
+  return t("app.notionStatusNotSynced")
 }
 
 function tryParseAndFormat(json: string): string {
@@ -88,12 +91,12 @@ onMounted(loadContent)
     <div v-if="!extractionName" class="flex-1 flex flex-col items-center justify-center text-muted-foreground">
       <i class="pi pi-file text-4xl mb-3 opacity-50" />
       <p class="text-sm">
-        Select an extraction record from the sidebar
+        {{ $t("app.selectExtraction") }}
       </p>
     </div>
 
     <div v-else-if="loading" class="flex-1 flex items-center justify-center text-muted-foreground">
-      Loading...
+      {{ $t("app.loading") }}
     </div>
 
     <div v-else class="flex-1 min-h-0 p-3 flex flex-col overflow-x-auto">
@@ -126,7 +129,7 @@ onMounted(loadContent)
           />
           <Button
             icon="pi pi-download"
-            label="Download"
+            :label="$t('app.download')"
             severity="secondary"
             size="small"
             @click="handleDownload"

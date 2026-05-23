@@ -1,78 +1,59 @@
 import type { InjectionKey, Ref } from 'vue'
 import type { Translation } from './translation-keys.ts'
-import { inject, isRef, provide, reactive, ref, watch } from 'vue'
-import { en } from './locales/en'
+import { inject } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 /**
- * Injection key for the reactive translation ref.
+ * Injection key kept for backwards compatibility.
  * @internal
  */
 export const TranslationKey: InjectionKey<Ref<Translation>>
   = Symbol('TranslationContext')
 
 /**
- * Provide a translation context for all descendant components.
+ * No-op — translations are now managed by vue-i18n.
  *
- * Accepts either a plain `Translation` object or a `Ref<Translation>`.
- * When a `Ref` is provided, changing its `.value` will reactively update
- * every component that uses `useTranslation()`.
- *
- * @example
- * ```ts
- * // Static — single language
- * provideTranslation(de)
- *
- * // Reactive — switchable at runtime
- * const lang = ref(en)
- * provideTranslation(lang)
- * lang.value = de // all labels update instantly
- * ```
+ * Accepts the same signature as before for backwards compatibility
+ * with external consumers of the library.
  */
 export function provideTranslation(
-  translation: Ref<Translation> | Translation,
+  _translation: Ref<Translation> | Translation,
 ): void {
-  provide(
-    TranslationKey,
-    isRef(translation) ? translation : (ref(translation) as Ref<Translation>),
-  )
+  // Translations are handled by vue-i18n at the app level
 }
 
 /**
- * Read the current translation context.
+ * Read the current translation context backed by vue-i18n.
  *
- * Returns a reactive `Translation` proxy that auto-updates when the
- * provided translation ref changes. All properties reflect the current
- * locale's values, so you can use `t.someKey` both in templates and
- * in `<script setup>` without `.value`.
+ * Returns a `Translation` proxy that delegates every property access
+ * to `t()` from vue-i18n.  All ~170 library components that use
+ * `t.someKey` in templates or `computed` continue to work unchanged
+ * because `t()` internally reads reactive locale refs that Vue tracks
+ * during template/computed evaluation.
  *
- * Handles both plain `Translation` objects and `Ref<Translation>` as
- * injected values for backwards compatibility with existing test setups.
+ * Must be called from within a Vue component's `setup()` (or `<script setup>`)
+ * because it uses `useI18n()` internally.
  */
 export function useTranslation(): Translation {
   const injected = inject(TranslationKey, undefined)
 
-  // No injection found — use English fallback
-  if (!injected) {
-    return reactive({ ...en }) as Translation
-  }
-
-  // If the injected value is a Ref (from provideTranslation), watch it
-  if (isRef(injected)) {
-    const state = reactive({ ...injected.value }) as Translation
-    watch(
-      injected,
-      (newTranslation) => {
-        const keys = Object.keys(newTranslation) as (keyof Translation)[]
-        for (const key of keys) {
-          // biome-ignore lint/suspicious/noExplicitAny: dynamic key assignment to reactive proxy
-          (state as any)[key] = newTranslation[key]
-        }
+  // If something still provides via the old injection, honour it
+  if (injected) {
+    return new Proxy({} as Translation, {
+      get(_target, key: string | symbol) {
+        if (typeof key !== 'string') return ''
+        return (injected.value as any)[key] ?? key
       },
-      { immediate: false },
-    )
-    return state
+    })
   }
 
-  // Plain object (legacy test setup: provide({ [TranslationKey]: en }))
-  return reactive({ ...(injected as unknown as Translation) }) as Translation
+  // Bridge to vue-i18n
+  const { t } = useI18n()
+  return new Proxy({} as Translation, {
+    get(_target, key: string | symbol) {
+      if (typeof key !== 'string') return ''
+      const result = t(key)
+      return typeof result === 'string' ? result : key
+    },
+  })
 }

@@ -21,6 +21,7 @@ import { isMissingUploadFileError, MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPE
 import {
   createMigrationConfig,
 } from '@/core/schema-sqlite'
+import { initI18n, t } from '@/locales'
 
 function getIdArg(args: Record<string, unknown>): string {
   if (typeof args.id === 'string')
@@ -42,17 +43,17 @@ function formatSource(source: { type: 'text' | 'file', fileName?: string }): str
 export async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
   const aiConfig = await readAIConfig(aiexDir)
   if (!aiConfig) {
-    failCommand('AI configuration not found. Please run "aiex web" to configure AI settings first')
+    failCommand(t('command.extract.errors.noAIConfig', { cmd: 'aiex web' }))
     return null
   }
 
   if (!aiConfig.provider.apiKey) {
-    failCommand('API Key not configured. Please configure AI settings in the Web interface first')
+    failCommand(t('command.extract.errors.noApiKey'))
     return null
   }
 
   if (!aiConfig.provider.models?.length) {
-    failCommand('No models configured. Please add at least one model in AI Settings')
+    failCommand(t('command.extract.errors.noModels'))
     return null
   }
 
@@ -65,7 +66,7 @@ export function resolveModelOverride(aiConfig: AIConfig, modelName?: string): AI
   const matched = aiConfig.provider.models.find(m => m.name === modelName)
   if (!matched) {
     const available = aiConfig.provider.models.map(m => m.name).join(', ')
-    failCommand(`Model "${modelName}" not found in configuration. Available models: ${available}`)
+    failCommand(t('command.extract.errors.modelNotFound', { model: modelName, available }))
     return null
   }
   return matched
@@ -74,7 +75,7 @@ export function resolveModelOverride(aiConfig: AIConfig, modelName?: string): AI
 const historyCommand = defineCommand({
   meta: {
     name: 'history',
-    description: 'List extraction audit records',
+    description: t('command.extract.history.description'),
   },
   async run() {
     const config = createMigrationConfig(process.cwd())
@@ -82,7 +83,7 @@ const historyCommand = defineCommand({
     const records = await listExtractionAuditRecords(aiexDir)
 
     if (records.length === 0) {
-      consola.info('No extraction history found')
+      consola.info(t('command.extract.history.empty'))
       return
     }
 
@@ -96,18 +97,18 @@ const historyCommand = defineCommand({
 const showCommand = defineCommand({
   meta: {
     name: 'show',
-    description: 'Show an extraction audit record',
+    description: t('command.extract.show.description'),
   },
   args: {
     id: {
       type: 'string',
-      description: 'Audit record id',
+      description: t('command.extract.show.args.id'),
     },
   },
   async run({ args }) {
     const id = getIdArg(args)
     if (!id) {
-      failCommand('Audit record id is required')
+      failCommand(t('command.extract.history.errors.idRequired'))
       return
     }
 
@@ -115,7 +116,7 @@ const showCommand = defineCommand({
     const aiexDir = path.dirname(config.schemaPath)
     const record = await readExtractionAuditRecord(aiexDir, id)
     if (!record) {
-      failCommand(`Extraction record not found: ${id}`)
+      failCommand(t('command.extract.history.errors.recordNotFound', { id }))
       return
     }
 
@@ -126,25 +127,26 @@ const showCommand = defineCommand({
 const retryCommand = defineCommand({
   meta: {
     name: 'retry',
-    description: 'Retry an extraction audit record',
+    description: t('command.extract.retry.description'),
   },
   args: {
     id: {
       type: 'string',
-      description: 'Audit record id',
+      description: t('command.extract.retry.args.id'),
     },
     noInsert: {
       type: 'boolean',
-      description: 'Extract and save JSON without inserting into SQLite',
+      description: t('command.extract.retry.args.noInsert'),
       default: false,
     },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex extract retry '))
+    await initI18n()
 
     const id = getIdArg(args)
     if (!id) {
-      failCommand('Audit record id is required')
+      failCommand(t('command.extract.history.errors.idRequired'))
       return
     }
 
@@ -152,7 +154,7 @@ const retryCommand = defineCommand({
     const aiexDir = path.dirname(config.schemaPath)
     const record = await readExtractionAuditRecord(aiexDir, id)
     if (!record) {
-      failCommand(`Extraction record not found: ${id}`)
+      failCommand(t('command.extract.history.errors.recordNotFound', { id }))
       return
     }
 
@@ -182,7 +184,7 @@ const retryCommand = defineCommand({
         return
       }
 
-      outro('Done!')
+      outro(t('common.done'))
     }
     catch (error) {
       if (isMissingUploadFileError(error)) {
@@ -197,18 +199,18 @@ const retryCommand = defineCommand({
 const rmCommand = defineCommand({
   meta: {
     name: 'rm',
-    description: 'Delete an extraction audit record and cached upload',
+    description: t('command.extract.rm.description'),
   },
   args: {
     id: {
       type: 'string',
-      description: 'Audit record id',
+      description: t('command.extract.rm.args.id'),
     },
   },
   async run({ args }) {
     const id = getIdArg(args)
     if (!id) {
-      failCommand('Audit record id is required')
+      failCommand(t('command.extract.history.errors.idRequired'))
       return
     }
 
@@ -216,18 +218,18 @@ const rmCommand = defineCommand({
     const aiexDir = path.dirname(config.schemaPath)
     const deleted = await deleteExtractionAuditRecord(aiexDir, id)
     if (!deleted) {
-      failCommand(`Extraction record not found: ${id}`)
+      failCommand(t('command.extract.history.errors.recordNotFound', { id }))
       return
     }
 
-    consola.success(`Deleted extraction record: ${id}`)
+    consola.success(t('command.extract.history.deleted', { id }))
   },
 })
 
 export const extractCommand = defineCommand({
   meta: {
     name: 'extract',
-    description: 'Extract structured data from text, images, or PDFs',
+    description: t('command.extract.description'),
   },
   subCommands: {
     history: historyCommand,
@@ -239,36 +241,36 @@ export const extractCommand = defineCommand({
     schema: {
       type: 'string',
       alias: 's',
-      description: 'Schema name (without .json extension)',
+      description: t('command.extract.args.schema'),
     },
     file: {
       type: 'string',
       alias: 'f',
-      description: `File path to extract from. Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`,
+      description: t('command.extract.args.file', { types: SUPPORTED_FILE_TYPES_TEXT }),
     },
     model: {
       type: 'string',
       alias: 'm',
-      description: 'AI model to use for extraction (overrides auto-selection)',
+      description: t('command.extract.args.model'),
     },
     dir: {
       type: 'string',
       alias: 'd',
-      description: 'Directory containing files to batch extract',
+      description: t('command.extract.args.dir'),
     },
     glob: {
       type: 'string',
       alias: 'g',
-      description: 'Glob pattern to filter files in batch mode (e.g. "*.pdf")',
+      description: t('command.extract.args.glob'),
     },
     noInsert: {
       type: 'boolean',
-      description: 'Extract and save JSON without inserting into SQLite',
+      description: t('command.extract.args.noInsert'),
       default: false,
     },
     force: {
       type: 'boolean',
-      description: 'Force re-extraction even if the file has already been processed successfully',
+      description: t('command.extract.args.force'),
       default: false,
     },
   },
@@ -277,6 +279,7 @@ export const extractCommand = defineCommand({
       return
 
     intro(pc.inverse(' aiex extract '))
+    await initI18n()
 
     const cwd = process.cwd()
     const config = createMigrationConfig(cwd)
@@ -284,7 +287,7 @@ export const extractCommand = defineCommand({
 
     // ── Arg conflict validation ──
     if (args.dir && args.file) {
-      failCommand('Cannot combine -f/--file with -d/--dir')
+      failCommand(t('command.extract.errors.conflictFileDir'))
       return
     }
 
@@ -301,7 +304,7 @@ export const extractCommand = defineCommand({
     if (!args.schema && !args.file && !args.dir) {
       const ok = await runInteractive(aiexDir, config, aiConfig, modelOverride)
       if (ok) {
-        outro('Done!')
+        outro(t('common.done'))
       }
       return
     }
@@ -309,7 +312,7 @@ export const extractCommand = defineCommand({
     // ── Batch mode ──
     if (args.dir) {
       if (!args.schema) {
-        failCommand('Schema name (-s) is required in batch mode')
+        failCommand(t('command.extract.errors.schemaRequiredBatch'))
         return
       }
       const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride, { insert: !args.noInsert, force: args.force })
@@ -321,20 +324,20 @@ export const extractCommand = defineCommand({
         process.exitCode = 1
       }
       if (result.failCount > 0)
-        outro(`Completed with failures (${result.failCount} failed)`)
+        outro(t('command.extract.batch.failSummary', { count: result.failCount }))
       else
-        outro('Done!')
+        outro(t('common.done'))
       return
     }
 
     // ── Single file extraction mode ──
     if (!args.schema) {
-      failCommand('Please provide a schema name (-s) to extract from')
+      failCommand(t('command.extract.errors.schemaRequiredSingle'))
       return
     }
 
     if (!args.file) {
-      failCommand('Please provide a file (-f) to extract from')
+      failCommand(t('command.extract.errors.fileRequiredSingle'))
       return
     }
 
@@ -355,7 +358,7 @@ export const extractCommand = defineCommand({
       return
     }
 
-    outro('Done!')
+    outro(t('common.done'))
   },
 })
 
@@ -367,45 +370,45 @@ async function runInteractive(
 ): Promise<boolean> {
   const schemas = await listSchemas(aiexDir)
   if (schemas.length === 0) {
-    failCommand(`No schema files found in ${pc.cyan('.aiex/schema/')}. Run ${pc.cyan('aiex web')} to create and configure schemas first.`)
+    failCommand(t('command.extract.errors.noSchemas', { path: pc.cyan('.aiex/schema/'), cmd: pc.cyan('aiex web') }))
     return false
   }
 
   const schemaName = await select({
-    message: 'Select a schema to extract data for:',
+    message: t('command.extract.interactive.selectSchema'),
     options: schemas.map(s => ({ label: s, value: s })),
   })
 
   if (isCancel(schemaName)) {
-    cancel('Cancelled')
+    cancel(t('common.cancelled'))
     return false
   }
 
   const inputSource = await select({
-    message: 'Choose input source:',
+    message: t('command.extract.interactive.chooseSource'),
     options: [
-      { label: 'Single file', value: 'file', hint: 'Extract from a file (txt, pdf, image)' },
-      { label: 'Batch directory', value: 'dir', hint: 'Extract all supported files in a directory' },
+      { label: t('command.extract.interactive.singleFile'), value: 'file', hint: t('command.extract.interactive.singleFileHint') },
+      { label: t('command.extract.interactive.batchDir'), value: 'dir', hint: t('command.extract.interactive.batchDirHint') },
     ],
   })
 
   if (isCancel(inputSource)) {
-    cancel('Cancelled')
+    cancel(t('common.cancelled'))
     return false
   }
 
   if (inputSource === 'file') {
     const filePathStr = await text({
-      message: 'Enter file path:',
+      message: t('command.extract.interactive.enterFilePath'),
       validate(value) {
         if (!value || value.trim().length === 0)
-          return 'Please enter a file path'
+          return t('command.extract.interactive.filePathRequired')
         return undefined
       },
     })
 
     if (isCancel(filePathStr)) {
-      cancel('Cancelled')
+      cancel(t('common.cancelled'))
       return false
     }
 
@@ -423,16 +426,16 @@ async function runInteractive(
   }
   else if (inputSource === 'dir') {
     const dirPath = await text({
-      message: 'Enter directory path:',
+      message: t('command.extract.interactive.enterDirPath'),
       validate(value) {
         if (!value || value.trim().length === 0)
-          return 'Please enter a directory path'
+          return t('command.extract.interactive.dirPathRequired')
         return undefined
       },
     })
 
     if (isCancel(dirPath)) {
-      cancel('Cancelled')
+      cancel(t('common.cancelled'))
       return false
     }
 
@@ -447,6 +450,6 @@ async function runInteractive(
 
 function cancel(msg: string): void {
   consola.info(msg)
-  outro('Cancelled')
+  outro(t('common.cancelled'))
   process.exitCode = 0
 }

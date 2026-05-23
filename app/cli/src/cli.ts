@@ -4,7 +4,10 @@ import { consola } from 'consola'
 import updateNotifier from 'update-notifier'
 import { subCommands } from '@/commands'
 import { createConfig, seedConfig } from '@/config'
+import { initI18n } from '@/locales'
 import pkg from '~/package.json'
+
+await initI18n()
 
 const config = createConfig()
 seedConfig(config)

@@ -9,6 +9,7 @@ import * as chokidar from 'chokidar'
 import { consola } from 'consola'
 import { execa } from 'execa'
 import pc from 'picocolors'
+import { t } from '@/locales'
 import { getFileHash } from '@/utils/hash'
 import { processOneFile } from './extract-runner'
 
@@ -103,7 +104,7 @@ async function notifySuccess(fileName: string): Promise<void> {
     try {
       await execa('osascript', [
         '-e',
-        `display notification "Successfully processed and inserted data." with title "AIEX Watch: ${fileName}"`,
+        `display notification "${t('command.watch.notification.success')}" with title "${t('command.watch.notification.successTitle', { file: fileName })}"`,
       ])
       await execa('afplay', ['/System/Library/Sounds/Glass.aiff'])
     }
@@ -122,7 +123,7 @@ async function notifyFailure(fileName: string, errorMessage: string): Promise<vo
       const sanitizedMsg = errorMessage.replace(/"/g, '\\"')
       await execa('osascript', [
         '-e',
-        `display notification "${sanitizedMsg}" with title "AIEX Watch Failed: ${fileName}"`,
+        `display notification "${sanitizedMsg}" with title "${t('command.watch.notification.failTitle', { file: fileName })}"`,
       ])
       await execa('afplay', ['/System/Library/Sounds/Basso.aiff'])
     }
@@ -156,10 +157,10 @@ export function startWatcher(options: WatchOptions): FSWatcher {
   fs.mkdirSync(queueDirActive, { recursive: true })
   fs.mkdirSync(queueDirFailed, { recursive: true })
 
-  consola.info(pc.green(`Starting watch on folder: ${pc.cyan(watchDir)}`))
-  consola.info(pc.green(`Schema: ${pc.cyan(schemaName)}`))
+  consola.info(pc.green(t('command.watch.starting.watchFolder', { dir: pc.cyan(watchDir) })))
+  consola.info(pc.green(t('command.watch.starting.schema', { name: pc.cyan(schemaName) })))
   if (modelOverride) {
-    consola.info(pc.green(`Model Override: ${pc.cyan(modelOverride.name)}`))
+    consola.info(pc.green(t('command.watch.starting.modelOverride', { name: pc.cyan(modelOverride.name) })))
   }
 
   const watcher = chokidar.watch(watchDir, {
@@ -185,19 +186,19 @@ export function startWatcher(options: WatchOptions): FSWatcher {
 
     const ext = path.extname(resolvedPath).toLowerCase().replace('.', '')
     if (!SUPPORTED_EXTENSIONS.has(ext)) {
-      consola.warn(`[Watcher] Skipped unsupported file type: ${path.basename(resolvedPath)}`)
+      consola.warn(t('command.watch.events.skippedUnsupported', { file: path.basename(resolvedPath) }))
       return
     }
 
     const fileName = path.basename(resolvedPath)
-    consola.info(`[Watcher] New file detected: ${pc.cyan(fileName)}. Processing...`)
+    consola.info(t('command.watch.events.fileDetected', { file: pc.cyan(fileName) }))
 
     try {
       const hash = await getFileHash(resolvedPath)
       const existingStatus = await registry.getStatus(hash)
 
       if (existingStatus === 'succeeded') {
-        consola.info(`[Watcher] File ${pc.cyan(fileName)} (hash: ${hash.slice(0, 8)}) has already been processed successfully. Skipping.`)
+        consola.info(t('command.watch.events.alreadyProcessed', { file: pc.cyan(fileName), hash: hash.slice(0, 8) }))
         return
       }
 
@@ -222,30 +223,30 @@ export function startWatcher(options: WatchOptions): FSWatcher {
         await fsp.rm(activeQueuePath, { force: true }).catch(() => {})
         // Also remove any generated PDF companion markdown file from the queue folder
         await fsp.rm(activeQueuePath.replace(PDF_EXT_REGEXP, '.md'), { force: true }).catch(() => {})
-        consola.success(`[Watcher] File processed successfully: ${pc.green(fileName)}`)
+        consola.success(t('command.watch.events.processedSuccess', { file: pc.green(fileName) }))
         await notifySuccess(fileName)
       }
       else {
-        const errorMsg = 'Extraction failed. See extraction audit history.'
+        const errorMsg = t('command.watch.events.extractionFailed')
         await registry.markFailed(hash, resolvedPath, errorMsg)
         // Move to failed staging queue
         const failedQueuePath = path.join(queueDirFailed, `${hash}-${Date.now()}.${ext}`)
         await fsp.rename(activeQueuePath, failedQueuePath).catch(() => {})
         // Clean up markdown companion if generated
         await fsp.rm(activeQueuePath.replace(PDF_EXT_REGEXP, '.md'), { force: true }).catch(() => {})
-        consola.error(`[Watcher] Processing failed for: ${pc.red(fileName)}`)
+        consola.error(t('command.watch.events.processingFailed', { file: pc.red(fileName) }))
         await notifyFailure(fileName, errorMsg)
       }
     }
     catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e)
-      consola.error(`[Watcher] Error processing file ${fileName}: ${errorMsg}`)
+      consola.error(t('command.watch.events.errorProcessing', { file: fileName, error: errorMsg }))
       await notifyFailure(fileName, errorMsg)
     }
   })
 
   watcher.on('error', (error: any) => {
-    consola.error(`[Watcher] Watcher error: ${error?.message || String(error)}`)
+    consola.error(t('command.watch.events.watcherError', { error: error?.message || String(error) }))
   })
 
   return watcher

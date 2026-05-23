@@ -5,21 +5,23 @@ import { consola } from 'consola'
 import pc from 'picocolors'
 import { createMigrationConfig } from '@/core/schema-sqlite'
 import { startWebServer } from '@/core/web-runner'
+import { initI18n, t } from '@/locales'
 
 export const webCommand = defineCommand({
   meta: {
     name: 'web',
-    description: 'Start visual JSON Schema editor',
+    description: t('command.web.description'),
   },
   args: {
     port: {
       type: 'string',
       alias: 'p',
-      description: 'Port to listen on',
+      description: t('command.web.args.port'),
       default: '13000',
     },
   },
   async run({ args }) {
+    await initI18n()
     intro(pc.inverse(' aiex web '))
 
     const cwd = process.cwd()
@@ -27,18 +29,18 @@ export const webCommand = defineCommand({
     const config = createMigrationConfig(cwd)
 
     const s = spinner()
-    s.start('Starting web server...')
+    s.start(t('command.web.starting'))
 
     await startWebServer({
       config,
       port,
       onStarted(info) {
-        s.stop(`Server running at ${pc.cyan(info.url)}`)
-        consola.info(`Schema directory: ${pc.dim(info.schemaPath)}`)
-        consola.info('Press Ctrl+C to stop')
+        s.stop(t('command.web.serverRunning', { url: pc.cyan(info.url) }))
+        consola.info(t('command.web.schemaDir', { path: pc.dim(info.schemaPath) }))
+        consola.info(t('command.web.pressCtrlC'))
       },
       onOpenFailed(url) {
-        consola.warn(`Could not open browser. Visit ${url} manually.`)
+        consola.warn(t('command.web.browserOpenFailed', { url }))
       },
     })
   },

@@ -11,6 +11,7 @@ import { generateText, jsonSchema, Output } from 'ai'
 import { writeFile as writeJsonFile } from 'jsonfile'
 import mime from 'mime'
 import { getErrorMessage } from '@/core/schema-sqlite'
+import { t } from '@/locales'
 import { withRetry } from '@/utils/retry'
 import { safeParseJSON } from './json-utils'
 import { selectModel } from './model-selector'
@@ -256,7 +257,7 @@ export async function extractStructuredData(input: {
   const { config, schema, text, aiexDir, file, modelOverride } = input
 
   if (!config.provider.apiKey) {
-    return { success: false, error: 'API Key not configured. Please configure AI settings in the web UI.' }
+    return { success: false, error: t('errors.ai.apiKeyMissing') }
   }
 
   const useFileContent = !!file

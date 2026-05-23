@@ -10,26 +10,28 @@ import {
   runSchemaMigration,
 } from '@/core/schema-runner'
 import { createMigrationConfig } from '@/core/schema-sqlite'
+import { initI18n, t } from '@/locales'
 
 export const schemaCommand = defineCommand({
   meta: {
     name: 'schema',
-    description: 'Sync JSON Schema to SQLite database',
+    description: t('command.schema.description'),
   },
   args: {
     generate: {
       type: 'boolean',
       alias: 'g',
-      description: 'Only generate Drizzle schema, skip migrate',
+      description: t('command.schema.args.generate'),
       default: false,
     },
     name: {
       type: 'string',
-      description: 'Name for the migration',
+      description: t('command.schema.args.name'),
     },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex schema '))
+    await initI18n()
 
     const cwd = process.cwd()
     const config = createMigrationConfig(cwd)
@@ -37,59 +39,59 @@ export const schemaCommand = defineCommand({
     const schemaFiles = await listSchemaFiles(config.schemaPath)
 
     if (schemaFiles.length === 0) {
-      consola.info(`Run ${pc.cyan('aiex web')} to create and configure schemas in the Web UI`)
-      failCommand(`No schema files found in ${pc.cyan('.aiex/schema/')}`)
+      consola.info(t('command.schema.runWebHint', { cmd: pc.cyan('aiex web') }))
+      failCommand(t('command.schema.noSchemas', { path: pc.cyan('.aiex/schema/') }))
       return
     }
 
     // Generate
     const s1 = spinner()
-    s1.start('Generating Drizzle schema...')
+    s1.start(t('command.schema.generating'))
 
     const generated = await generateSchemaFromFiles(schemaFiles, config)
     for (const warning of generated.warnings) {
       consola.warn(warning)
     }
     if (generated.success) {
-      consola.success(`Generated ${pc.cyan('.aiex/drizzle/schema.ts')} from ${generated.schemaCount} schema file(s)`)
+      consola.success(t('command.schema.generated', { path: pc.cyan('.aiex/drizzle/schema.ts'), count: generated.schemaCount }))
     }
     else if (generated.error) {
       consola.error(generated.error)
     }
-    s1.stop(generated.success ? 'Schema generated' : 'Generation failed')
+    s1.stop(generated.success ? t('command.schema.generatedOk') : t('command.schema.generatedFail'))
 
     if (!generated.success) {
-      failCommand()
+      failCommand(t('common.failed'))
       return
     }
 
     if (args.generate) {
-      outro('Done! Run without --generate to apply migrations')
+      outro(t('command.schema.runWithoutGenerate'))
       return
     }
 
     // Migrate
     const s2 = spinner()
-    s2.start('Running migrations...')
+    s2.start(t('command.schema.runningMigrations'))
     const migration = await runSchemaMigration(config, args.name)
     if (!migration.success) {
-      consola.error('Failed to generate migration')
-      consola.error(migration.error || 'Migration failed')
+      consola.error(t('command.schema.migrationFailed'))
+      consola.error(migration.error || t('command.schema.migrationFail'))
     }
     else if (migration.changes === 0) {
-      consola.info(pc.gray('No changes detected'))
+      consola.info(pc.gray(t('command.schema.noChanges')))
     }
     else {
-      consola.success(pc.green('Migration files generated'))
-      consola.success(pc.green('Database migrated'))
+      consola.success(pc.green(t('command.schema.migrationFilesGenerated')))
+      consola.success(pc.green(t('command.schema.databaseMigrated')))
     }
-    s2.stop(migration.success ? 'Migrations applied' : 'Migration failed')
+    s2.stop(migration.success ? t('command.schema.migrationsApplied') : t('command.schema.migrationFail'))
 
     if (!migration.success) {
-      failCommand()
+      failCommand(t('common.failed'))
       return
     }
 
-    outro('Done!')
+    outro(t('common.done'))
   },
 })

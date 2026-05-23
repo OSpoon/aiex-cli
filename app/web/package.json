@@ -25,6 +25,7 @@
     "primevue": "catalog:",
     "tailwind-merge": "catalog:",
     "vue": "catalog:",
+    "vue-i18n": "catalog:",
     "vue-sonner": "catalog:",
     "vxe-pc-ui": "catalog:",
     "vxe-table": "catalog:",

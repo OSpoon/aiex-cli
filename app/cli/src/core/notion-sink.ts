@@ -1,5 +1,6 @@
 import type { NotionConfig } from '@/core/ai-extraction'
 import { Client, extractNotionId } from '@notionhq/client'
+import { t } from '@/locales'
 
 export interface NotionWriteResult {
   pageId: string
@@ -258,7 +259,7 @@ async function resolveNotionDataSource(
 ): Promise<ResolvedNotionDataSource> {
   const id = parseNotionDatabaseId(inputId)
   if (!id)
-    throw new Error('Notion database or data source URL/ID is required.')
+    throw new Error(t('errors.notion.idRequired'))
 
   try {
     const dataSource = await notion.dataSources.retrieve({ data_source_id: id })
@@ -281,12 +282,12 @@ async function resolveNotionDataSource(
   const database = await notion.databases.retrieve({ database_id: id })
   const dataSourceId = firstDataSourceId(database)
   if (!dataSourceId) {
-    throw new Error('No data source found for this Notion database. Copy the data source link from Notion, or share the source database with the integration.')
+    throw new Error(t('errors.notion.noDataSource'))
   }
 
   const dataSource = await notion.dataSources.retrieve({ data_source_id: dataSourceId })
   if (!isDataSourceResponse(dataSource)) {
-    throw new Error('Notion data source did not return properties. Make sure it is shared with the integration and is not a linked data source.')
+    throw new Error(t('errors.notion.noProperties'))
   }
 
   return {
@@ -303,11 +304,11 @@ export async function inspectNotionDatabase(input: {
   schemaFields: NotionSchemaField[]
 }): Promise<NotionDatabaseInfo> {
   if (!input.token.trim())
-    throw new Error('Notion integration token is required.')
+    throw new Error(t('errors.notion.tokenRequired'))
 
   const id = parseNotionDatabaseId(input.databaseId)
   if (!id)
-    throw new Error('Notion database or data source URL/ID is required.')
+    throw new Error(t('errors.notion.idRequired'))
 
   const notion = new Client({ auth: input.token })
   const resolved = await resolveNotionDataSource(notion, id)
@@ -327,9 +328,9 @@ export async function inspectNotionDatabase(input: {
 
 export function validateNotionConfig(config: NotionConfig | undefined): string | null {
   if (!config?.enabled)
-    return 'Notion export is not enabled. Configure Notion settings first.'
+    return t('errors.notion.notEnabled')
   if (!config.token.trim())
-    return 'Notion integration token is required.'
+    return t('errors.notion.tokenRequired')
   return null
 }
 
@@ -345,9 +346,9 @@ export async function writeNotionPage(
   const notionConfig = config as NotionConfig
   const schemaConfig = notionConfig.schemas[schemaName]
   if (!schemaConfig)
-    throw new Error(`Notion database is not configured for schema "${schemaName}".`)
+    throw new Error(t('errors.notion.noSchemaConfig', { name: schemaName }))
   if (!schemaConfig.databaseId.trim())
-    throw new Error(`Notion database ID is required for schema "${schemaName}".`)
+    throw new Error(t('errors.notion.noDatabaseId', { name: schemaName }))
 
   const notion = new Client({ auth: notionConfig.token })
   const resolved = await resolveNotionDataSource(notion, schemaConfig.databaseId)
@@ -377,7 +378,7 @@ export async function writeNotionPage(
   }
 
   if (Object.keys(properties).length === 0)
-    throw new Error('No extracted fields matched Notion database properties.')
+    throw new Error(t('errors.notion.noFieldsMatched'))
 
   const page = await notion.pages.create({
     parent: resolved.parent,

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
+import { t } from '@/locales'
 
 const AUDIT_ID_RE = /^[\w.-]+$/
 const STALE_AFTER_MS = 30 * 60 * 1000
@@ -95,7 +96,7 @@ export async function updateExtractionAuditRecord(
 ): Promise<ExtractionAuditRecord> {
   const current = await readExtractionAuditRecord(aiexDir, id)
   if (!current)
-    throw new Error(`Extraction audit record not found: ${id}`)
+    throw new Error(t('errors.extractionAudit.recordNotFound', { id }))
 
   const record: ExtractionAuditRecord = {
     ...current,
@@ -138,7 +139,7 @@ async function markStaleIfNeeded(aiexDir: string, record: ExtractionAuditRecord)
   const staleRecord: ExtractionAuditRecord = {
     ...record,
     status: 'stale',
-    error: record.error ?? 'Extraction did not finish. It may have been interrupted.',
+    error: record.error ?? t('errors.extractionAudit.interrupted'),
     updatedAt: new Date().toISOString(),
   }
   await writeJsonFile(auditPath(aiexDir, staleRecord.id), staleRecord, { spaces: 2, EOL: '\n' })
