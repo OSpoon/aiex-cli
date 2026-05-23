@@ -7,8 +7,8 @@ import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
-import * as XLSX from 'xlsx'
 import { failCommand } from '@/commands/utils'
+import { formatRowsConformingToSchema, generateExportBuffer } from '@/core/export-manager'
 import { loadSchema } from '@/core/extract-runner'
 import { createMigrationConfig } from '@/core/schema-sqlite'
 import { initI18n, t } from '@/locales'
@@ -171,79 +171,30 @@ export const dumpCommand = defineCommand({
     const s2 = spinner()
     s2.start(t('command.dump.formatting'))
 
-    const formattedRows = rows.map((row: any) => {
-      const newRow: Record<string, any> = {}
-      columns.forEach((col) => {
-        const colName = col.name
-        const val = row[colName]
-
-        // Look up schema type
-        const prop = schema?.properties?.[colName]
-        const type = prop?.type || ''
-
-        if (val === null || val === undefined) {
-          newRow[colName] = ''
-        }
-        else if (type === 'boolean') {
-          // SQLite stores booleans as 0 or 1
-          if (format === 'xlsx') {
-            newRow[colName] = val === 1 || val === '1' || val === true
-          }
-          else {
-            newRow[colName] = (val === 1 || val === '1' || val === true) ? 'true' : 'false'
-          }
-        }
-        else if (type === 'number' || type === 'integer') {
-          if (val === '') {
-            newRow[colName] = ''
-          }
-          else {
-            const num = Number(val)
-            newRow[colName] = Number.isNaN(num) ? val : num
-          }
-        }
-        else if (typeof val === 'object') {
-          newRow[colName] = JSON.stringify(val)
-        }
-        else {
-          // If SQLite type info implies numeric, ensure it's exported as number in XLSX
-          const dbType = (col.type || '').toLowerCase()
-          const isNumericDb = dbType.includes('int') || dbType.includes('real') || dbType.includes('num') || dbType.includes('double') || dbType.includes('float')
-          if (isNumericDb && typeof val === 'string' && val !== '') {
-            const num = Number(val)
-            newRow[colName] = Number.isNaN(num) ? val : num
-          }
-          else {
-            newRow[colName] = val
-          }
-        }
-      })
-      return newRow
-    })
-
-    s2.stop(t('command.dump.formatted'))
+    let formattedRows: any[]
+    try {
+      formattedRows = formatRowsConformingToSchema(rows, columns, schema, format as 'csv' | 'xlsx')
+      s2.stop(t('command.dump.formatted'))
+    }
+    catch (error) {
+      s2.stop(t('command.dump.dbQueryFailed'))
+      failCommand(error instanceof Error ? error.message : String(error))
+      return
+    }
 
     // 5. Generate and write the output file
     const s3 = spinner()
     s3.start(t('command.dump.writing', { format: format.toUpperCase(), path: resolvedOutput }))
 
     try {
-      const ws = XLSX.utils.json_to_sheet(formattedRows, { header: columns.map(col => col.name) })
+      const buffer = generateExportBuffer(tableName, formattedRows, columns, format as 'csv' | 'xlsx')
+
       const outputDir = path.dirname(resolvedOutput)
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true })
       }
 
-      if (format === 'xlsx') {
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, tableName.slice(0, 31)) // Sheet name max 31 chars
-        XLSX.writeFile(wb, resolvedOutput)
-      }
-      else {
-        const csv = XLSX.utils.sheet_to_csv(ws)
-        const bom = '\uFEFF'
-        fs.writeFileSync(resolvedOutput, bom + csv, 'utf8')
-      }
+      fs.writeFileSync(resolvedOutput, buffer)
       s3.stop(t('command.dump.dumpCompleted'))
       consola.success(t('command.dump.successMsg', { count: rows.length, path: pc.cyan(resolvedOutput) }))
     }
