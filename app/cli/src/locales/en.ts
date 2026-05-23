@@ -141,6 +141,8 @@ export const en = {
         processSuccess: 'Processed: {{file}}',
         notionSynced: 'Synced to Notion: {{count}} page(s)',
         notionSyncFail: 'Notion sync failed: {{error}}',
+        webhookSynced: 'Webhook payload sent successfully',
+        webhookSyncFail: 'Webhook push failed: {{error}}',
         extractionFailed: 'Failed: {{error}}',
       },
     },

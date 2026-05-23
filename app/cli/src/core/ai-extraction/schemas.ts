@@ -69,6 +69,12 @@ export const NotionConfigSchema = z.object({
   schemas: z.record(NotionSchemaConfigSchema).default({}),
 })
 
+export const WebhookConfigSchema = z.object({
+  enabled: z.boolean(),
+  url: z.string(),
+  secret: z.string().optional(),
+})
+
 export const AIConfigSchema = z.object({
   provider: AIProviderConfigSchema,
   prompt: PromptConfigSchema,
@@ -77,4 +83,5 @@ export const AIConfigSchema = z.object({
   pdf: PdfConfigSchema.optional(),
   langfuse: LangfuseConfigSchema.optional(),
   notion: NotionConfigSchema.optional(),
+  webhook: WebhookConfigSchema.optional(),
 })

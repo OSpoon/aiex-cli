@@ -143,6 +143,8 @@ export const zhCN: Translations = {
         processSuccess: '已处理: {{file}}',
         notionSynced: '已同步到 Notion: {{count}} 页',
         notionSyncFail: 'Notion 同步失败: {{error}}',
+        webhookSynced: '已成功推送 Webhook 负载',
+        webhookSyncFail: 'Webhook 推送失败: {{error}}',
         extractionFailed: '失败: {{error}}',
       },
     },

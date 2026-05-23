@@ -69,6 +69,12 @@ export interface NotionConfig {
   schemas: Record<string, NotionSchemaConfig>
 }
 
+export interface WebhookConfig {
+  enabled: boolean
+  url: string
+  secret?: string
+}
+
 export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
@@ -77,6 +83,7 @@ export interface AIConfig {
   pdf?: PdfConfig
   langfuse?: LangfuseConfig
   notion?: NotionConfig
+  webhook?: WebhookConfig
 }
 
 export const PLACEHOLDER_SCHEMA = '{schema}'
@@ -169,4 +176,9 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   extraction: DEFAULT_EXTRACTION_CONFIG,
   image: DEFAULT_IMAGE_OCR_CONFIG,
   pdf: DEFAULT_PDF_CONFIG,
+  webhook: {
+    enabled: false,
+    url: '',
+    secret: '',
+  },
 }

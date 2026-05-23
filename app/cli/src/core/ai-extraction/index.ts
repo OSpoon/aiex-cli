@@ -8,7 +8,7 @@ export type { InsertResult } from './inserter'
 export { safeParseJSON } from './json-utils'
 export { getRegistrySize, lookupModel } from './model-registry'
 export { generateExtractionPrompt, generatePromptSnapshot, schemaToDescription } from './prompt-generator'
-export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, ImageOcrConfigSchema, LangfuseConfigSchema, NotionConfigSchema, NotionSchemaConfigSchema, PdfConfigSchema } from './schemas'
+export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, ImageOcrConfigSchema, LangfuseConfigSchema, NotionConfigSchema, NotionSchemaConfigSchema, PdfConfigSchema, WebhookConfigSchema } from './schemas'
 export { savePromptSnapshot } from './snapshot'
 export type {
   AIConfig,
@@ -25,6 +25,7 @@ export type {
   PdfConfig,
   PdfConverterKind,
   PromptConfig,
+  WebhookConfig,
 } from './types'
 export {
   DEFAULT_AI_CONFIG,

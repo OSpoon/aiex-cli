@@ -72,6 +72,10 @@ const langfusePublicKey = ref("")
 const langfuseSecretKey = ref("")
 const langfuseHost = ref("")
 
+const webhookEnabled = ref(false)
+const webhookUrl = ref("")
+const webhookSecret = ref("")
+
 const notionEnabled = ref(false)
 const notionToken = ref("")
 const notionSchemas = ref<Record<string, NotionSchemaConfig>>({})
@@ -395,6 +399,9 @@ async function loadConfig() {
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
     langfuseHost.value = config.langfuse?.host ?? ""
+    webhookEnabled.value = !!config.webhook?.enabled
+    webhookUrl.value = config.webhook?.url ?? ""
+    webhookSecret.value = config.webhook?.secret ?? ""
     notionEnabled.value = !!config.notion?.enabled
     notionToken.value = config.notion?.token ?? ""
     notionSchemas.value = config.notion?.schemas ?? {}
@@ -478,6 +485,11 @@ async function handleSave() {
         enabled: notionEnabled.value,
         token: notionToken.value,
         schemas: notionSchemas.value
+      },
+      webhook: {
+        enabled: webhookEnabled.value,
+        url: webhookUrl.value.trim(),
+        secret: webhookSecret.value.trim() || undefined
       }
     }
     await saveAIConfig(config)
@@ -870,6 +882,32 @@ onUnmounted(() => {
             <div class="flex flex-col gap-1">
               <label class="text-xs text-muted-foreground">{{ $t("app.host") }}</label>
               <InputText v-model="langfuseHost" size="small" placeholder="https://us.cloud.langfuse.com" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Webhook Notifications -->
+      <section>
+        <h3 class="text-sm font-semibold mb-3 text-foreground">
+          {{ $t("app.webhookNotification") }}
+        </h3>
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="webhookEnabled" :binary="true" input-id="webhook-enabled" />
+            <label for="webhook-enabled" class="text-sm cursor-pointer">{{ $t("app.enabled") }}</label>
+          </div>
+          <div v-if="webhookEnabled" class="space-y-3 pl-6 border-l-2 border-border">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">{{ $t("app.webhookUrl") }}</label>
+              <InputText v-model="webhookUrl" size="small" placeholder="http://localhost:8080/webhook" class="w-full" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-muted-foreground">{{ $t("app.webhookSecret") }}</label>
+              <Password v-model="webhookSecret" :feedback="false" toggle-mask size="small" placeholder="webhook-secret-key" input-class="w-full" />
+            </div>
+            <div class="text-xs text-muted-foreground">
+              {{ $t("app.webhookHelp") }}
             </div>
           </div>
         </div>

@@ -165,6 +165,12 @@ export interface InspectNotionDatabaseResult {
   suggestedFieldMap?: Record<string, string>
 }
 
+export interface WebhookConfig {
+  enabled: boolean
+  url: string
+  secret?: string
+}
+
 export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
@@ -173,6 +179,7 @@ export interface AIConfig {
   pdf?: PdfConfig
   langfuse?: LangfuseConfig
   notion?: NotionConfig
+  webhook?: WebhookConfig
 }
 
 export async function getAIConfig(): Promise<AIConfig> {

@@ -30,6 +30,7 @@ import {
   JsonSchemaDefinitionSchema,
   parseJsonSchema,
 } from '@/core/schema-sqlite'
+import { sendWebhook } from '@/core/webhook-sink'
 import { t } from '@/locales'
 import { getFileHash } from '@/utils/hash'
 
@@ -383,6 +384,46 @@ export interface RunAuditedExtractionResult {
   fileHash?: string
 }
 
+async function triggerWebhook(
+  aiConfig: AIConfig,
+  auditId: string,
+  schemaName: string,
+  event: 'extraction.success' | 'extraction.failed',
+  source: { type: 'file' | 'text', filePath?: string },
+  data?: unknown,
+  error?: string,
+  tokensUsed?: { prompt: number, completion: number, total: number },
+  quiet = false,
+): Promise<void> {
+  if (!aiConfig.webhook?.enabled)
+    return
+
+  try {
+    await sendWebhook(aiConfig.webhook, {
+      event,
+      schemaName,
+      auditId,
+      timestamp: new Date().toISOString(),
+      source: {
+        type: source.type,
+        fileName: source.filePath ? path.basename(source.filePath) : undefined,
+        filePath: source.filePath,
+      },
+      data,
+      error,
+      tokensUsed,
+    })
+    if (!quiet) {
+      consola.success(t('extract.file.webhookSynced'))
+    }
+  }
+  catch (err) {
+    if (!quiet) {
+      consola.error(t('extract.file.webhookSyncFail', { error: err instanceof Error ? err.message : String(err) }))
+    }
+  }
+}
+
 export async function runAuditedExtraction(
   options: RunAuditedExtractionOptions,
 ): Promise<RunAuditedExtractionResult> {
@@ -496,6 +537,17 @@ export async function runAuditedExtraction(
           if (!quiet) {
             consola.error(t('extract.file.notionSyncFail', { error: error instanceof Error ? error.message : String(error) }))
           }
+          await triggerWebhook(
+            aiConfig,
+            audit.id,
+            schemaName,
+            'extraction.failed',
+            source,
+            r.data,
+            error instanceof Error ? error.message : String(error),
+            r.tokensUsed,
+            quiet,
+          )
           return {
             success: false,
             error: error instanceof Error ? error.message : String(error),
@@ -513,6 +565,18 @@ export async function runAuditedExtraction(
         notionPages,
         tokensUsed: r.tokensUsed,
       })
+
+      await triggerWebhook(
+        aiConfig,
+        audit.id,
+        schemaName,
+        'extraction.success',
+        source,
+        r.data,
+        undefined,
+        r.tokensUsed,
+        quiet,
+      )
 
       return {
         success: true,
@@ -533,6 +597,17 @@ export async function runAuditedExtraction(
       if (!quiet) {
         consola.error(t('extract.file.extractionFailed', { error: r.error }))
       }
+      await triggerWebhook(
+        aiConfig,
+        audit.id,
+        schemaName,
+        'extraction.failed',
+        source,
+        undefined,
+        r.error || 'Extraction failed',
+        undefined,
+        quiet,
+      )
       return {
         success: false,
         error: r.error,
@@ -550,6 +625,17 @@ export async function runAuditedExtraction(
       const name = source.type === 'file' ? path.basename(source.filePath) : 'text input'
       consola.error(t('extract.file.errorProcessing', { name, error: e instanceof Error ? e.message : String(e) }))
     }
+    await triggerWebhook(
+      aiConfig,
+      audit.id,
+      schemaName,
+      'extraction.failed',
+      source,
+      undefined,
+      e instanceof Error ? e.message : String(e),
+      undefined,
+      quiet,
+    )
     return {
       success: false,
       error: e instanceof Error ? e.message : String(e),
