@@ -1,16 +1,13 @@
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
 import type { createMigrationConfig } from '@/core/schema-sqlite'
 import type { RetryInfo } from '@/utils/retry'
-import fs from 'node:fs'
 import fsp from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
 import { spinner } from '@clack/prompts'
 import Database from 'better-sqlite3'
 import { consola } from 'consola'
 import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
-import { globSync } from 'tinyglobby'
 import { ZodError } from 'zod'
 import { extractStructuredData, insertExtractedData } from '@/core/ai-extraction'
 import {
@@ -19,48 +16,20 @@ import {
   updateExtractionAuditRecord,
 } from '@/core/extraction-audit'
 import {
-  bytesToMB,
-  MAX_UPLOAD_SIZE,
-  MAX_UPLOAD_SIZE_TEXT,
-} from '@/core/file-constants'
-import { recognizeImageText, shouldUseImageOcrFallback } from '@/core/image-ocr'
-import { writeNotionPage } from '@/core/notion-sink'
-import { createPdfConverter } from '@/core/pdf-converter'
-import {
   JsonSchemaDefinitionSchema,
   parseJsonSchema,
 } from '@/core/schema-sqlite'
-import { sendWebhook } from '@/core/webhook-sink'
 import { t } from '@/locales'
 import { getFileHash } from '@/utils/hash'
+import { shouldSyncNotion, syncResultToNotion, triggerWebhook } from './integration/dispatcher'
+import { readExtractFileInput } from './pdf-converter/orchestrator'
 
-const FILE_PART_EXTENSIONS = new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'webp',
-  'bmp',
-  'svg',
-])
-
-const SUPPORTED_EXTENSIONS = new Set([
-  ...FILE_PART_EXTENSIONS,
-  'pdf',
-  'txt',
-  'md',
-  'csv',
-  'json',
-  'html',
-  'xml',
-  'yaml',
-  'yml',
-])
-
-const PDF_EXT_RE = /\.pdf$/i
+// Re-exports for backwards compatibility and external usage
+export { listSupportedFiles, processOneFile, runBatchExtraction } from './batch/batch-processor'
+export { shouldSyncNotion, syncResultToNotion, triggerWebhook } from './integration/dispatcher'
+export { isImageFile, readExtractFileInput } from './pdf-converter/orchestrator'
 
 const JSON_EXT_RE = /\.json$/
-const SUPPORTED_FILE_PATTERN = `*.{${[...SUPPORTED_EXTENSIONS].join(',')}}`
 
 export interface ExtractFileInput {
   text: string
@@ -79,22 +48,6 @@ export interface ExtractResult {
     completion: number
     total: number
   }
-}
-
-async function syncResultToNotion(
-  aiConfig: AIConfig,
-  schemaName: string,
-  data: unknown,
-): Promise<Array<{ databaseId: string, pageId: string }>> {
-  if (!data || typeof data !== 'object' || Array.isArray(data))
-    throw new Error(t('errors.ai.extractionNotObject'))
-
-  const page = await writeNotionPage(aiConfig.notion, schemaName, data as Record<string, unknown>)
-  return [{ databaseId: page.databaseId, pageId: page.pageId }]
-}
-
-function shouldSyncNotion(aiConfig: AIConfig, schemaName: string): boolean {
-  return !!aiConfig.notion?.enabled && !!aiConfig.notion.schemas?.[schemaName]?.databaseId?.trim()
 }
 
 export interface BatchExtractionResult {
@@ -136,22 +89,6 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
   return null
 }
 
-export function listSupportedFiles(dir: string, pattern?: string): string[] {
-  if (!fs.statSync(dir).isDirectory())
-    throw new Error(t('errors.file.notADirectory', { dir }))
-
-  return globSync(pattern ?? SUPPORTED_FILE_PATTERN, {
-    cwd: dir,
-    absolute: true,
-    onlyFiles: true,
-  })
-    .filter((file) => {
-      const ext = path.extname(file).toLowerCase().replace('.', '')
-      return SUPPORTED_EXTENSIONS.has(ext)
-    })
-    .sort()
-}
-
 export async function loadSchema(config: ReturnType<typeof createMigrationConfig>, schemaName: string): Promise<{ schema: any, error?: string }> {
   const schemaPath = path.join(config.schemaPath, `${schemaName}.json`)
   try {
@@ -186,52 +123,6 @@ export async function listSchemas(aiexDir: string): Promise<string[]> {
   catch {
     return []
   }
-}
-
-export function isImageFile(filePath: string): boolean {
-  const ext = path.extname(filePath).toLowerCase().replace('.', '')
-  return FILE_PART_EXTENSIONS.has(ext)
-}
-
-export async function readExtractFileInput(filePath: string, aiConfig?: AIConfig, modelOverride?: AIModelConfig): Promise<ExtractFileInput> {
-  const stat = fs.statSync(filePath)
-  if (stat.size > MAX_UPLOAD_SIZE) {
-    throw new Error(t('errors.file.sizeExceeded', { size: bytesToMB(stat.size).toFixed(1), limit: MAX_UPLOAD_SIZE_TEXT, file: filePath }))
-  }
-  const ext = path.extname(filePath).toLowerCase().replace('.', '')
-  if (FILE_PART_EXTENSIONS.has(ext)) {
-    if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
-      const result = await recognizeImageText(filePath, aiConfig?.image)
-      consola.info(t('extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
-      return { text: result.text }
-    }
-    return { text: '', filePath }
-  }
-  if (ext === 'pdf') {
-    const buffer = await fsp.readFile(filePath)
-    const converter = createPdfConverter(aiConfig?.pdf)
-    const result = await converter.convert(buffer, filePath)
-    if (result.metadata?.fallback === 'true') {
-      consola.info(t('extract.file.pdfFallback', { count: result.pageCount }))
-    }
-    else {
-      consola.info(t('extract.file.pdfConverted', { name: converter.name, count: result.pageCount }))
-    }
-    // Save markdown alongside source PDF for reference
-    const mdPath = filePath.replace(PDF_EXT_RE, '.md')
-    try {
-      await fsp.writeFile(mdPath, result.text)
-      consola.info(t('extract.file.markdownSaved', { path: mdPath }))
-    }
-    catch {
-      // Fallback: save to temp when source dir is not writable
-      const fallbackMd = path.join(os.tmpdir(), `${path.basename(filePath, '.pdf')}.md`)
-      await fsp.writeFile(fallbackMd, result.text)
-      consola.info(t('extract.file.markdownSaved', { path: fallbackMd }))
-    }
-    return { text: result.text }
-  }
-  return { text: await fsp.readFile(filePath, 'utf-8') }
 }
 
 export async function extractSingle(
@@ -382,46 +273,6 @@ export interface RunAuditedExtractionResult {
   }
   auditId?: string
   fileHash?: string
-}
-
-async function triggerWebhook(
-  aiConfig: AIConfig,
-  auditId: string,
-  schemaName: string,
-  event: 'extraction.success' | 'extraction.failed',
-  source: { type: 'file' | 'text', filePath?: string },
-  data?: unknown,
-  error?: string,
-  tokensUsed?: { prompt: number, completion: number, total: number },
-  quiet = false,
-): Promise<void> {
-  if (!aiConfig.webhook?.enabled)
-    return
-
-  try {
-    await sendWebhook(aiConfig.webhook, {
-      event,
-      schemaName,
-      auditId,
-      timestamp: new Date().toISOString(),
-      source: {
-        type: source.type,
-        fileName: source.filePath ? path.basename(source.filePath) : undefined,
-        filePath: source.filePath,
-      },
-      data,
-      error,
-      tokensUsed,
-    })
-    if (!quiet) {
-      consola.success(t('extract.file.webhookSynced'))
-    }
-  }
-  catch (err) {
-    if (!quiet) {
-      consola.error(t('extract.file.webhookSyncFail', { error: err instanceof Error ? err.message : String(err) }))
-    }
-  }
 }
 
 export async function runAuditedExtraction(
@@ -643,78 +494,4 @@ export async function runAuditedExtraction(
       fileHash,
     }
   }
-}
-
-export async function processOneFile(
-  aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
-  aiConfig: AIConfig,
-  schemaName: string,
-  filePath: string,
-  modelOverride: AIModelConfig | undefined,
-  options?: { insert?: boolean, force?: boolean },
-): Promise<boolean> {
-  const result = await runAuditedExtraction({
-    aiexDir,
-    config,
-    aiConfig,
-    schemaName,
-    source: { type: 'file', filePath },
-    modelOverride,
-    insert: options?.insert,
-    force: options?.force,
-    quiet: false,
-  })
-
-  if (result.success) {
-    if (!result.skipped) {
-      consola.success(t('extract.file.processSuccess', { file: path.basename(filePath) }))
-    }
-    return true
-  }
-
-  return false
-}
-
-export async function runBatchExtraction(
-  aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
-  aiConfig: AIConfig,
-  schemaName: string,
-  dir: string,
-  globPattern: string | undefined,
-  modelOverride: AIModelConfig | undefined,
-  options?: { insert?: boolean, force?: boolean },
-): Promise<BatchExtractionResult> {
-  consola.info(t('extract.batch.scanning', { dir: pc.cyan(dir) }))
-
-  let files: string[]
-  try {
-    files = listSupportedFiles(dir, globPattern)
-  }
-  catch {
-    return { ok: false, successCount: 0, failCount: 0, error: t('extract.batch.errors.cannotReadDir', { dir }) }
-  }
-  if (files.length === 0) {
-    return { ok: false, successCount: 0, failCount: 0, error: t('extract.batch.errors.noSupportedFiles', { dir }) }
-  }
-
-  consola.info(t('extract.batch.found', { count: files.length }))
-
-  let successCount = 0
-  let failCount = 0
-
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    consola.info(`\n${t('extract.batch.processing', { current: i + 1, total: files.length, file: pc.cyan(path.basename(file)) })}`)
-
-    const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, { insert: options?.insert, force: options?.force })
-    if (ok)
-      successCount++
-    else
-      failCount++
-  }
-
-  consola.info(`\n${t('extract.batch.complete', { success: pc.green(successCount), fail: pc.red(failCount), total: files.length })}`)
-  return { ok: true, successCount, failCount }
 }

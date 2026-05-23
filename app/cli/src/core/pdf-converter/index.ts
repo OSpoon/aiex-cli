@@ -1,4 +1,5 @@
 export { ExternalCommandPdfConverter } from './external'
 export { createPdfConverter, registerPdfConverter } from './factory'
+export { isImageFile, readExtractFileInput } from './orchestrator'
 export type { PdfConversionResult, PdfConverter } from './types'
 export { UnpdfConverter } from './unpdf'
