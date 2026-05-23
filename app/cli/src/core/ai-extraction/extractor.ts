@@ -320,83 +320,142 @@ export async function extractStructuredData(input: {
       schemaToExtractionOutputSchema(schema),
     )
 
-    let result
-
     const timeoutMs = (config.provider.timeout ?? 300) * 1000
 
-    if (useFileContent) {
-      const filePart = await readFilePart(file!)
-      const fileName = filePart.type === 'file' ? filePart.filename : path.basename(file!)
-      const userContent = user.includes(PLACEHOLDER_TEXT)
-        ? user.replaceAll(PLACEHOLDER_TEXT, text || `Data is contained in the attached file: ${fileName}`)
-        : user
+    let systemPrompt = system
+    let userPrompt = user
+    const maxAttempts = 3
+    let lastError = ''
+    let totalPromptTokens = 0
+    let totalCompletionTokens = 0
 
-      const contentParts: any[] = [{ type: 'text' as const, text: userContent }, filePart]
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let result: any = null
+      let data: unknown
+      let parseError: string | undefined
+      let validationError: string | undefined
 
-      const fileOpts: any = {
-        model: provider.chatModel(selected.name),
-        system,
-        messages: [
-          { role: 'user', content: contentParts },
-        ],
-        abortSignal: AbortSignal.timeout(timeoutMs),
-        maxRetries: 0,
-        experimental_telemetry: { isEnabled: useTelemetry },
-      }
-      if (useStructuredOutput) {
-        fileOpts.output = Output.object({ schema: outputSchema })
-      }
-      result = await withRetry(() => generateText(fileOpts), input.onRetry)
-    }
-    else {
-      const textOpts: any = {
-        model: provider.chatModel(selected.name),
-        system,
-        prompt: user,
-        abortSignal: AbortSignal.timeout(timeoutMs),
-        maxRetries: 0,
-        experimental_telemetry: { isEnabled: useTelemetry },
-      }
-      if (useStructuredOutput) {
-        textOpts.output = Output.object({ schema: outputSchema })
-      }
-      result = await withRetry(() => generateText(textOpts), input.onRetry)
-    }
+      try {
+        if (useFileContent) {
+          const filePart = await readFilePart(file!)
+          const fileName = filePart.type === 'file' ? filePart.filename : path.basename(file!)
+          const userContent = userPrompt.includes(PLACEHOLDER_TEXT)
+            ? userPrompt.replaceAll(PLACEHOLDER_TEXT, text || `Data is contained in the attached file: ${fileName}`)
+            : userPrompt
 
-    let data: unknown
-    if (useStructuredOutput) {
-      data = result.output
-    }
-    else {
-      data = safeParseJSON(result.text)
-    }
+          const contentParts: any[] = [{ type: 'text' as const, text: userContent }, filePart]
 
-    const validation = validateExtractedData(schema, data)
-    if (!validation.success) {
-      return { success: false, error: validation.error }
-    }
-
-    const outputDir = path.resolve(aiexDir, config.extraction.outputDir.replace('.aiex/', ''))
-    await fs.mkdir(outputDir, { recursive: true })
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const outputFileName = `${schema.table.name}-${timestamp}.json`
-    const outputPath = path.join(outputDir, outputFileName)
-
-    await writeJsonFile(outputPath, data, { spaces: 2, EOL: '\n' })
-
-    return {
-      success: true,
-      outputPath,
-      data,
-      tokensUsed: result.usage
-        ? {
-            prompt: result.usage.inputTokens ?? 0,
-            completion: result.usage.outputTokens ?? 0,
-            total: (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0),
+          const fileOpts: any = {
+            model: provider.chatModel(selected.name),
+            system: systemPrompt,
+            messages: [
+              { role: 'user', content: contentParts },
+            ],
+            abortSignal: AbortSignal.timeout(timeoutMs),
+            maxRetries: 0,
+            experimental_telemetry: { isEnabled: useTelemetry },
           }
-        : undefined,
+          if (useStructuredOutput) {
+            fileOpts.output = Output.object({ schema: outputSchema })
+          }
+          result = await withRetry(() => generateText(fileOpts), input.onRetry)
+        }
+        else {
+          const textOpts: any = {
+            model: provider.chatModel(selected.name),
+            system: systemPrompt,
+            prompt: userPrompt,
+            abortSignal: AbortSignal.timeout(timeoutMs),
+            maxRetries: 0,
+            experimental_telemetry: { isEnabled: useTelemetry },
+          }
+          if (useStructuredOutput) {
+            textOpts.output = Output.object({ schema: outputSchema })
+          }
+          result = await withRetry(() => generateText(textOpts), input.onRetry)
+        }
+
+        if (result.usage) {
+          totalPromptTokens += result.usage.inputTokens ?? 0
+          totalCompletionTokens += result.usage.outputTokens ?? 0
+        }
+
+        if (useStructuredOutput) {
+          data = result.output
+        }
+        else {
+          try {
+            data = safeParseJSON(result.text)
+          }
+          catch (e) {
+            parseError = e instanceof Error ? e.message : String(e)
+          }
+        }
+      }
+      catch (error: unknown) {
+        parseError = getErrorMessage(error)
+      }
+
+      if (!parseError && data !== undefined) {
+        const validation = validateExtractedData(schema, data)
+        if (validation.success) {
+          const outputDir = path.resolve(aiexDir, config.extraction.outputDir.replace('.aiex/', ''))
+          await fs.mkdir(outputDir, { recursive: true })
+
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+          const outputFileName = `${schema.table.name}-${timestamp}.json`
+          const outputPath = path.join(outputDir, outputFileName)
+
+          await writeJsonFile(outputPath, data, { spaces: 2, EOL: '\n' })
+
+          return {
+            success: true,
+            outputPath,
+            data,
+            tokensUsed: {
+              prompt: totalPromptTokens,
+              completion: totalCompletionTokens,
+              total: totalPromptTokens + totalCompletionTokens,
+            },
+          }
+        }
+        else {
+          validationError = validation.error
+        }
+      }
+
+      const errorMsg = parseError || validationError || 'Unknown validation error'
+      lastError = errorMsg
+
+      if (attempt < maxAttempts) {
+        const invalidJson = data !== undefined ? JSON.stringify(data, null, 2) : (result ? result.text : '')
+
+        systemPrompt = `You are a precise data correction assistant. Your task is to correct validation errors in a previously generated JSON object to make it comply with the provided JSON Schema.
+        
+CRITICAL RULES:
+1. Only correct the fields that failed validation.
+2. Preserve all other correctly extracted fields and their values exactly.
+3. Return ONLY the corrected JSON object. No explanations, no markdown blocks other than JSON.`
+
+        userPrompt = `The JSON data you generated previously failed validation. Please correct it.
+
+[Original Text]
+${text || 'Data is contained in the attached file.'}
+
+[JSON Schema Definition]
+${JSON.stringify(schemaToExtractionOutputSchema(schema), null, 2)}
+
+[Previously Generated Invalid JSON]
+${invalidJson}
+
+[Validation Error Details]
+${errorMsg}
+
+Please output the corrected JSON object now:`
+      }
     }
+
+    return { success: false, error: lastError || 'Extraction failed after self-reflection retries' }
   }
   catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
