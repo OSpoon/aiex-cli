@@ -205,37 +205,45 @@ async function handleSave() {
       },
       pdf: {
         converter: pdfConverter.value,
-        mineru: {
-          command: mineruCommand.value,
-          args: mineruArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-          timeout: mineruTimeout.value,
-          fallbackToUnpdf: mineruFallbackToUnpdf.value,
-          keepOutput: mineruKeepOutput.value || undefined
-        },
-        markitdown: {
-          command: markitdownCommand.value,
-          args: markitdownArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-          outputFile: markitdownOutputFile.value.trim() || undefined,
-          timeout: markitdownTimeout.value,
-          fallbackToUnpdf: markitdownFallbackToUnpdf.value,
-          keepOutput: markitdownKeepOutput.value || undefined
-        },
-        marker: {
-          command: markerCommand.value,
-          args: markerArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-          outputFile: markerOutputFile.value.trim() || undefined,
-          timeout: markerTimeout.value,
-          fallbackToUnpdf: markerFallbackToUnpdf.value,
-          keepOutput: markerKeepOutput.value || undefined
-        },
-        external: {
-          command: externalCommand.value,
-          args: externalArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-          outputFile: externalOutputFile.value.trim() || undefined,
-          timeout: externalTimeout.value,
-          fallbackToUnpdf: externalFallbackToUnpdf.value,
-          keepOutput: externalKeepOutput.value || undefined
-        }
+        mineru: mineruCommand.value.trim()
+          ? {
+              command: mineruCommand.value,
+              args: mineruArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+              timeout: mineruTimeout.value,
+              fallbackToUnpdf: mineruFallbackToUnpdf.value,
+              keepOutput: mineruKeepOutput.value || undefined
+            }
+          : undefined,
+        markitdown: markitdownCommand.value.trim()
+          ? {
+              command: markitdownCommand.value,
+              args: markitdownArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+              outputFile: markitdownOutputFile.value.trim() || undefined,
+              timeout: markitdownTimeout.value,
+              fallbackToUnpdf: markitdownFallbackToUnpdf.value,
+              keepOutput: markitdownKeepOutput.value || undefined
+            }
+          : undefined,
+        marker: markerCommand.value.trim()
+          ? {
+              command: markerCommand.value,
+              args: markerArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+              outputFile: markerOutputFile.value.trim() || undefined,
+              timeout: markerTimeout.value,
+              fallbackToUnpdf: markerFallbackToUnpdf.value,
+              keepOutput: markerKeepOutput.value || undefined
+            }
+          : undefined,
+        external: externalCommand.value.trim()
+          ? {
+              command: externalCommand.value,
+              args: externalArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
+              outputFile: externalOutputFile.value.trim() || undefined,
+              timeout: externalTimeout.value,
+              fallbackToUnpdf: externalFallbackToUnpdf.value,
+              keepOutput: externalKeepOutput.value || undefined
+            }
+          : undefined
       },
       langfuse: langfuseEnabled.value
         ? {
