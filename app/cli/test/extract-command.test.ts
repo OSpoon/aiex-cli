@@ -19,6 +19,7 @@ vi.mock('@/core/ai-extraction', () => ({
 }))
 
 vi.mock('@clack/prompts', () => ({
+  confirm: vi.fn(),
   intro: vi.fn(),
   outro: vi.fn(),
   isCancel: vi.fn(() => false),
@@ -270,6 +271,36 @@ describe('extractCommand.run', () => {
     expect(process.exitCode).toBe(0)
     expect(fs.existsSync(path.join(auditDir, 'run-1.json'))).toBe(false)
     expect(fs.existsSync(uploadPath)).toBe(false)
+
+    cleanupDir(projectDir)
+  })
+
+  it('should run interactive mode for single file with force flag', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    const inputFile = path.join(projectDir, 'sample.txt')
+    fs.writeFileSync(inputFile, 'Bob is 25')
+
+    mockAIConfig()
+    const { select, text, confirm } = await import('@clack/prompts')
+    vi.mocked(select)
+      .mockResolvedValueOnce('test') // select schema
+      .mockResolvedValueOnce('file') // select chooseSource
+    vi.mocked(text).mockResolvedValueOnce(inputFile) // enter file path
+    vi.mocked(confirm).mockResolvedValueOnce(true) // askForce confirm
+
+    vi.mocked(extractStructuredData).mockResolvedValue({
+      success: true,
+      data: { name: 'Bob' },
+      outputPath: path.join(projectDir, '.aiex', 'extracted', 'test_table-result.json'),
+    })
+
+    await cmd.run({ args: {} })
+
+    expect(process.exitCode).toBe(0)
+    expect(extractStructuredData).toHaveBeenCalled()
+    expect(outro).toHaveBeenCalledWith('Done!')
 
     cleanupDir(projectDir)
   })

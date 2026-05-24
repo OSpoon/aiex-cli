@@ -68,6 +68,7 @@ export const en = {
         enterDirPath: 'Enter directory path:',
         filePathRequired: 'Please enter a file path',
         dirPathRequired: 'Please enter a directory path',
+        askForce: 'Force re-extraction of already processed files?',
       },
       errors: {
         noAIConfig: 'AI configuration not found. Please run "{{cmd}}" to configure AI settings first',

@@ -70,6 +70,7 @@ export const zhCN: Translations = {
         enterDirPath: '输入目录路径:',
         filePathRequired: '请输入文件路径',
         dirPathRequired: '请输入目录路径',
+        askForce: '是否强制重新抽取已成功处理过的文件？',
       },
       errors: {
         noAIConfig: '未找到 AI 配置，请运行 "{{cmd}}" 先配置 AI 设置',

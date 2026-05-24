@@ -1,7 +1,7 @@
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
 import path from 'node:path'
 import process from 'node:process'
-import { intro, isCancel, outro, select, text } from '@clack/prompts'
+import { confirm, intro, isCancel, outro, select, text } from '@clack/prompts'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
@@ -414,6 +414,16 @@ async function runInteractive(
 
     const fp = filePathStr as string
 
+    const force = await confirm({
+      message: t('command.extract.interactive.askForce'),
+      initialValue: false,
+    })
+
+    if (isCancel(force)) {
+      cancel(t('common.cancelled'))
+      return false
+    }
+
     const result = await runAuditedExtraction({
       aiexDir,
       config,
@@ -421,6 +431,7 @@ async function runInteractive(
       schemaName: schemaName as string,
       source: { type: 'file', filePath: fp },
       modelOverride,
+      force,
     })
     return result.success
   }
@@ -439,7 +450,26 @@ async function runInteractive(
       return false
     }
 
-    const result = await runBatchExtraction(aiexDir, config, aiConfig, schemaName as string, dirPath as string, undefined, modelOverride)
+    const force = await confirm({
+      message: t('command.extract.interactive.askForce'),
+      initialValue: false,
+    })
+
+    if (isCancel(force)) {
+      cancel(t('common.cancelled'))
+      return false
+    }
+
+    const result = await runBatchExtraction(
+      aiexDir,
+      config,
+      aiConfig,
+      schemaName as string,
+      dirPath as string,
+      undefined,
+      modelOverride,
+      { force },
+    )
     if (!result.ok)
       failCommand(result.error)
     return result.ok && result.failCount === 0
