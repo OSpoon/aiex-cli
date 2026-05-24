@@ -304,4 +304,111 @@ describe('extractCommand.run', () => {
 
     cleanupDir(projectDir)
   })
+
+  it('should cancel interactive mode when schema selection is cancelled', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    mockAIConfig()
+    const { select, isCancel } = await import('@clack/prompts')
+    vi.mocked(select).mockResolvedValueOnce('test')
+    vi.mocked(isCancel).mockReturnValueOnce(true) // for schemaName check
+
+    await cmd.run({ args: {} })
+
+    expect(outro).toHaveBeenCalledWith('Cancelled')
+    cleanupDir(projectDir)
+  })
+
+  it('should cancel interactive mode when input source selection is cancelled', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    mockAIConfig()
+    const { select, isCancel } = await import('@clack/prompts')
+    vi.mocked(select)
+      .mockResolvedValueOnce('test')
+      .mockResolvedValueOnce('file')
+    vi.mocked(isCancel)
+      .mockReturnValueOnce(false) // schemaName check
+      .mockReturnValueOnce(true) // inputSource check
+
+    await cmd.run({ args: {} })
+
+    expect(outro).toHaveBeenCalledWith('Cancelled')
+    cleanupDir(projectDir)
+  })
+
+  it('should cancel interactive mode when file path input is cancelled', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    mockAIConfig()
+    const { select, text, isCancel } = await import('@clack/prompts')
+    vi.mocked(select)
+      .mockResolvedValueOnce('test')
+      .mockResolvedValueOnce('file')
+    vi.mocked(text).mockResolvedValueOnce('path')
+    vi.mocked(isCancel)
+      .mockReturnValueOnce(false) // schemaName check
+      .mockReturnValueOnce(false) // inputSource check
+      .mockReturnValueOnce(true) // filePathStr check
+
+    await cmd.run({ args: {} })
+
+    expect(outro).toHaveBeenCalledWith('Cancelled')
+    cleanupDir(projectDir)
+  })
+
+  it('should cancel interactive mode when force confirm is cancelled', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    mockAIConfig()
+    const { select, text, confirm, isCancel } = await import('@clack/prompts')
+    vi.mocked(select)
+      .mockResolvedValueOnce('test')
+      .mockResolvedValueOnce('file')
+    vi.mocked(text).mockResolvedValueOnce('path')
+    vi.mocked(confirm).mockResolvedValueOnce(true)
+    vi.mocked(isCancel)
+      .mockReturnValueOnce(false) // schemaName check
+      .mockReturnValueOnce(false) // inputSource check
+      .mockReturnValueOnce(false) // filePathStr check
+      .mockReturnValueOnce(true) // force check
+
+    await cmd.run({ args: {} })
+
+    expect(outro).toHaveBeenCalledWith('Cancelled')
+    cleanupDir(projectDir)
+  })
+
+  it('should run interactive mode for batch directory with force flag', async () => {
+    const projectDir = createProjectFixture()
+    const inputDir = path.join(projectDir, 'inputs')
+    fs.mkdirSync(inputDir)
+    fs.writeFileSync(path.join(inputDir, 'one.txt'), 'one')
+    process.chdir(projectDir)
+
+    mockAIConfig()
+    const { select, text, confirm } = await import('@clack/prompts')
+    vi.mocked(select)
+      .mockResolvedValueOnce('test') // select schema
+      .mockResolvedValueOnce('dir') // select chooseSource
+    vi.mocked(text).mockResolvedValueOnce(inputDir) // enter dir path
+    vi.mocked(confirm).mockResolvedValueOnce(true) // askForce confirm
+
+    vi.mocked(extractStructuredData).mockResolvedValue({
+      success: true,
+      data: { name: 'one' },
+    })
+
+    await cmd.run({ args: {} })
+
+    expect(process.exitCode).toBe(0)
+    expect(extractStructuredData).toHaveBeenCalled()
+    expect(outro).toHaveBeenCalledWith('Done!')
+
+    cleanupDir(projectDir)
+  })
 })
