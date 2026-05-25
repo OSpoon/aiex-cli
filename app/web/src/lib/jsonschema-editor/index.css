@@ -44,9 +44,9 @@
   --color-card: var(--p-content-background);
   --color-card-foreground: var(--p-text-color);
 
-  --radius-lg: 0.8rem;
-  --radius-md: calc(0.8rem - 2px);
-  --radius-sm: calc(0.8rem - 4px);
+  --radius-lg: 0.5rem;
+  --radius-md: 0.375rem;
+  --radius-sm: 0.25rem;
 
   --animate-fade-in: jscb-fade-in 0.3s ease-out;
   --animate-fade-out: jscb-fade-out 0.3s ease-out;

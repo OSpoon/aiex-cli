@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import { useDebounceFn } from "@vueuse/core"
-import { Maximize2 } from "lucide-vue-next"
 import TabPanel from "primevue/tabpanel"
 import { ref, watch } from "vue"
 import Tabs from "@/lib/jsonschema-editor/components/ui/Tabs.vue"
@@ -157,21 +156,7 @@ const leftTab = ref<"fields" | "examples">("fields")
           )
         "
       >
-        <div class="flex items-center justify-between px-4 py-3 border-b w-full shrink-0">
-          <h3 class="font-medium">
-            {{ t.schemaEditorTitle }}
-          </h3>
-          <button
-            v-if="showFullscreen"
-            type="button"
-            @click="toggleFullscreen"
-            class="p-1.5 rounded-md hover:bg-secondary transition-colors"
-            :aria-label="t.schemaEditorToggleFullscreen"
-          >
-            <Maximize2 :size="16" />
-          </button>
-        </div>
-        <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" />
+        <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" :show-fullscreen="showFullscreen" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" @toggle-fullscreen="toggleFullscreen" />
         <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
           <button
             type="button"
@@ -207,22 +192,6 @@ const leftTab = ref<"fields" | "examples">("fields")
     <template v-else>
       <!-- For mobile screens - show as tabs -->
       <div class="flex flex-col w-full flex-1 min-h-0 lg:hidden">
-        <div
-          class="flex shrink-0 items-center justify-between border-b px-4 py-3 w-full"
-        >
-          <h3 class="font-medium">
-            {{ t.schemaEditorTitle }}
-          </h3>
-          <button
-            v-if="showFullscreen"
-            type="button"
-            @click="toggleFullscreen"
-            class="p-1.5 rounded-md hover:bg-secondary transition-colors"
-            :aria-label="t.schemaEditorToggleFullscreen"
-          >
-            <Maximize2 :size="16" />
-          </button>
-        </div>
         <Tabs
           v-model="activeTab"
           :tabs="[
@@ -240,7 +209,7 @@ const leftTab = ref<"fields" | "examples">("fields")
               )
             "
           >
-            <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" />
+            <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" :show-fullscreen="showFullscreen" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" @toggle-fullscreen="toggleFullscreen" />
             <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
               <button
                 type="button"
@@ -295,21 +264,7 @@ const leftTab = ref<"fields" | "examples">("fields")
           )
         "
       >
-        <div class="flex items-center justify-between px-4 py-3 border-b w-full shrink-0">
-          <h3 class="font-medium">
-            {{ t.schemaEditorTitle }}
-          </h3>
-          <button
-            v-if="showFullscreen"
-            type="button"
-            @click="toggleFullscreen"
-            class="p-1.5 rounded-md hover:bg-secondary transition-colors"
-            :aria-label="t.schemaEditorToggleFullscreen"
-          >
-            <Maximize2 :size="16" />
-          </button>
-        </div>
-        <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" />
+        <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" :show-fullscreen="showFullscreen" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" @toggle-fullscreen="toggleFullscreen" />
         <div class="flex flex-row w-full flex-1 min-h-0">
           <div
             class="flex flex-col min-h-0 min-w-0"

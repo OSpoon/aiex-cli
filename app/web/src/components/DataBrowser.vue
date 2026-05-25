@@ -270,8 +270,8 @@ async function exportJSON() {
 </script>
 
 <template>
-  <div class="flex h-full">
-    <div class="flex-1 min-h-0 p-3 flex flex-col overflow-x-auto">
+  <div class="flex h-full min-w-0 overflow-hidden">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
       <template v-if="!props.tableName">
         <div class="flex-1 flex flex-col items-center justify-center text-muted-foreground">
           <i class="pi pi-database text-4xl mb-3 opacity-50" />
@@ -288,8 +288,8 @@ async function exportJSON() {
       </template>
 
       <template v-else-if="props.tableData">
-        <div class="flex items-center justify-between mb-3 shrink-0 gap-2">
-          <div class="flex items-center gap-2 min-w-0">
+        <div class="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <div class="flex min-w-0 items-center gap-2">
             <h2 class="m-0 text-lg font-semibold text-foreground shrink-0">
               {{ props.tableName }}
             </h2>
@@ -298,7 +298,7 @@ async function exportJSON() {
             </span>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <div class="relative">
               <i class="pi pi-search absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none" />
               <input
@@ -346,9 +346,10 @@ async function exportJSON() {
           </div>
         </div>
 
-        <div class="flex-1 min-h-0 overflow-x-auto">
+        <div class="min-h-0 min-w-0 flex-1 overflow-hidden">
           <VxeTable
             :data="props.tableData.rows"
+            class="w-full"
             height="auto"
             border
             round
@@ -413,8 +414,8 @@ async function exportJSON() {
           </VxeTable>
         </div>
 
-        <div class="flex items-center justify-between mt-3 shrink-0 gap-2">
-          <div class="flex items-center gap-1">
+        <div class="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <div class="flex min-w-0 flex-wrap items-center justify-end gap-1">
             <span class="text-xs text-muted-foreground shrink-0">{{ $t("app.rowsPerPage") }}</span>
             <select
               class="h-7 rounded border border-border bg-background px-1 text-xs text-foreground outline-none"

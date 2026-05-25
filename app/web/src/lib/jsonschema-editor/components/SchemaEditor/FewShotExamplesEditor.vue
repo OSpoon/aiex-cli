@@ -164,7 +164,7 @@ function generateTemplate(idx: number) {
     <!-- Empty state -->
     <div
       v-if="localExamples.length === 0"
-      class="flex-1 border border-dashed border-border rounded-xl flex flex-col items-center justify-center py-12 px-4 text-center"
+      class="flex-1 border border-dashed border-border rounded-lg flex flex-col items-center justify-center py-12 px-4 text-center"
     >
       <div class="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-3">
         <Sparkles :size="20" />
@@ -192,7 +192,7 @@ function generateTemplate(idx: number) {
       <div
         v-for="(item, idx) in localExamples"
         :key="item.id"
-        class="border border-border/80 bg-card/40 hover:bg-card/60 transition-colors p-4 rounded-xl flex flex-col gap-3 relative"
+        class="border border-border/80 bg-card/40 hover:bg-card/60 transition-colors p-4 rounded-lg flex flex-col gap-3 relative"
       >
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-border/60 pb-2">

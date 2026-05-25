@@ -87,7 +87,7 @@ onMounted(loadContent)
 </script>
 
 <template>
-  <div class="flex h-full">
+  <div class="flex h-full min-w-0 overflow-hidden">
     <div v-if="!extractionName" class="flex-1 flex flex-col items-center justify-center text-muted-foreground">
       <i class="pi pi-file text-4xl mb-3 opacity-50" />
       <p class="text-sm">
@@ -99,12 +99,12 @@ onMounted(loadContent)
       {{ $t("app.loading") }}
     </div>
 
-    <div v-else class="flex-1 min-h-0 p-3 flex flex-col overflow-x-auto">
-      <div class="flex items-center justify-between mb-3 shrink-0">
+    <div v-else class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
+      <div class="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <h2 class="m-0 text-lg font-semibold text-foreground">
           {{ extractionName }}
         </h2>
-        <div class="flex items-center gap-2">
+        <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <span
             v-if="record"
             class="rounded px-2 py-1 text-xs font-medium"

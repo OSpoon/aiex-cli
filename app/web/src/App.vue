@@ -11,17 +11,18 @@ import { toast, Toaster } from "vue-sonner"
 import { deleteSchema, getPromptSnapshot, getSchema, getTableData, listDataTables, listExtractions, listSchemas, migrateSchema, saveSchema } from "@/api-client"
 import { cloneJson, isDeepEqual } from "@/lib/jsonschema-editor/lib/object-utils"
 import { useTheme } from "@/lib/jsonschema-editor/themes/useTheme"
-import { setLocale } from "@/locales"
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 const { darkMode, toggleDarkMode } = useTheme()
 const AISettings = defineAsyncComponent(() => import("@/components/AISettings.vue"))
 const DataBrowser = defineAsyncComponent(() => import("@/components/DataBrowser.vue"))
+const Dashboard = defineAsyncComponent(() => import("@/components/Dashboard.vue"))
 const JsonSchemaEditor = defineAsyncComponent(() => import("@/lib/jsonschema-editor/components/SchemaEditor/JsonSchemaEditor.vue"))
 const ExtractionViewer = defineAsyncComponent(() => import("@/components/ExtractionViewer.vue"))
 
-const currentView = ref<"editor" | "data">("editor")
+const currentView = ref<"overview" | "schemas" | "extract" | "data" | "settings">("overview")
+const sidebarCollapsed = ref(false)
 
 // Data browser state
 const tables = ref<TableInfo[]>([])
@@ -37,7 +38,6 @@ const currentSearch = ref("")
 // Extraction state
 const extractions = ref<ExtractionRecord[]>([])
 const selectedExtraction = ref<string | null>(null)
-const showExtractionDialog = ref(false)
 const extractionsLoading = ref(false)
 const selectedExtractionRecord = computed(() => extractions.value.find(ext => ext.name === selectedExtraction.value) ?? null)
 
@@ -128,6 +128,7 @@ function switchToData() {
 }
 
 function selectTable(name: string) {
+  currentView.value = "data"
   currentDataPage.value = 1
   currentSearch.value = ""
   loadTableData(name, 1, currentPageSize.value, "")
@@ -135,7 +136,7 @@ function selectTable(name: string) {
 
 function selectExtraction(name: string) {
   selectedExtraction.value = name
-  showExtractionDialog.value = true
+  currentView.value = "extract"
 }
 
 // ── Schema editor state ──
@@ -197,7 +198,6 @@ const originalSchema = ref<JSONSchema>({
 const savedSchemas = ref<string[]>([])
 const loading = ref(false)
 const migrating = ref(false)
-const showAISettings = ref(false)
 const showPromptPreview = ref(false)
 const promptPreviewName = ref("")
 const promptPreviewContent = ref("")
@@ -335,6 +335,7 @@ function newSchema() {
       return
   }
   resetEditor()
+  currentView.value = "schemas"
 }
 
 function loadExample() {
@@ -368,29 +369,16 @@ async function handlePreviewPrompt(name: string) {
   promptPreviewLoading.value = false
 }
 
-async function handleAISettingsVisible(value: boolean) {
-  showAISettings.value = value
-}
-
 onMounted(() => {
   loadSchemaList()
   loadTables()
+  loadExtractions()
 })
 </script>
 
 <template>
-  <div class="jscb grid grid-rows-[auto_1fr] grid-cols-[200px_1fr] h-screen gap-2 p-4 bg-background">
-    <header class="col-span-2 text-center">
-      <h1 class="m-0 text-xl text-foreground">
-        {{ $t("app.title") }}
-      </h1>
-      <p class="mt-1 text-sm text-muted-foreground">
-        {{ $t("app.subtitle") }}
-      </p>
-    </header>
-
+  <div class="jscb h-screen bg-background p-4">
     <Toaster position="top-center" rich-colors />
-    <AISettings :visible="showAISettings" :schemas="savedSchemas" @update:visible="handleAISettingsVisible" />
 
     <Dialog v-model:visible="showPromptPreview" modal :draggable="false" :style="{ width: '720px' }" :header="$t('app.promptPreview', { name: promptPreviewName })">
       <div v-if="promptPreviewLoading" class="flex items-center justify-center py-8 text-muted-foreground">
@@ -418,125 +406,240 @@ onMounted(() => {
       </template>
     </Dialog>
 
-    <Dialog
-      v-model:visible="showExtractionDialog"
-      modal
-      :draggable="false"
-      :style="{ width: 'min(920px, calc(100vw - 2rem))' }"
-      :content-style="{ height: 'min(72vh, 720px)', padding: '0' }"
-      :header="selectedExtraction || $t('app.extractionJson')"
+    <div
+      class="grid h-full min-h-0 min-w-0 gap-3 transition-[grid-template-columns] duration-200"
+      :class="sidebarCollapsed ? 'grid-cols-[64px_minmax(0,1fr)]' : 'grid-cols-[220px_minmax(0,1fr)]'"
     >
-      <ExtractionViewer
-        :extraction-name="selectedExtraction"
-        :record="selectedExtractionRecord"
-        @notion-synced="refreshNotionState"
-      />
-    </Dialog>
-
-    <div class="row-start-2 flex flex-col min-h-0 bg-card border border-border rounded-xl p-3">
-      <div class="flex mb-3 shrink-0 bg-muted rounded-lg p-0.5">
-        <button
-          class="flex-1 px-2 py-1.5 text-sm rounded-md transition-colors"
-          :class="currentView === 'editor' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="currentView = 'editor'"
-        >
-          {{ $t("app.editor") }}
-        </button>
-        <button
-          class="flex-1 px-2 py-1.5 text-sm rounded-md transition-colors"
-          :class="currentView === 'data' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="switchToData"
-        >
-          {{ $t("app.data") }}
-        </button>
-      </div>
-
-      <template v-if="currentView === 'editor'">
-        <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
-          {{ $t("app.savedSchemas") }}
-        </h3>
-        <ul class="list-none p-0 m-0 flex-1 min-h-0 overflow-y-auto">
-          <li
-            v-for="name in savedSchemas"
-            :key="name"
-            class="flex items-center justify-between p-2 rounded cursor-pointer hover:bg-secondary"
+      <aside class="flex min-h-0 flex-col rounded-lg border border-border bg-card p-3">
+        <div class="mb-4 flex min-h-[76px] items-start justify-between gap-2 border-b border-border pb-4" :class="sidebarCollapsed ? 'justify-center' : ''">
+          <div v-if="!sidebarCollapsed" class="min-w-0">
+            <h1 class="m-0 text-lg font-semibold text-foreground">
+              AIEX
+            </h1>
+            <p class="mt-1 text-xs text-muted-foreground">
+              {{ $t("app.productSubtitle") }}
+            </p>
+          </div>
+          <button
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            :aria-label="sidebarCollapsed ? $t('app.expandSidebar') : $t('app.collapseSidebar')"
+            v-tooltip="sidebarCollapsed ? $t('app.expandSidebar') : $t('app.collapseSidebar')"
+            @click="sidebarCollapsed = !sidebarCollapsed"
           >
-            <span class="flex-1 truncate" @click="loadSchema(name)">{{ name.replace('.json', '') }}</span>
-            <div class="flex items-center gap-1">
-              <Button icon="pi pi-eye" severity="secondary" size="small" text v-tooltip="$t('app.previewPrompt')" @click="handlePreviewPrompt(name)" />
-              <Button icon="pi pi-trash" severity="danger" size="small" text @click="handleDelete(name)" />
-            </div>
-          </li>
-        </ul>
-        <div class="flex flex-col gap-2 mt-3 shrink-0">
-          <Button class="w-full" :label="$t('app.newSchema')" icon="pi pi-plus" severity="secondary" size="small" @click="newSchema" />
-          <Button class="w-full" :label="$t('app.loadExample')" icon="pi pi-box" severity="help" size="small" outlined @click="loadExample" />
+            <i :class="sidebarCollapsed ? 'pi pi-angle-double-right' : 'pi pi-angle-double-left'" />
+          </button>
         </div>
-      </template>
 
-      <template v-if="currentView === 'data'">
-        <div class="flex-1 min-h-0 overflow-y-auto space-y-3">
-          <div>
-            <h3 class="m-0 mb-2 text-sm text-muted-foreground shrink-0">
-              {{ $t("app.tables") }}
-            </h3>
-            <div class="space-y-1">
+        <nav class="grid grid-cols-1 gap-1">
+          <button
+            class="flex h-8 items-center rounded-md text-sm transition-colors"
+            :class="[
+              currentView === 'overview' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-2',
+            ]"
+            @click="currentView = 'overview'"
+            v-tooltip="sidebarCollapsed ? $t('app.overview') : undefined"
+          >
+            <i class="pi pi-th-large text-xs" />
+            <span v-if="!sidebarCollapsed">{{ $t("app.overview") }}</span>
+          </button>
+          <button
+            class="flex h-8 items-center rounded-md text-sm transition-colors"
+            :class="[
+              currentView === 'schemas' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-2',
+            ]"
+            @click="currentView = 'schemas'"
+            v-tooltip="sidebarCollapsed ? $t('app.schemas') : undefined"
+          >
+            <i class="pi pi-pencil text-xs" />
+            <span v-if="!sidebarCollapsed">{{ $t("app.schemas") }}</span>
+          </button>
+          <button
+            class="flex h-8 items-center rounded-md text-sm transition-colors"
+            :class="[
+              currentView === 'extract' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-2',
+            ]"
+            @click="currentView = 'extract'"
+            v-tooltip="sidebarCollapsed ? $t('app.extract') : undefined"
+          >
+            <i class="pi pi-file-import text-xs" />
+            <span v-if="!sidebarCollapsed">{{ $t("app.extract") }}</span>
+          </button>
+          <button
+            class="flex h-8 items-center rounded-md text-sm transition-colors"
+            :class="[
+              currentView === 'data' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-2',
+            ]"
+            @click="switchToData"
+            v-tooltip="sidebarCollapsed ? $t('app.data') : undefined"
+          >
+            <i class="pi pi-database text-xs" />
+            <span v-if="!sidebarCollapsed">{{ $t("app.data") }}</span>
+          </button>
+        </nav>
+
+        <div class="mt-auto flex items-center justify-center gap-2 border-t border-border pt-3" :class="sidebarCollapsed ? 'flex-col' : ''">
+          <button
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            @click="toggleDarkMode()"
+            v-tooltip="$t('app.toggleDarkMode')"
+          >
+            <i :class="darkMode ? 'pi pi-sun' : 'pi pi-moon'" />
+          </button>
+          <button
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            :class="currentView === 'settings' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'"
+            @click="currentView = 'settings'"
+            v-tooltip="$t('app.settings')"
+          >
+            <i class="pi pi-cog" />
+          </button>
+        </div>
+      </aside>
+
+      <main
+        class="min-h-0 min-w-0 overflow-hidden rounded-lg border border-border bg-card"
+      >
+        <Dashboard
+          v-if="currentView === 'overview'"
+          :schemas="savedSchemas"
+          :tables="tables"
+          :extractions="extractions"
+          :loading-extractions="extractionsLoading"
+          @open-settings="currentView = 'settings'"
+          @new-schema="newSchema"
+          @select-table="selectTable"
+          @select-extraction="selectExtraction"
+        />
+
+        <div v-else-if="currentView === 'schemas'" class="grid h-full min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] bg-background">
+          <section class="flex min-h-0 flex-col border-r border-border bg-card">
+            <div class="border-b border-border p-4">
+              <h2 class="m-0 text-lg font-semibold text-foreground">
+                {{ $t("app.schemas") }}
+              </h2>
+              <p class="mt-1 text-xs text-muted-foreground">
+                {{ $t("app.schemasSubtitle") }}
+              </p>
+            </div>
+            <ul class="m-0 min-h-0 flex-1 list-none overflow-y-auto p-2">
+              <li
+                v-for="name in savedSchemas"
+                :key="name"
+                class="flex items-center justify-between rounded-md p-2 hover:bg-secondary"
+              >
+                <button class="min-w-0 flex-1 truncate text-left text-sm text-foreground" @click="loadSchema(name)">
+                  {{ name.replace('.json', '') }}
+                </button>
+                <div class="flex items-center gap-1">
+                  <Button icon="pi pi-eye" severity="secondary" size="small" text v-tooltip="$t('app.previewPrompt')" @click="handlePreviewPrompt(name)" />
+                  <Button icon="pi pi-trash" severity="danger" size="small" text @click="handleDelete(name)" />
+                </div>
+              </li>
+            </ul>
+            <div class="grid gap-2 border-t border-border p-3">
+              <Button class="w-full" :label="$t('app.newSchema')" icon="pi pi-plus" severity="secondary" size="small" @click="newSchema" />
+              <Button class="w-full" :label="$t('app.loadExample')" icon="pi pi-box" severity="help" size="small" outlined @click="loadExample" />
+            </div>
+          </section>
+          <JsonSchemaEditor
+            v-model:schema="schema"
+            :loading="loading"
+            :migrating="migrating"
+            @save="handleSave"
+            @save-and-migrate="handleSaveAndMigrate"
+          />
+        </div>
+
+        <div v-else-if="currentView === 'extract'" class="grid h-full min-h-0 min-w-0 grid-cols-[340px_minmax(0,1fr)] bg-background">
+          <section class="flex min-h-0 flex-col border-r border-border bg-card">
+            <div class="border-b border-border p-4">
+              <h2 class="m-0 text-lg font-semibold text-foreground">
+                {{ $t("app.extract") }}
+              </h2>
+              <p class="mt-1 text-xs text-muted-foreground">
+                {{ $t("app.extractSubtitle") }}
+              </p>
+            </div>
+            <div v-if="extractionsLoading" class="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              {{ $t("app.loading") }}
+            </div>
+            <div v-else-if="extractions.length === 0" class="flex flex-1 flex-col items-center justify-center p-4 text-center text-muted-foreground">
+              <i class="pi pi-inbox mb-3 text-3xl opacity-50" />
+              <p class="m-0 text-sm">
+                {{ $t("app.noExtractionsYet") }}
+              </p>
+            </div>
+            <div v-else class="min-h-0 flex-1 overflow-y-auto p-2">
+              <button
+                v-for="record in extractions"
+                :key="record.name"
+                class="mb-1 w-full rounded-md px-3 py-2 text-left text-sm transition-colors"
+                :class="selectedExtraction === record.name ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary'"
+                @click="selectedExtraction = record.name"
+              >
+                <span class="block truncate font-medium">{{ record.schemaName }}</span>
+                <span class="block truncate text-xs" :class="selectedExtraction === record.name ? 'text-primary-foreground/75' : 'text-muted-foreground'">
+                  {{ record.name }}
+                </span>
+              </button>
+            </div>
+          </section>
+          <ExtractionViewer
+            :extraction-name="selectedExtraction"
+            :record="selectedExtractionRecord"
+            @notion-synced="refreshNotionState"
+          />
+        </div>
+
+        <div v-else-if="currentView === 'data'" class="grid h-full min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] bg-background">
+          <section class="flex min-h-0 flex-col border-r border-border bg-card">
+            <div class="border-b border-border p-4">
+              <h2 class="m-0 text-lg font-semibold text-foreground">
+                {{ $t("app.data") }}
+              </h2>
+              <p class="mt-1 text-xs text-muted-foreground">
+                {{ $t("app.dataSubtitle") }}
+              </p>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto p-2">
               <button
                 v-for="table in tables"
                 :key="table.name"
-                class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
-                :class="selectedTable === table.name ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-foreground'"
+                class="mb-1 w-full rounded-md px-3 py-2 text-left text-sm transition-colors"
+                :class="selectedTable === table.name ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary'"
                 @click="selectTable(table.name)"
               >
-                <div class="flex items-center justify-between gap-2">
-                  <div class="min-w-0">
-                    <div class="font-medium truncate">
-                      {{ table.title }}
-                    </div>
-                    <div class="text-xs truncate" :class="selectedTable === table.name ? 'text-primary-foreground/70' : 'text-muted-foreground'">
-                      {{ table.name }} · {{ table.hasData ? $t('app.hasData') : $t('app.empty') }}
-                    </div>
-                  </div>
-                </div>
+                <span class="block truncate font-medium">{{ table.title }}</span>
+                <span class="block truncate text-xs" :class="selectedTable === table.name ? 'text-primary-foreground/75' : 'text-muted-foreground'">
+                  {{ table.name }} · {{ table.hasData ? $t('app.hasData') : $t('app.empty') }}
+                </span>
               </button>
             </div>
-          </div>
+          </section>
+          <DataBrowser
+            :table-name="selectedTable"
+            :table-data="selectedTableData"
+            :loading="tableDataLoading"
+            :search-query="currentSearch"
+            @sort-change="onSortChange"
+            @page-change="onPageChange"
+            @page-size-change="onPageSizeChange"
+            @search-change="onSearchChange"
+            @select-extraction="selectExtraction"
+            @notion-synced="refreshNotionState"
+          />
         </div>
-      </template>
 
-      <div class="flex items-center justify-center gap-1 mt-3 pt-3 shrink-0 border-t border-border">
-        <Button severity="secondary" text size="small" @click="setLocale(locale === 'zh-CN' ? 'en' : 'zh-CN')">
-          {{ locale === 'zh-CN' ? 'EN' : '中文' }}
-        </Button>
-        <Button :icon="darkMode ? 'pi pi-sun' : 'pi pi-moon'" severity="secondary" text size="small" @click="toggleDarkMode()" v-tooltip="$t('app.toggleDarkMode')" />
-        <Button icon="pi pi-cog" severity="secondary" text size="small" @click="showAISettings = true" v-tooltip="$t('app.aiSettings')" />
-      </div>
+        <AISettings
+          v-else
+          :schemas="savedSchemas"
+          embedded
+        />
+      </main>
     </div>
-
-    <main
-      class="row-start-2 min-h-0 bg-card border border-border rounded-xl overflow-hidden flex flex-col"
-    >
-      <JsonSchemaEditor
-        v-if="currentView === 'editor'"
-        v-model:schema="schema"
-        :loading="loading"
-        :migrating="migrating"
-        @save="handleSave"
-        @save-and-migrate="handleSaveAndMigrate"
-      />
-      <DataBrowser
-        v-else-if="currentView === 'data'"
-        :table-name="selectedTable"
-        :table-data="selectedTableData"
-        :loading="tableDataLoading"
-        :search-query="currentSearch"
-        @sort-change="onSortChange"
-        @page-change="onPageChange"
-        @page-size-change="onPageSizeChange"
-        @search-change="onSearchChange"
-        @select-extraction="selectExtraction"
-        @notion-synced="refreshNotionState"
-      />
-    </main>
   </div>
 </template>
