@@ -41,8 +41,6 @@ export interface MineruApiPdfConverterConfig {
   isOcr?: boolean
   enableFormula?: boolean
   enableTable?: boolean
-  fallbackToUnpdf?: boolean
-  keepOutput?: boolean
 }
 
 export interface ExternalPdfConverterConfig {
@@ -51,7 +49,6 @@ export interface ExternalPdfConverterConfig {
   outputFile?: string
   timeout?: number
   fallbackToUnpdf?: boolean
-  keepOutput?: boolean
 }
 
 export interface PdfConfig {
@@ -154,25 +151,20 @@ export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
   args: ['-p', '{input}', '-o', '{outputDir}'],
   timeout: 600,
   fallbackToUnpdf: true,
-  keepOutput: true,
 }
 
 export const DEFAULT_MARKITDOWN_CONFIG: ExternalPdfConverterConfig = {
   command: 'markitdown',
   args: ['{input}', '-o', '{outputDir}/{basename}.md'],
-  outputFile: '{outputDir}/{basename}.md',
   timeout: 600,
   fallbackToUnpdf: true,
-  keepOutput: true,
 }
 
 export const DEFAULT_MARKER_CONFIG: ExternalPdfConverterConfig = {
   command: 'marker_single',
   args: ['{input}', '--output_dir', '{outputDir}'],
-  outputFile: '{outputDir}/{basename}/{basename}.md',
   timeout: 600,
   fallbackToUnpdf: true,
-  keepOutput: true,
 }
 
 export const DEFAULT_MINERU_API_CONFIG: MineruApiPdfConverterConfig = {
@@ -182,8 +174,6 @@ export const DEFAULT_MINERU_API_CONFIG: MineruApiPdfConverterConfig = {
   isOcr: true,
   enableFormula: true,
   enableTable: true,
-  fallbackToUnpdf: true,
-  keepOutput: true,
 }
 
 export const DEFAULT_PDF_CONFIG: PdfConfig = {

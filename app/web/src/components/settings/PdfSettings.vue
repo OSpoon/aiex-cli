@@ -17,7 +17,6 @@ const mineruCommand = defineModel<string>("mineruCommand", { required: true })
 const mineruArgs = defineModel<string>("mineruArgs", { required: true })
 const mineruTimeout = defineModel<number>("mineruTimeout", { required: true })
 const mineruFallbackToUnpdf = defineModel<boolean>("mineruFallbackToUnpdf", { required: true })
-const mineruKeepOutput = defineModel<boolean>("mineruKeepOutput", { required: true })
 
 const mineruApiToken = defineModel<string>("mineruApiToken", { required: true })
 const mineruApiBaseUrl = defineModel<string>("mineruApiBaseUrl", { required: true })
@@ -25,29 +24,20 @@ const mineruApiModel = defineModel<string>("mineruApiModel", { required: true })
 const mineruApiIsOcr = defineModel<boolean>("mineruApiIsOcr", { required: true })
 const mineruApiEnableFormula = defineModel<boolean>("mineruApiEnableFormula", { required: true })
 const mineruApiEnableTable = defineModel<boolean>("mineruApiEnableTable", { required: true })
-const mineruApiFallbackToUnpdf = defineModel<boolean>("mineruApiFallbackToUnpdf", { required: true })
-const mineruApiKeepOutput = defineModel<boolean>("mineruApiKeepOutput", { required: true })
 
 const markitdownCommand = defineModel<string>("markitdownCommand", { required: true })
 const markitdownArgs = defineModel<string>("markitdownArgs", { required: true })
-const markitdownOutputFile = defineModel<string>("markitdownOutputFile", { required: true })
 const markitdownTimeout = defineModel<number>("markitdownTimeout", { required: true })
 const markitdownFallbackToUnpdf = defineModel<boolean>("markitdownFallbackToUnpdf", { required: true })
-const markitdownKeepOutput = defineModel<boolean>("markitdownKeepOutput", { required: true })
 
 const markerCommand = defineModel<string>("markerCommand", { required: true })
 const markerArgs = defineModel<string>("markerArgs", { required: true })
-const markerOutputFile = defineModel<string>("markerOutputFile", { required: true })
 const markerTimeout = defineModel<number>("markerTimeout", { required: true })
 const markerFallbackToUnpdf = defineModel<boolean>("markerFallbackToUnpdf", { required: true })
-const markerKeepOutput = defineModel<boolean>("markerKeepOutput", { required: true })
 
 const externalCommand = defineModel<string>("externalCommand", { required: true })
 const externalArgs = defineModel<string>("externalArgs", { required: true })
-const externalOutputFile = defineModel<string>("externalOutputFile", { required: true })
 const externalTimeout = defineModel<number>("externalTimeout", { required: true })
-const externalFallbackToUnpdf = defineModel<boolean>("externalFallbackToUnpdf", { required: true })
-const externalKeepOutput = defineModel<boolean>("externalKeepOutput", { required: true })
 
 const imageOcrFallback = defineModel<ImageOcrFallbackMode>("imageOcrFallback", { required: true })
 const imageOcrLanguages = defineModel<string>("imageOcrLanguages", { required: true })
@@ -186,10 +176,6 @@ const imageInputStatusClass = computed(() => {
             <Checkbox v-model="mineruFallbackToUnpdf" :binary="true" input-id="mineru-fallback" />
             <label for="mineru-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
           </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="mineruKeepOutput" :binary="true" input-id="mineru-keep-output" />
-            <label for="mineru-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
-          </div>
           <div class="text-xs text-muted-foreground p-2 rounded border border-border">
             {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
             <code class="bg-secondary px-1 rounded">{outputDir}</code>,
@@ -232,14 +218,6 @@ const imageInputStatusClass = computed(() => {
             <Checkbox v-model="mineruApiEnableTable" :binary="true" input-id="mineru-api-enable-table" />
             <label for="mineru-api-enable-table" class="text-sm cursor-pointer">{{ $t("app.mineruApiEnableTableLabel") }}</label>
           </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="mineruApiFallbackToUnpdf" :binary="true" input-id="mineru-api-fallback" />
-            <label for="mineru-api-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="mineruApiKeepOutput" :binary="true" input-id="mineru-api-keep-output" />
-            <label for="mineru-api-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
-          </div>
         </div>
 
         <!-- MarkItDown PDF Converter config -->
@@ -253,20 +231,12 @@ const imageInputStatusClass = computed(() => {
             <Textarea v-model="markitdownArgs" rows="4" auto-resize class="text-xs font-mono" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">{{ $t("app.outputFile") }}</label>
-            <InputText v-model="markitdownOutputFile" size="small" class="text-xs font-mono" placeholder="{outputDir}/{basename}.md" />
-          </div>
-          <div class="flex flex-col gap-1">
             <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
             <InputText :value="String(markitdownTimeout)" type="number" size="small" placeholder="600" :min="1" @input="markitdownTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
           </div>
           <div class="flex items-center gap-2">
             <Checkbox v-model="markitdownFallbackToUnpdf" :binary="true" input-id="markitdown-fallback" />
             <label for="markitdown-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="markitdownKeepOutput" :binary="true" input-id="markitdown-keep-output" />
-            <label for="markitdown-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
           </div>
           <div class="text-xs text-muted-foreground p-2 rounded border border-border">
             {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
@@ -286,20 +256,12 @@ const imageInputStatusClass = computed(() => {
             <Textarea v-model="markerArgs" rows="4" auto-resize class="text-xs font-mono" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">{{ $t("app.outputFile") }}</label>
-            <InputText v-model="markerOutputFile" size="small" class="text-xs font-mono" placeholder="{outputDir}/{basename}/{basename}.md" />
-          </div>
-          <div class="flex flex-col gap-1">
             <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
             <InputText :value="String(markerTimeout)" type="number" size="small" placeholder="600" :min="1" @input="markerTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
           </div>
           <div class="flex items-center gap-2">
             <Checkbox v-model="markerFallbackToUnpdf" :binary="true" input-id="marker-fallback" />
             <label for="marker-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="markerKeepOutput" :binary="true" input-id="marker-keep-output" />
-            <label for="marker-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
           </div>
           <div class="text-xs text-muted-foreground p-2 rounded border border-border">
             {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
@@ -319,20 +281,8 @@ const imageInputStatusClass = computed(() => {
             <Textarea v-model="externalArgs" rows="4" auto-resize class="text-xs font-mono" placeholder="-i&#10;{input}&#10;-o&#10;{outputDir}/{basename}.md" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-muted-foreground">{{ $t("app.outputFile") }}</label>
-            <InputText v-model="externalOutputFile" size="small" class="text-xs font-mono" placeholder="{outputDir}/{basename}.md" />
-          </div>
-          <div class="flex flex-col gap-1">
             <label class="text-xs text-muted-foreground">{{ $t("app.timeoutLabel") }}</label>
             <InputText :value="String(externalTimeout)" type="number" size="small" placeholder="600" :min="1" @input="externalTimeout = Number(($event.target as HTMLInputElement).value) || 600" />
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="externalFallbackToUnpdf" :binary="true" input-id="external-fallback" />
-            <label for="external-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="externalKeepOutput" :binary="true" input-id="external-keep-output" />
-            <label for="external-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
           </div>
           <div class="text-xs text-muted-foreground p-2 rounded border border-border">
             {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,

@@ -278,14 +278,13 @@ describe('ai config schema', () => {
           args: ['-p', '{input}', '-o', '{outputDir}'],
           timeout: 600,
           fallbackToUnpdf: true,
-          keepOutput: false,
         },
       },
     })
 
     expect(result.pdf?.converter).toBe('mineru')
     expect(result.pdf?.mineru?.args).toEqual(['-p', '{input}', '-o', '{outputDir}'])
-    expect(result.pdf?.mineru?.keepOutput).toBe(false)
+    expect(result.pdf?.mineru?.timeout).toBe(600)
   })
 
   it('accepts markitdown pdf converter config', () => {
@@ -299,7 +298,6 @@ describe('ai config schema', () => {
           outputFile: '{outputDir}/{basename}.md',
           timeout: 600,
           fallbackToUnpdf: true,
-          keepOutput: false,
         },
       },
     })
@@ -307,7 +305,7 @@ describe('ai config schema', () => {
     expect(result.pdf?.converter).toBe('markitdown')
     expect(result.pdf?.markitdown?.args).toEqual(['{input}', '-o', '{outputDir}/{basename}.md'])
     expect(result.pdf?.markitdown?.outputFile).toBe('{outputDir}/{basename}.md')
-    expect(result.pdf?.markitdown?.keepOutput).toBe(false)
+    expect(result.pdf?.markitdown?.timeout).toBe(600)
   })
 
   it('accepts image OCR fallback config', () => {

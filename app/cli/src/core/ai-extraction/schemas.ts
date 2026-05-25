@@ -36,11 +36,13 @@ export const ImageOcrConfigSchema = z.object({
 
 export const ExternalPdfConverterConfigSchema = z.object({
   command: z.string().min(1),
-  args: z.array(z.string()),
+  args: z.array(z.string()).min(1).refine(
+    args => args.some(arg => arg.includes('{input}')),
+    { message: 'args must contain {input} template variable' },
+  ),
   outputFile: z.string().min(1).optional(),
   timeout: z.number().int().positive().default(600).optional(),
   fallbackToUnpdf: z.boolean().optional(),
-  keepOutput: z.boolean().optional(),
 })
 
 export const MineruApiPdfConverterConfigSchema = z.object({
@@ -50,8 +52,6 @@ export const MineruApiPdfConverterConfigSchema = z.object({
   isOcr: z.boolean().optional(),
   enableFormula: z.boolean().optional(),
   enableTable: z.boolean().optional(),
-  fallbackToUnpdf: z.boolean().optional(),
-  keepOutput: z.boolean().optional(),
 })
 
 export const PdfConfigSchema = z.object({

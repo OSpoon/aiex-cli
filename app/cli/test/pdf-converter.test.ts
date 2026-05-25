@@ -338,54 +338,6 @@ describe('externalCommandPdfConverter: output selection', () => {
       /was not found/,
     )
   })
-
-  it('keeps output files on disk when keepOutput is true', async () => {
-    let createdOutputDir = ''
-    vi.mocked(execa as any).mockImplementation(async (_command: string, args: string[]) => {
-      const outputIndex = args.indexOf('-o')
-      createdOutputDir = args[outputIndex + 1]
-      await fs.mkdir(createdOutputDir, { recursive: true })
-      await fs.writeFile(path.join(createdOutputDir, 'demo.md'), '# Kept content')
-      return {} as any
-    })
-
-    const converter = new ExternalCommandPdfConverter('mineru', {
-      command: 'mineru',
-      args: ['-p', '{input}', '-o', '{outputDir}'],
-      keepOutput: true,
-    })
-
-    const result = await converter.convert(new Uint8Array([1]), '/tmp/keep.pdf')
-
-    expect(result.text).toBe('# Kept content')
-    expect(result.metadata?.outputDir).toBeDefined()
-    // Verify the file still exists on disk after convert returns
-    const filePath = path.join(result.metadata!.outputDir!, 'demo.md')
-    const exists = await fs.access(filePath).then(() => true).catch(() => false)
-    expect(exists).toBe(true)
-    // Clean up
-    await fs.rm(result.metadata!.outputDir!, { recursive: true, force: true })
-  })
-
-  it('includes outputDir in metadata when keepOutput is true', async () => {
-    vi.mocked(execa as any).mockImplementation(async (_command: string, args: string[]) => {
-      const outputIndex = args.indexOf('-o')
-      const outDir = args[outputIndex + 1]
-      await fs.mkdir(outDir, { recursive: true })
-      await fs.writeFile(path.join(outDir, 'demo.md'), '# metadata')
-      return {} as any
-    })
-
-    const converter = new ExternalCommandPdfConverter('mineru', {
-      command: 'mineru',
-      args: ['-p', '{input}', '-o', '{outputDir}'],
-      keepOutput: true,
-    })
-
-    const result = await converter.convert(new Uint8Array([1]), '/tmp/meta.pdf')
-    expect(result.metadata?.outputDir).toBeTruthy()
-    expect(result.metadata?.outputPath).toBeTruthy()
-  })
 })
 
 // ─── UnpdfConverter ───────────────────────────────────────────

@@ -122,8 +122,6 @@ export interface MineruApiPdfConverterConfig {
   isOcr?: boolean
   enableFormula?: boolean
   enableTable?: boolean
-  fallbackToUnpdf?: boolean
-  keepOutput?: boolean
 }
 
 export interface ExternalPdfConverterConfig {
@@ -132,7 +130,6 @@ export interface ExternalPdfConverterConfig {
   outputFile?: string
   timeout?: number
   fallbackToUnpdf?: boolean
-  keepOutput?: boolean
 }
 
 export interface PdfConfig {

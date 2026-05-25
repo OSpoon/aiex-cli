@@ -55,7 +55,7 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
 
     if (config.converter === 'mineru_api') {
       const mineruApiConfig = config.mineruApi ?? DEFAULT_MINERU_API_CONFIG
-      return withFallback(new MineruApiPdfConverter(mineruApiConfig), mineruApiConfig)
+      return new MineruApiPdfConverter(mineruApiConfig)
     }
 
     if (config.converter === 'markitdown') {
@@ -71,7 +71,7 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
     if (config.converter === 'external') {
       if (!config.external)
         throw new Error(t('errors.pdf.externalNotConfigured'))
-      return withFallback(new ExternalCommandPdfConverter('external', config.external), config.external)
+      return new ExternalCommandPdfConverter('external', config.external)
     }
   }
 

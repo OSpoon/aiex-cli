@@ -37,7 +37,6 @@ const mineruCommand = ref("mineru")
 const mineruArgs = ref("-p\n{input}\n-o\n{outputDir}")
 const mineruTimeout = ref(600)
 const mineruFallbackToUnpdf = ref(true)
-const mineruKeepOutput = ref(true)
 
 const mineruApiToken = ref("")
 const mineruApiBaseUrl = ref("https://mineru.net/api/v4")
@@ -45,29 +44,20 @@ const mineruApiModel = ref("vlm")
 const mineruApiIsOcr = ref(true)
 const mineruApiEnableFormula = ref(true)
 const mineruApiEnableTable = ref(true)
-const mineruApiFallbackToUnpdf = ref(true)
-const mineruApiKeepOutput = ref(true)
 
 const markitdownCommand = ref("markitdown")
 const markitdownArgs = ref("{input}\n-o\n{outputDir}/{basename}.md")
-const markitdownOutputFile = ref("{outputDir}/{basename}.md")
 const markitdownTimeout = ref(600)
 const markitdownFallbackToUnpdf = ref(true)
-const markitdownKeepOutput = ref(true)
 
 const markerCommand = ref("marker_single")
 const markerArgs = ref("{input}\n--output_dir\n{outputDir}")
-const markerOutputFile = ref("{outputDir}/{basename}/{basename}.md")
 const markerTimeout = ref(600)
 const markerFallbackToUnpdf = ref(true)
-const markerKeepOutput = ref(true)
 
 const externalCommand = ref("")
 const externalArgs = ref("")
-const externalOutputFile = ref("")
 const externalTimeout = ref(600)
-const externalFallbackToUnpdf = ref(true)
-const externalKeepOutput = ref(true)
 
 const imageOcrFallback = ref<ImageOcrFallbackMode>("auto")
 const imageOcrLanguages = ref("en-US, zh-Hans")
@@ -148,31 +138,21 @@ async function loadConfig() {
     mineruApiIsOcr.value = config.pdf?.mineruApi?.isOcr ?? true
     mineruApiEnableFormula.value = config.pdf?.mineruApi?.enableFormula ?? true
     mineruApiEnableTable.value = config.pdf?.mineruApi?.enableTable ?? true
-    mineruApiFallbackToUnpdf.value = config.pdf?.mineruApi?.fallbackToUnpdf ?? true
-    mineruApiKeepOutput.value = config.pdf?.mineruApi?.keepOutput ?? true
     mineruCommand.value = config.pdf?.mineru?.command ?? "mineru"
     mineruArgs.value = (config.pdf?.mineru?.args ?? ["-p", "{input}", "-o", "{outputDir}"]).join("\n")
     mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
     mineruFallbackToUnpdf.value = config.pdf?.mineru?.fallbackToUnpdf ?? true
-    mineruKeepOutput.value = config.pdf?.mineru?.keepOutput ?? true
     markitdownCommand.value = config.pdf?.markitdown?.command ?? "markitdown"
     markitdownArgs.value = (config.pdf?.markitdown?.args ?? ["{input}", "-o", "{outputDir}/{basename}.md"]).join("\n")
-    markitdownOutputFile.value = config.pdf?.markitdown?.outputFile ?? "{outputDir}/{basename}.md"
     markitdownTimeout.value = config.pdf?.markitdown?.timeout ?? 600
     markitdownFallbackToUnpdf.value = config.pdf?.markitdown?.fallbackToUnpdf ?? true
-    markitdownKeepOutput.value = config.pdf?.markitdown?.keepOutput ?? true
     markerCommand.value = config.pdf?.marker?.command ?? "marker_single"
     markerArgs.value = (config.pdf?.marker?.args ?? ["{input}", "--output_dir", "{outputDir}"]).join("\n")
-    markerOutputFile.value = config.pdf?.marker?.outputFile ?? "{outputDir}/{basename}/{basename}.md"
     markerTimeout.value = config.pdf?.marker?.timeout ?? 600
     markerFallbackToUnpdf.value = config.pdf?.marker?.fallbackToUnpdf ?? true
-    markerKeepOutput.value = config.pdf?.marker?.keepOutput ?? true
     externalCommand.value = config.pdf?.external?.command ?? ""
     externalArgs.value = (config.pdf?.external?.args ?? []).join("\n")
-    externalOutputFile.value = config.pdf?.external?.outputFile ?? ""
     externalTimeout.value = config.pdf?.external?.timeout ?? 600
-    externalFallbackToUnpdf.value = config.pdf?.external?.fallbackToUnpdf ?? true
-    externalKeepOutput.value = config.pdf?.external?.keepOutput ?? true
     imageOcrFallback.value = config.image?.ocrFallback ?? "auto"
     imageOcrLanguages.value = config.image?.ocrLanguages ?? "en-US, zh-Hans"
     imageOcrMinConfidence.value = config.image?.ocrMinConfidence ?? 0
@@ -228,8 +208,7 @@ async function handleSave() {
               command: mineruCommand.value,
               args: mineruArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
               timeout: mineruTimeout.value,
-              fallbackToUnpdf: mineruFallbackToUnpdf.value,
-              keepOutput: mineruKeepOutput.value || undefined
+              fallbackToUnpdf: mineruFallbackToUnpdf.value
             }
           : undefined,
         mineruApi: {
@@ -238,38 +217,29 @@ async function handleSave() {
           modelVersion: mineruApiModel.value.trim() || undefined,
           isOcr: mineruApiIsOcr.value,
           enableFormula: mineruApiEnableFormula.value,
-          enableTable: mineruApiEnableTable.value,
-          fallbackToUnpdf: mineruApiFallbackToUnpdf.value,
-          keepOutput: mineruApiKeepOutput.value
+          enableTable: mineruApiEnableTable.value
         },
         markitdown: markitdownCommand.value.trim()
           ? {
               command: markitdownCommand.value,
               args: markitdownArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-              outputFile: markitdownOutputFile.value.trim() || undefined,
               timeout: markitdownTimeout.value,
-              fallbackToUnpdf: markitdownFallbackToUnpdf.value,
-              keepOutput: markitdownKeepOutput.value || undefined
+              fallbackToUnpdf: markitdownFallbackToUnpdf.value
             }
           : undefined,
         marker: markerCommand.value.trim()
           ? {
               command: markerCommand.value,
               args: markerArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-              outputFile: markerOutputFile.value.trim() || undefined,
               timeout: markerTimeout.value,
-              fallbackToUnpdf: markerFallbackToUnpdf.value,
-              keepOutput: markerKeepOutput.value || undefined
+              fallbackToUnpdf: markerFallbackToUnpdf.value
             }
           : undefined,
         external: externalCommand.value.trim()
           ? {
               command: externalCommand.value,
               args: externalArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-              outputFile: externalOutputFile.value.trim() || undefined,
-              timeout: externalTimeout.value,
-              fallbackToUnpdf: externalFallbackToUnpdf.value,
-              keepOutput: externalKeepOutput.value || undefined
+              timeout: externalTimeout.value
             }
           : undefined
       },
@@ -332,33 +302,23 @@ onMounted(() => {
         v-model:mineru-args="mineruArgs"
         v-model:mineru-timeout="mineruTimeout"
         v-model:mineru-fallback-to-unpdf="mineruFallbackToUnpdf"
-        v-model:mineru-keep-output="mineruKeepOutput"
         v-model:mineru-api-token="mineruApiToken"
         v-model:mineru-api-base-url="mineruApiBaseUrl"
         v-model:mineru-api-model="mineruApiModel"
         v-model:mineru-api-is-ocr="mineruApiIsOcr"
         v-model:mineru-api-enable-formula="mineruApiEnableFormula"
         v-model:mineru-api-enable-table="mineruApiEnableTable"
-        v-model:mineru-api-fallback-to-unpdf="mineruApiFallbackToUnpdf"
-        v-model:mineru-api-keep-output="mineruApiKeepOutput"
         v-model:markitdown-command="markitdownCommand"
         v-model:markitdown-args="markitdownArgs"
-        v-model:markitdown-output-file="markitdownOutputFile"
         v-model:markitdown-timeout="markitdownTimeout"
         v-model:markitdown-fallback-to-unpdf="markitdownFallbackToUnpdf"
-        v-model:markitdown-keep-output="markitdownKeepOutput"
         v-model:marker-command="markerCommand"
         v-model:marker-args="markerArgs"
-        v-model:marker-output-file="markerOutputFile"
         v-model:marker-timeout="markerTimeout"
         v-model:marker-fallback-to-unpdf="markerFallbackToUnpdf"
-        v-model:marker-keep-output="markerKeepOutput"
         v-model:external-command="externalCommand"
         v-model:external-args="externalArgs"
-        v-model:external-output-file="externalOutputFile"
         v-model:external-timeout="externalTimeout"
-        v-model:external-fallback-to-unpdf="externalFallbackToUnpdf"
-        v-model:external-keep-output="externalKeepOutput"
         v-model:image-ocr-fallback="imageOcrFallback"
         v-model:image-ocr-languages="imageOcrLanguages"
         v-model:image-ocr-min-confidence="imageOcrMinConfidence"
