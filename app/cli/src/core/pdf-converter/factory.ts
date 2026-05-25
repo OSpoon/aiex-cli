@@ -1,12 +1,13 @@
 import type { PdfConversionResult, PdfConverter } from './types'
-import type { ExternalPdfConverterConfig, PdfConfig } from '@/core/ai-extraction/types'
+import type { PdfConfig } from '@/core/ai-extraction/types'
 import { consola } from 'consola'
-import { DEFAULT_MARKER_CONFIG, DEFAULT_MARKITDOWN_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
+import { DEFAULT_MARKER_CONFIG, DEFAULT_MARKITDOWN_CONFIG, DEFAULT_MINERU_API_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
 import { t } from '@/locales'
 import { ExternalCommandPdfConverter } from './external'
+import { MineruApiPdfConverter } from './mineru-api'
 import { UnpdfConverter } from './unpdf'
 
-export type PdfConverterType = 'unpdf' | 'mineru' | 'markitdown' | 'marker' | 'external'
+export type PdfConverterType = 'unpdf' | 'mineru' | 'mineru_api' | 'markitdown' | 'marker' | 'external'
 
 const registry = new Map<PdfConverterType, PdfConverter>()
 
@@ -39,7 +40,7 @@ class FallbackPdfConverter implements PdfConverter {
   }
 }
 
-function withFallback(converter: PdfConverter, config: ExternalPdfConverterConfig): PdfConverter {
+function withFallback(converter: PdfConverter, config: { fallbackToUnpdf?: boolean }): PdfConverter {
   if (!config.fallbackToUnpdf)
     return converter
   return new FallbackPdfConverter(converter, new UnpdfConverter())
@@ -50,6 +51,11 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
     if (config.converter === 'mineru') {
       const mineruConfig = config.mineru ?? DEFAULT_MINERU_CONFIG
       return withFallback(new ExternalCommandPdfConverter('mineru', mineruConfig), mineruConfig)
+    }
+
+    if (config.converter === 'mineru_api') {
+      const mineruApiConfig = config.mineruApi ?? DEFAULT_MINERU_API_CONFIG
+      return withFallback(new MineruApiPdfConverter(mineruApiConfig), mineruApiConfig)
     }
 
     if (config.converter === 'markitdown') {

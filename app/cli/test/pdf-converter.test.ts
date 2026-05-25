@@ -2,10 +2,12 @@ import type { PdfConversionResult, PdfConverter } from '@/core/pdf-converter'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import AdmZip from 'adm-zip'
 import { execa } from 'execa'
 import { getDocumentProxy } from 'unpdf'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPdfConverter, ExternalCommandPdfConverter, registerPdfConverter, UnpdfConverter } from '@/core/pdf-converter'
+import { MineruApiPdfConverter } from '@/core/pdf-converter/mineru-api'
 
 vi.mock('execa', () => ({
   execa: vi.fn(),
@@ -645,5 +647,208 @@ describe('registerPdfConverter', () => {
     registerPdfConverter('unpdf', new UnpdfConverter())
     const restored = createPdfConverter('unpdf')
     expect(restored.name).toBe('unpdf')
+  })
+})
+
+describe('mineruApiPdfConverter', () => {
+  let mockFetch: any
+
+  beforeEach(() => {
+    mockFetch = vi.fn()
+    vi.stubGlobal('fetch', mockFetch)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('throws error if token is missing or empty', async () => {
+    const converter = new MineruApiPdfConverter({ token: '' })
+    await expect(converter.convert(new Uint8Array([1, 2, 3]))).rejects.toThrow(/Mineru API Token is not configured/)
+  })
+
+  it('converts PDF via Mineru API successfully', async () => {
+    const zip = new AdmZip()
+    zip.addFile('full.md', Buffer.from('# Mocked Mineru Markdown'))
+    const zipBuffer = zip.toBuffer()
+
+    let pollCount = 0
+
+    mockFetch.mockImplementation(async (url: string, options: any) => {
+      if (url.endsWith('/file-urls/batch')) {
+        expect(options.method).toBe('POST')
+        expect(options.headers.Authorization).toBe('Bearer test_token')
+        expect(options.headers['Content-Type']).toBe('application/json')
+        const body = JSON.parse(options.body)
+        expect(body.model_version).toBe('vlm')
+        expect(body.is_ocr).toBe(true)
+        expect(body.enable_formula).toBe(true)
+        expect(body.enable_table).toBe(true)
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            msg: 'success',
+            data: {
+              batch_id: 'mock_batch_123',
+              file_upload_urls: [
+                {
+                  name: 'document.pdf',
+                  upload_url: 'https://oss.mineru.net/uploads/mock_batch_123/document.pdf',
+                },
+              ],
+            },
+          }),
+        }
+      }
+
+      if (url.startsWith('https://oss.mineru.net/uploads/')) {
+        expect(options.method).toBe('PUT')
+        expect(options.headers).toBeUndefined()
+        expect(options.body).toBeInstanceOf(Uint8Array)
+        return {
+          ok: true,
+        }
+      }
+
+      if (url.endsWith('/extract-results/batch/mock_batch_123')) {
+        expect(options.method).toBe('GET')
+        expect(options.headers.Authorization).toBe('Bearer test_token')
+        pollCount++
+        const state = pollCount === 1 ? 'extracting' : 'done'
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            msg: 'success',
+            data: {
+              extract_result: [
+                {
+                  state,
+                  full_zip_url: 'https://oss.mineru.net/results/mock_batch_123/full.zip',
+                  extract_progress: {
+                    total_pages: 3,
+                  },
+                },
+              ],
+            },
+          }),
+        }
+      }
+
+      if (url.endsWith('/full.zip')) {
+        return {
+          ok: true,
+          arrayBuffer: async () => zipBuffer.buffer,
+        }
+      }
+
+      throw new Error(`Unexpected fetch call to ${url}`)
+    })
+
+    const converter = new MineruApiPdfConverter({
+      token: 'test_token',
+      baseURL: 'https://mineru.net/api/v4',
+      modelVersion: 'vlm',
+      isOcr: true,
+      enableFormula: true,
+      enableTable: true,
+    })
+
+    const result = await converter.convert(new Uint8Array([1, 2, 3]), '/path/to/demo.pdf')
+    expect(result.text).toBe('# Mocked Mineru Markdown')
+    expect(result.pageCount).toBe(3)
+    expect(pollCount).toBe(2)
+  })
+
+  it('handles polling failure', async () => {
+    mockFetch.mockImplementation(async (url: string, _options: any) => {
+      if (url.endsWith('/file-urls/batch')) {
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            data: {
+              batch_id: 'mock_batch_fail',
+              file_upload_urls: [{ name: 'doc.pdf', upload_url: 'https://oss.mineru.net/uploads/fail' }],
+            },
+          }),
+        }
+      }
+      if (url.startsWith('https://oss.mineru.net/uploads/')) {
+        return { ok: true }
+      }
+      if (url.endsWith('/extract-results/batch/mock_batch_fail')) {
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            data: {
+              extract_result: [
+                {
+                  state: 'failed',
+                  err_msg: 'OCR engine error',
+                },
+              ],
+            },
+          }),
+        }
+      }
+      throw new Error(`Unexpected fetch call to ${url}`)
+    })
+
+    const converter = new MineruApiPdfConverter({ token: 'test_token' })
+    await expect(converter.convert(new Uint8Array([1]), 'doc.pdf')).rejects.toThrow(/OCR engine error/)
+  })
+
+  it('throws error when zip contains no markdown file', async () => {
+    const zip = new AdmZip()
+    // Add only an image, no md file
+    zip.addFile('image.png', Buffer.from([1, 2, 3]))
+    const zipBuffer = zip.toBuffer()
+
+    mockFetch.mockImplementation(async (url: string, _options: any) => {
+      if (url.endsWith('/file-urls/batch')) {
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            data: {
+              batch_id: 'mock_batch_no_md',
+              file_upload_urls: [{ name: 'doc.pdf', upload_url: 'https://oss.mineru.net/uploads/no_md' }],
+            },
+          }),
+        }
+      }
+      if (url.startsWith('https://oss.mineru.net/uploads/')) {
+        return { ok: true }
+      }
+      if (url.endsWith('/extract-results/batch/mock_batch_no_md')) {
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            data: {
+              extract_result: [
+                {
+                  state: 'done',
+                  full_zip_url: 'https://oss.mineru.net/results/mock_batch_no_md/full.zip',
+                },
+              ],
+            },
+          }),
+        }
+      }
+      if (url.endsWith('/full.zip')) {
+        return {
+          ok: true,
+          arrayBuffer: async () => zipBuffer.buffer,
+        }
+      }
+      throw new Error(`Unexpected fetch call to ${url}`)
+    })
+
+    const converter = new MineruApiPdfConverter({ token: 'test_token' })
+    await expect(converter.convert(new Uint8Array([1]), 'doc.pdf')).rejects.toThrow(/Could not find any Markdown/)
   })
 })

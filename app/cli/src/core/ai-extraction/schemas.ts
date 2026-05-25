@@ -43,9 +43,21 @@ export const ExternalPdfConverterConfigSchema = z.object({
   keepOutput: z.boolean().optional(),
 })
 
+export const MineruApiPdfConverterConfigSchema = z.object({
+  token: z.string(), // We don't min(1) here so that empty strings pass Zod, we validate at runtime
+  baseURL: z.string().url().optional(),
+  modelVersion: z.string().optional(),
+  isOcr: z.boolean().optional(),
+  enableFormula: z.boolean().optional(),
+  enableTable: z.boolean().optional(),
+  fallbackToUnpdf: z.boolean().optional(),
+  keepOutput: z.boolean().optional(),
+})
+
 export const PdfConfigSchema = z.object({
-  converter: z.enum(['unpdf', 'mineru', 'markitdown', 'marker', 'external']),
+  converter: z.enum(['unpdf', 'mineru', 'mineru_api', 'markitdown', 'marker', 'external']),
   mineru: ExternalPdfConverterConfigSchema.optional(),
+  mineruApi: MineruApiPdfConverterConfigSchema.optional(),
   markitdown: ExternalPdfConverterConfigSchema.optional(),
   marker: ExternalPdfConverterConfigSchema.optional(),
   external: ExternalPdfConverterConfigSchema.optional(),

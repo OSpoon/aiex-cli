@@ -113,7 +113,18 @@ export interface ImageOcrConfig {
   ocrMinConfidence?: number
 }
 
-export type PdfConverterKind = "unpdf" | "mineru" | "markitdown" | "marker" | "external"
+export type PdfConverterKind = "unpdf" | "mineru" | "mineru_api" | "markitdown" | "marker" | "external"
+
+export interface MineruApiPdfConverterConfig {
+  token: string
+  baseURL?: string
+  modelVersion?: string
+  isOcr?: boolean
+  enableFormula?: boolean
+  enableTable?: boolean
+  fallbackToUnpdf?: boolean
+  keepOutput?: boolean
+}
 
 export interface ExternalPdfConverterConfig {
   command: string
@@ -127,6 +138,7 @@ export interface ExternalPdfConverterConfig {
 export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
+  mineruApi?: MineruApiPdfConverterConfig
   markitdown?: ExternalPdfConverterConfig
   marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig

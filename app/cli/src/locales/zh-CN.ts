@@ -286,6 +286,7 @@ export const zhCN: Translations = {
     pdf: {
       externalNotConfigured: '已选择外部 PDF 转换器但未配置外部命令。',
       converterRequiresConfig: 'PDF 转换器 "{{name}}" 需要配置。',
+      mineruApiTokenRequired: '未配置 Mineru API Token，请先在 AI 设置中配置。',
     },
     extractionAudit: {
       recordNotFound: '未找到抽取审计记录: {{id}}',

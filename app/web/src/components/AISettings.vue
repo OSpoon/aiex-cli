@@ -39,6 +39,15 @@ const mineruTimeout = ref(600)
 const mineruFallbackToUnpdf = ref(true)
 const mineruKeepOutput = ref(true)
 
+const mineruApiToken = ref("")
+const mineruApiBaseUrl = ref("https://mineru.net/api/v4")
+const mineruApiModel = ref("vlm")
+const mineruApiIsOcr = ref(true)
+const mineruApiEnableFormula = ref(true)
+const mineruApiEnableTable = ref(true)
+const mineruApiFallbackToUnpdf = ref(true)
+const mineruApiKeepOutput = ref(true)
+
 const markitdownCommand = ref("markitdown")
 const markitdownArgs = ref("{input}\n-o\n{outputDir}/{basename}.md")
 const markitdownOutputFile = ref("{outputDir}/{basename}.md")
@@ -103,6 +112,7 @@ const canSave = computed(() => {
     && models.value.length > 0
     && (!notionEnabled.value || !!notionToken.value.trim())
     && (pdfConverter.value !== "mineru" || !!mineruCommand.value.trim())
+    && (pdfConverter.value !== "mineru_api" || !!mineruApiToken.value.trim())
     && (pdfConverter.value !== "markitdown" || !!markitdownCommand.value.trim())
     && (pdfConverter.value !== "marker" || !!markerCommand.value.trim())
     && (pdfConverter.value !== "external" || !!externalCommand.value.trim())
@@ -132,6 +142,14 @@ async function loadConfig() {
     systemTemplate.value = config.prompt.systemTemplate
     userTemplate.value = config.prompt.userTemplate
     pdfConverter.value = config.pdf?.converter ?? "unpdf"
+    mineruApiToken.value = config.pdf?.mineruApi?.token ?? ""
+    mineruApiBaseUrl.value = config.pdf?.mineruApi?.baseURL ?? "https://mineru.net/api/v4"
+    mineruApiModel.value = config.pdf?.mineruApi?.modelVersion ?? "vlm"
+    mineruApiIsOcr.value = config.pdf?.mineruApi?.isOcr ?? true
+    mineruApiEnableFormula.value = config.pdf?.mineruApi?.enableFormula ?? true
+    mineruApiEnableTable.value = config.pdf?.mineruApi?.enableTable ?? true
+    mineruApiFallbackToUnpdf.value = config.pdf?.mineruApi?.fallbackToUnpdf ?? true
+    mineruApiKeepOutput.value = config.pdf?.mineruApi?.keepOutput ?? true
     mineruCommand.value = config.pdf?.mineru?.command ?? "mineru"
     mineruArgs.value = (config.pdf?.mineru?.args ?? ["-p", "{input}", "-o", "{outputDir}"]).join("\n")
     mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
@@ -214,6 +232,16 @@ async function handleSave() {
               keepOutput: mineruKeepOutput.value || undefined
             }
           : undefined,
+        mineruApi: {
+          token: mineruApiToken.value.trim(),
+          baseURL: mineruApiBaseUrl.value.trim() || undefined,
+          modelVersion: mineruApiModel.value.trim() || undefined,
+          isOcr: mineruApiIsOcr.value,
+          enableFormula: mineruApiEnableFormula.value,
+          enableTable: mineruApiEnableTable.value,
+          fallbackToUnpdf: mineruApiFallbackToUnpdf.value,
+          keepOutput: mineruApiKeepOutput.value
+        },
         markitdown: markitdownCommand.value.trim()
           ? {
               command: markitdownCommand.value,
@@ -305,6 +333,14 @@ onMounted(() => {
         v-model:mineru-timeout="mineruTimeout"
         v-model:mineru-fallback-to-unpdf="mineruFallbackToUnpdf"
         v-model:mineru-keep-output="mineruKeepOutput"
+        v-model:mineru-api-token="mineruApiToken"
+        v-model:mineru-api-base-url="mineruApiBaseUrl"
+        v-model:mineru-api-model="mineruApiModel"
+        v-model:mineru-api-is-ocr="mineruApiIsOcr"
+        v-model:mineru-api-enable-formula="mineruApiEnableFormula"
+        v-model:mineru-api-enable-table="mineruApiEnableTable"
+        v-model:mineru-api-fallback-to-unpdf="mineruApiFallbackToUnpdf"
+        v-model:mineru-api-keep-output="mineruApiKeepOutput"
         v-model:markitdown-command="markitdownCommand"
         v-model:markitdown-args="markitdownArgs"
         v-model:markitdown-output-file="markitdownOutputFile"

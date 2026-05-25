@@ -284,6 +284,7 @@ export const en = {
     pdf: {
       externalNotConfigured: 'External PDF converter is selected but no external command is configured.',
       converterRequiresConfig: 'PDF converter "{{name}}" requires configuration.',
+      mineruApiTokenRequired: 'Mineru API Token is not configured. Please configure it in AI Settings.',
     },
     extractionAudit: {
       recordNotFound: 'Extraction audit record not found: {{id}}',

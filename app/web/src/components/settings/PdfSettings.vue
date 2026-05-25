@@ -2,6 +2,7 @@
 import type { ImageOcrFallbackMode, PdfConverterKind } from "@/api-client"
 import Checkbox from "primevue/checkbox"
 import InputText from "primevue/inputtext"
+import Password from "primevue/password"
 import Select from "primevue/select"
 import Textarea from "primevue/textarea"
 import { computed } from "vue"
@@ -17,6 +18,15 @@ const mineruArgs = defineModel<string>("mineruArgs", { required: true })
 const mineruTimeout = defineModel<number>("mineruTimeout", { required: true })
 const mineruFallbackToUnpdf = defineModel<boolean>("mineruFallbackToUnpdf", { required: true })
 const mineruKeepOutput = defineModel<boolean>("mineruKeepOutput", { required: true })
+
+const mineruApiToken = defineModel<string>("mineruApiToken", { required: true })
+const mineruApiBaseUrl = defineModel<string>("mineruApiBaseUrl", { required: true })
+const mineruApiModel = defineModel<string>("mineruApiModel", { required: true })
+const mineruApiIsOcr = defineModel<boolean>("mineruApiIsOcr", { required: true })
+const mineruApiEnableFormula = defineModel<boolean>("mineruApiEnableFormula", { required: true })
+const mineruApiEnableTable = defineModel<boolean>("mineruApiEnableTable", { required: true })
+const mineruApiFallbackToUnpdf = defineModel<boolean>("mineruApiFallbackToUnpdf", { required: true })
+const mineruApiKeepOutput = defineModel<boolean>("mineruApiKeepOutput", { required: true })
 
 const markitdownCommand = defineModel<string>("markitdownCommand", { required: true })
 const markitdownArgs = defineModel<string>("markitdownArgs", { required: true })
@@ -49,6 +59,7 @@ const { t } = useI18n()
 const pdfConverterOptions = computed(() => [
   { label: t("app.pdfConverterUnpdf"), value: "unpdf" },
   { label: t("app.pdfConverterMineru"), value: "mineru" },
+  { label: t("app.pdfConverterMineruApi"), value: "mineru_api" },
   { label: t("app.pdfConverterMarkitdown"), value: "markitdown" },
   { label: t("app.pdfConverterMarker"), value: "marker" },
   { label: t("app.pdfConverterExternal"), value: "external" }
@@ -183,6 +194,51 @@ const imageInputStatusClass = computed(() => {
             {{ $t("app.placeholders") }}: <code class="bg-secondary px-1 rounded">{input}</code>,
             <code class="bg-secondary px-1 rounded">{outputDir}</code>,
             <code class="bg-secondary px-1 rounded">{basename}</code>
+          </div>
+        </div>
+
+        <!-- MinerU API PDF Converter config -->
+        <div v-if="pdfConverter === 'mineru_api'" class="space-y-3 pl-6 border-l-2 border-border">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">{{ $t("app.mineruApiTokenLabel") }}</label>
+            <Password v-model="mineruApiToken" :feedback="false" toggle-mask size="small" :placeholder="$t('app.mineruApiTokenPlaceholder')" input-class="w-full" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">{{ $t("app.mineruApiBaseUrlLabel") }}</label>
+            <InputText v-model="mineruApiBaseUrl" size="small" placeholder="https://mineru.net/api/v4" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">{{ $t("app.mineruApiModelLabel") }}</label>
+            <Select
+              v-model="mineruApiModel"
+              :options="[
+                { label: 'vlm (Recommended)', value: 'vlm' },
+                { label: 'pipeline (Layout + OCR)', value: 'pipeline' },
+              ]"
+              option-label="label"
+              option-value="value"
+              size="small"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="mineruApiIsOcr" :binary="true" input-id="mineru-api-is-ocr" />
+            <label for="mineru-api-is-ocr" class="text-sm cursor-pointer">{{ $t("app.mineruApiIsOcrLabel") }}</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="mineruApiEnableFormula" :binary="true" input-id="mineru-api-enable-formula" />
+            <label for="mineru-api-enable-formula" class="text-sm cursor-pointer">{{ $t("app.mineruApiEnableFormulaLabel") }}</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="mineruApiEnableTable" :binary="true" input-id="mineru-api-enable-table" />
+            <label for="mineru-api-enable-table" class="text-sm cursor-pointer">{{ $t("app.mineruApiEnableTableLabel") }}</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="mineruApiFallbackToUnpdf" :binary="true" input-id="mineru-api-fallback" />
+            <label for="mineru-api-fallback" class="text-sm cursor-pointer">{{ $t("app.fallbackToBuiltin") }}</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="mineruApiKeepOutput" :binary="true" input-id="mineru-api-keep-output" />
+            <label for="mineru-api-keep-output" class="text-sm cursor-pointer">{{ $t("app.keepConvertedFiles") }}</label>
           </div>
         </div>
 

@@ -32,7 +32,18 @@ export interface ImageOcrConfig {
   ocrMinConfidence?: number
 }
 
-export type PdfConverterKind = 'unpdf' | 'mineru' | 'markitdown' | 'marker' | 'external'
+export type PdfConverterKind = 'unpdf' | 'mineru' | 'mineru_api' | 'markitdown' | 'marker' | 'external'
+
+export interface MineruApiPdfConverterConfig {
+  token: string
+  baseURL?: string
+  modelVersion?: string
+  isOcr?: boolean
+  enableFormula?: boolean
+  enableTable?: boolean
+  fallbackToUnpdf?: boolean
+  keepOutput?: boolean
+}
 
 export interface ExternalPdfConverterConfig {
   command: string
@@ -46,6 +57,7 @@ export interface ExternalPdfConverterConfig {
 export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
+  mineruApi?: MineruApiPdfConverterConfig
   markitdown?: ExternalPdfConverterConfig
   marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
@@ -163,9 +175,21 @@ export const DEFAULT_MARKER_CONFIG: ExternalPdfConverterConfig = {
   keepOutput: true,
 }
 
+export const DEFAULT_MINERU_API_CONFIG: MineruApiPdfConverterConfig = {
+  token: '',
+  baseURL: 'https://mineru.net/api/v4',
+  modelVersion: 'vlm',
+  isOcr: true,
+  enableFormula: true,
+  enableTable: true,
+  fallbackToUnpdf: true,
+  keepOutput: true,
+}
+
 export const DEFAULT_PDF_CONFIG: PdfConfig = {
   converter: 'unpdf',
   mineru: DEFAULT_MINERU_CONFIG,
+  mineruApi: DEFAULT_MINERU_API_CONFIG,
   markitdown: DEFAULT_MARKITDOWN_CONFIG,
   marker: DEFAULT_MARKER_CONFIG,
 }

@@ -63,6 +63,7 @@
     "@langfuse/otel": "catalog:",
     "@notionhq/client": "catalog:",
     "@opentelemetry/sdk-trace-node": "catalog:",
+    "adm-zip": "catalog:",
     "ai": "catalog:",
     "better-sqlite3": "catalog:",
     "chokidar": "catalog:",
@@ -100,6 +101,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "catalog:cli",
     "@antfu/ni": "catalog:cli",
+    "@types/adm-zip": "catalog:",
     "@types/better-sqlite3": "catalog:types",
     "@types/jsonfile": "catalog:",
     "@types/node": "catalog:types",
