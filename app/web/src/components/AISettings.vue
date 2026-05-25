@@ -125,12 +125,12 @@ async function loadConfig() {
   loading.value = true
   try {
     const config = await getAIConfig()
-    baseURL.value = config.provider.baseURL
-    apiKey.value = config.provider.apiKey
-    timeout.value = config.provider.timeout ?? 300
-    models.value = config.provider.models ?? []
-    systemTemplate.value = config.prompt.systemTemplate
-    userTemplate.value = config.prompt.userTemplate
+    baseURL.value = config.provider?.baseURL ?? ""
+    apiKey.value = config.provider?.apiKey ?? ""
+    timeout.value = config.provider?.timeout ?? 300
+    models.value = config.provider?.models ?? []
+    systemTemplate.value = config.prompt?.systemTemplate ?? defaultSystemTemplate
+    userTemplate.value = config.prompt?.userTemplate ?? defaultUserTemplate
     pdfConverter.value = config.pdf?.converter ?? "unpdf"
     mineruApiToken.value = config.pdf?.mineruApi?.token ?? ""
     mineruApiBaseUrl.value = config.pdf?.mineruApi?.baseURL ?? "https://mineru.net/api/v4"

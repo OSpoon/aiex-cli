@@ -42,6 +42,9 @@ export function useTranslation(): Translation {
     return new Proxy({} as Translation, {
       get(_target, key: string | symbol) {
         if (typeof key !== 'string') return ''
+        if (key.startsWith('__v_') || key === 'constructor' || key === 'toJSON') {
+          return undefined
+        }
         return (injected.value as any)[key] ?? key
       },
     })
@@ -52,8 +55,12 @@ export function useTranslation(): Translation {
   return new Proxy({} as Translation, {
     get(_target, key: string | symbol) {
       if (typeof key !== 'string') return ''
+      if (key.startsWith('__v_') || key === 'constructor' || key === 'toJSON') {
+        return undefined
+      }
       const result = t(key)
       return typeof result === 'string' ? result : key
     },
   })
 }
+

@@ -301,7 +301,7 @@ async function handleInspectNotion() {
           <Checkbox v-model="notionEnabled" :binary="true" input-id="notion-enabled" />
           <label for="notion-enabled" class="text-sm cursor-pointer">{{ $t("app.enabled") }}</label>
         </div>
-        <div class="space-y-3 pl-6 border-l-2 border-border">
+        <div v-if="notionEnabled" class="space-y-3 pl-6 border-l-2 border-border">
           <div class="flex flex-col gap-1">
             <label class="text-xs text-muted-foreground">{{ $t("app.integrationToken") }}</label>
             <Password v-model="notionToken" :feedback="false" toggle-mask size="small" placeholder="secret_..." input-class="w-full" />
