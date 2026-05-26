@@ -47,7 +47,7 @@ export async function processOneFile(
   schemaName: string,
   filePath: string,
   modelOverride: AIModelConfig | undefined,
-  options?: { insert?: boolean, force?: boolean, agent?: boolean },
+  options?: { insert?: boolean, force?: boolean },
 ): Promise<boolean> {
   const result = await runAuditedExtraction({
     aiexDir,
@@ -58,7 +58,6 @@ export async function processOneFile(
     modelOverride,
     insert: options?.insert,
     force: options?.force,
-    agent: options?.agent,
     quiet: false,
   })
 
@@ -80,7 +79,7 @@ export async function runBatchExtraction(
   dir: string,
   globPattern: string | undefined,
   modelOverride: AIModelConfig | undefined,
-  options?: { insert?: boolean, force?: boolean, agent?: boolean },
+  options?: { insert?: boolean, force?: boolean },
 ): Promise<BatchExtractionResult> {
   consola.info(t('command.extract.batch.scanning', { dir: pc.cyan(dir) }))
 
@@ -104,7 +103,7 @@ export async function runBatchExtraction(
     const file = files[i]
     consola.info(`\n${t('command.extract.batch.processing', { current: i + 1, total: files.length, file: pc.cyan(path.basename(file)) })}`)
 
-    const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, { insert: options?.insert, force: options?.force, agent: options?.agent })
+    const ok = await processOneFile(aiexDir, config, aiConfig, schemaName, file, modelOverride, { insert: options?.insert, force: options?.force })
     if (ok)
       successCount++
     else

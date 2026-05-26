@@ -271,7 +271,7 @@ describe('extractSingle with Pipeline mode enhancements', () => {
       longText,
       undefined,
       undefined,
-      { quiet: true, agent: false, insert: false },
+      { quiet: true, insert: false },
     )
 
     expect(result.success).toBe(true)

@@ -94,7 +94,6 @@ export interface RunAuditedExtractionOptions {
   insert?: boolean
   force?: boolean
   quiet?: boolean
-  agent?: boolean
 }
 
 export interface RunAuditedExtractionResult {

@@ -107,8 +107,7 @@ export async function listExtractions(config: MigrationConfig): Promise<Extracti
   const jsonFiles = files.filter(f =>
     f.endsWith('.json')
     && !f.endsWith('.prompt.md')
-    && !f.endsWith(EVIDENCE_FILE_SUFFIX)
-    && !f.endsWith('.agent-trace.json'),
+    && !f.endsWith(EVIDENCE_FILE_SUFFIX),
   )
   const auditRecords = await listExtractionAuditRecords(aiexDir)
   const auditByOutputName = new Map(auditRecords.map(record => [record.outputName, record]))

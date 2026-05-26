@@ -163,7 +163,7 @@ export async function extractSingle(
   text: string | undefined,
   filePath?: string,
   modelOverride?: AIModelConfig,
-  options?: { quiet?: boolean, insert?: boolean, agent?: boolean },
+  options?: { quiet?: boolean, insert?: boolean },
 ): Promise<ExtractResult> {
   const schemaLoad = await loadSchema(config, schemaName)
   if (!schemaLoad.schema) {
@@ -470,7 +470,6 @@ export async function runAuditedExtraction(
     insert,
     force,
     quiet = false,
-    agent = false,
   } = options
 
   let fileHash: string | undefined
@@ -546,7 +545,7 @@ export async function runAuditedExtraction(
       text,
       filePath,
       modelOverride,
-      { quiet, insert, agent },
+      { quiet, insert },
     )
 
     if (r.success) {
