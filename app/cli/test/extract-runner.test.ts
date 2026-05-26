@@ -214,50 +214,6 @@ describe('readExtractFileInput', () => {
   })
 })
 
-describe('extractSingle with agent mode routing rejection', () => {
-  it('fails when agent option is true', async () => {
-    const dir = `/tmp/test-extract-runner-agent-${Date.now()}`
-    fs.mkdirSync(path.join(dir, 'schema'), { recursive: true })
-    const schemaPath = path.join(dir, 'schema', 'members.json')
-    fs.writeFileSync(schemaPath, JSON.stringify({
-      title: 'Members',
-      type: 'object',
-      properties: { name: { type: 'string' } },
-      table: { name: 'members' },
-    }))
-
-    const config = { schemaPath: path.join(dir, 'schema'), databasePath: '', drizzleSchemaPath: '', migrationsPath: '', drizzleConfigPath: '' }
-    const aiConfig = {
-      provider: {
-        baseURL: 'http://mock-url',
-        apiKey: 'mock-key',
-        models: [{ name: 'mock-model', capabilities: { vision: false, structuredOutput: true } }],
-      },
-      extraction: {
-        outputDir: '.aiex/extracted',
-      },
-    }
-
-    const { extractSingle } = await import('@/core/extract-runner')
-
-    const result = await extractSingle(
-      dir,
-      config,
-      aiConfig as any,
-      'members',
-      'Alice text',
-      undefined,
-      undefined,
-      { quiet: true, agent: true, insert: false },
-    )
-
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('ReAct Agent Mode is not supported')
-
-    fs.rmSync(dir, { recursive: true })
-  })
-})
-
 describe('extractSingle with Pipeline mode enhancements', () => {
   it('runs Pipeline mode with concurrency and pre-filtering', async () => {
     const dir = `/tmp/test-extract-runner-pipeline-${Date.now()}`

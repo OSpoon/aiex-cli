@@ -1,19 +1,12 @@
 <script setup lang="ts">
-import Select from "primevue/select"
 import Textarea from "primevue/textarea"
 import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 
 const systemTemplate = defineModel<string>("systemTemplate", { required: true })
 const userTemplate = defineModel<string>("userTemplate", { required: true })
-const extractionMode = defineModel<"pipeline" | "react">("extractionMode", { required: true })
 
 const { t } = useI18n()
-
-const modeOptions = computed(() => [
-  { label: t("app.pipelineMode"), value: "pipeline" },
-  { label: t("app.reactAgentMode"), value: "react" }
-])
 
 const systemSchemaError = computed(() => {
   if (!systemTemplate.value.includes("{schema}")) {
@@ -37,28 +30,6 @@ defineExpose({
 
 <template>
   <div class="space-y-6">
-    <!-- Extraction Mode Config -->
-    <section>
-      <h3 class="text-sm font-semibold mb-3 text-foreground">
-        {{ $t("app.extractionMode") }}
-      </h3>
-      <div class="space-y-3">
-        <div class="flex flex-col gap-1">
-          <Select
-            v-model="extractionMode"
-            :options="modeOptions"
-            option-label="label"
-            option-value="value"
-            size="small"
-            class="w-full"
-          />
-          <p class="text-xs text-muted-foreground mt-1">
-            {{ $t("app.modeDescription") }}
-          </p>
-        </div>
-      </div>
-    </section>
-
     <!-- Prompt Config -->
     <section>
       <h3 class="text-sm font-semibold mb-3 text-foreground">

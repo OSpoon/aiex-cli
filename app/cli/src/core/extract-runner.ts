@@ -180,10 +180,7 @@ export async function extractSingle(
   const CHUNK_LIMIT = 40000
   let result: any
 
-  if (options?.agent || aiConfig.extraction?.mode === ('react' as any)) {
-    return { success: false, error: 'ReAct Agent Mode is not supported on the main branch. Please checkout the feat/react branch to use ReAct features.' }
-  }
-  else if (text && text.length > CHUNK_LIMIT) {
+  if (text && text.length > CHUNK_LIMIT) {
     if (!options?.quiet) {
       consola.info(t('command.extract.file.chunking', { length: text.length, limit: CHUNK_LIMIT }))
     }
