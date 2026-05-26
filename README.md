@@ -70,6 +70,7 @@ aiex extract -s <schema> -f <file>        # from file (txt, pdf, png, jpg, ...)
 aiex extract -s <schema> -f <file> -m <model>      # specify AI model (overrides auto-selection)
 aiex extract -s <schema> -f <file> --no-insert     # extract and save JSON without inserting into SQLite
 aiex extract -s <schema> -f <file> --force         # force re-extraction even if already processed
+aiex extract -s <schema> -f <file> --agent         # run ReAct agent mode (ideal for large documents)
 aiex extract -s <schema> -d <directory>            # batch extract all supported files in a directory
 aiex extract -s <schema> -d <dir> -g "*.pdf"       # batch with glob filter
 aiex extract history                               # list extraction audit records
@@ -128,6 +129,7 @@ Dumps all extracted data for a given schema (or table) from the SQLite database 
 | `aiex extract -s <name> -f <file> -m <model>` | Extract with a specific AI model |
 | `aiex extract -s <name> -f <file> --no-insert` | Extract and save JSON without inserting into SQLite |
 | `aiex extract -s <name> -f <file> --force` | Force re-extraction even if the file has already been processed |
+| `aiex extract -s <name> -f <file> --agent` | Extract data in ReAct agent mode (using tool navigation) |
 | `aiex extract -s <name> -d <dir>` | Batch extract all supported files in a directory |
 | `aiex extract -s <name> -d <dir> -g "*.pdf"` | Batch extract with glob filter |
 | `aiex extract history` | List extraction audit records |
@@ -199,6 +201,25 @@ aiex completion fish | source
   ```
 
 > Pre-built completion files are also available in the installed package at `node_modules/aiex-cli/dist/completions/`, so Homebrew formulae, oh-my-zsh plugins, and other package managers can reference them directly without running `aiex completion`.
+
+<br>
+
+## 📄 Large Document Processing (Pipeline vs. ReAct Agent)
+
+When processing very large documents (exceeding `40,000` characters), `aiex` provides two separate modes to handle context window limits and cost:
+
+### 1. Pipeline Mode (Default)
+- **Mechanism**: Splits the document logically at Markdown headings or paragraph boundaries. It processes each chunk sequentially through the LLM, prepending active heading stacks as context to prevent losing track of document structure (like headers). Finally, it merges the outputs recursively.
+- **Best for**: Small-to-medium files or structures where every single section must be scanned completely (e.g. log files).
+
+### 2. ReAct Agent Mode
+- **Mechanism**: Spawns an agent equipped with document navigation tools:
+  - `listChunks()`: Returns a Table of Contents (headings, sizes, indices).
+  - `readChunk(chunkId)`: Fetches a specific section.
+  - `searchChunks(query)`: Matches keywords across all chunks.
+  - `submitExtraction(data)`: Submits the final structured JSON payload.
+  The agent uses these tools to dynamically browse and retrieve only the relevant parts, drastically reducing API token costs for giant documents.
+- **How to run**: Pass `--agent` / `-a` via the CLI, or toggle **Extraction Mode** under the **Prompts** tab in the Web UI.
 
 <br>
 

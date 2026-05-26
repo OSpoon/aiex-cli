@@ -1,4 +1,4 @@
-# 文件提取流程
+# Flow Chart
 
 ```mermaid
 flowchart TD
@@ -45,10 +45,24 @@ flowchart TD
   I4 -->|"是"| T1
   I4 -->|"否"| ERR2["返回 OCR 不可用/识别失败"]
 
-  T1 --> E1["extractSingle / extractStructuredData"]
+  T1 --> E1["extractSingle"]
   I2 --> E1
 
-  E1 --> M1{"模型选择"}
+  E1 --> EXMODE{"提取模式"}
+  EXMODE -->|"ReAct Agent"| AG1["extractStructuredDataWithAgent"]
+  EXMODE -->|"流水线分块"| CK1["splitMarkdown 分块"]
+  EXMODE -->|"普通单步"| EX_STD["extractStructuredData"]
+
+  CK1 --> CK_LOOP["循环提取各切片"]
+  CK_LOOP --> EX_STD
+  CK_LOOP --> CK_MERGE["mergeExtractionResults 合并结果"]
+  CK_MERGE --> V1["validateExtractedData 校验 schema"]
+
+  AG1 --> AG_LOOP["ReAct 思考-行动工具环"]
+  AG_LOOP --> AG_SUBMIT["submitExtraction"]
+  AG_SUBMIT --> V1
+
+  EX_STD --> M1{"模型选择"}
   M1 -->|"图片附件输入"| M2["selectModel 要求 vision=true"]
   M1 -->|"文本输入"| M3["优先 structuredOutput=true，否则第一个可用模型"]
 
@@ -59,7 +73,7 @@ flowchart TD
   A2 -->|"是"| A3["AI SDK Output.object(JSON Schema)"]
   A2 -->|"否"| A4["普通文本生成 + safeParseJSON"]
 
-  A3 --> V1["validateExtractedData 校验 schema"]
+  A3 --> V1
   A4 --> V1
 
   V1 -->|"失败"| ERR3["返回结构校验错误"]
