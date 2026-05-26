@@ -137,6 +137,7 @@ export const en = {
         extractRetry: 'API responded with {{code}}, retrying in {{delay}}s ({{attempt}}/{{max}})',
         chunking: 'Input text length ({{length}} chars) exceeds limit ({{limit}} chars). Splitting into chunks...',
         chunksCount: 'Split into {{count}} chunk(s).',
+        preFiltering: 'Hybrid pre-filtering: selected {{filtered}} out of {{original}} chunks based on schema relevance.',
         extractingChunk: 'Extracting chunk {{current}}/{{total}}...',
         extractRetryChunk: 'Chunk {{current}}/{{total}} API responded with {{code}}, retrying in {{delay}}s ({{attempt}}/{{max}})',
         extractFailChunk: 'Extraction failed for chunk {{current}}/{{total}}',

@@ -139,6 +139,7 @@ export const zhCN: Translations = {
         extractRetry: 'API 返回 {{code}}，{{delay}} 秒后重试（{{attempt}}/{{max}}）',
         chunking: '输入文本长度 ({{length}} 字符) 超过限制 ({{limit}} 字符)。正在拆分为多个切片...',
         chunksCount: '已拆分为 {{count}} 个切片。',
+        preFiltering: '混合预过滤：根据 Schema 相关性筛选保留了 {{filtered}} / {{original}} 个切片。',
         extractingChunk: '正在提取切片 {{current}}/{{total}}...',
         extractRetryChunk: '切片 {{current}}/{{total}} API 返回 {{code}}，{{delay}} 秒后重试（{{attempt}}/{{max}}）',
         extractFailChunk: '切片 {{current}}/{{total}} 提取失败',

@@ -29,6 +29,10 @@ export interface PromptConfig {
 export interface ExtractionConfig {
   outputDir: string
   mode?: 'pipeline' | 'react'
+  concurrency?: number
+  overlapSize?: number
+  preFiltering?: boolean
+  preFilteringLimit?: number
 }
 
 export type ImageOcrFallbackMode = 'auto' | 'off' | 'local'

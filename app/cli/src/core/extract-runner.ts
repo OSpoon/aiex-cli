@@ -30,6 +30,63 @@ export { isImageFile, readExtractFileInput } from './pdf-converter/orchestrator'
 
 const JSON_EXT_RE = /\.json$/
 
+async function limitConcurrency<T, R>(
+  concurrency: number,
+  items: T[],
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = Array.from({ length: items.length })
+  let nextIndex = 0
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex++
+      results[currentIndex] = await fn(items[currentIndex], currentIndex)
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    worker,
+  )
+  await Promise.all(workers)
+  return results
+}
+
+function getSchemaKeywords(schema: any): string[] {
+  const keywords = new Set<string>()
+  function walk(properties: any): void {
+    if (!properties)
+      return
+    for (const [name, prop] of Object.entries(properties)) {
+      keywords.add(name.toLowerCase())
+      const parts = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(/[\s._:/\\-]+/g)
+      for (const part of parts) {
+        if (part.length > 1)
+          keywords.add(part.toLowerCase())
+      }
+      if (prop && typeof prop === 'object') {
+        const p = prop as any
+        if (typeof p.title === 'string')
+          keywords.add(p.title.toLowerCase())
+        if (typeof p.description === 'string') {
+          const descParts = p.description.toLowerCase().match(/[\p{L}\p{N}_-]+/gu) ?? []
+          for (const d of descParts) {
+            if (d.length > 2)
+              keywords.add(d)
+          }
+        }
+        if (p.type === 'object')
+          walk(p.properties)
+        if (p.type === 'array' && p.items?.type === 'object')
+          walk(p.items.properties)
+      }
+    }
+  }
+  walk(schema.properties)
+  return Array.from(keywords)
+}
+
 async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
   try {
     await fsp.access(dbPath)
@@ -165,10 +222,52 @@ export async function extractSingle(
       consola.info(t('command.extract.file.chunking', { length: text.length, limit: CHUNK_LIMIT }))
     }
 
-    const finalDocs = splitMarkdown(text, CHUNK_LIMIT)
+    const overlapSize = aiConfig.extraction?.overlapSize ?? 2000
+    const finalDocs = splitMarkdown(text, CHUNK_LIMIT, overlapSize)
 
     if (!options?.quiet) {
       consola.info(t('command.extract.file.chunksCount', { count: finalDocs.length }))
+    }
+
+    let processedDocs = finalDocs
+    const preFiltering = !!aiConfig.extraction?.preFiltering
+    if (preFiltering && finalDocs.length > 1) {
+      const preFilteringLimit = aiConfig.extraction?.preFilteringLimit ?? 5
+      const keywords = getSchemaKeywords(schemaLoad.schema)
+      const chunkScores = finalDocs.map((doc, idx) => {
+        if (idx === 0) {
+          return { index: idx, score: Number.POSITIVE_INFINITY }
+        }
+        let score = 0
+        const docTextLower = doc.pageContent.toLowerCase()
+        for (const kw of keywords) {
+          let pos = docTextLower.indexOf(kw)
+          while (pos !== -1) {
+            score++
+            pos = docTextLower.indexOf(kw, pos + kw.length)
+          }
+        }
+        return { index: idx, score }
+      })
+
+      const scoredChunks = chunkScores.slice(1).sort((a, b) => b.score - a.score)
+      const selectedIndices = new Set<number>([0])
+      let keptCount = 0
+      for (const sc of scoredChunks) {
+        if (sc.score > 0 && keptCount < preFilteringLimit) {
+          selectedIndices.add(sc.index)
+          keptCount++
+        }
+      }
+
+      processedDocs = finalDocs.filter((_, idx) => selectedIndices.has(idx))
+
+      if (!options?.quiet) {
+        consola.info(t('command.extract.file.preFiltering', {
+          original: finalDocs.length,
+          filtered: processedDocs.length,
+        }))
+      }
     }
 
     const chunkResults: Record<string, any>[] = []
@@ -176,67 +275,86 @@ export async function extractSingle(
     let success = true
     let errorMsg = ''
 
-    for (let i = 0; i < finalDocs.length; i++) {
-      const doc = finalDocs[i]
-      if (!options?.quiet) {
-        s.message(t('command.extract.file.extractingChunk', { current: i + 1, total: finalDocs.length }))
-      }
+    const extractionTasks = processedDocs.map((doc, i) => {
+      return async () => {
+        if (!success)
+          return
 
-      const headings: string[] = []
-      if (doc.metadata) {
-        if (doc.metadata.h1)
-          headings.push(doc.metadata.h1)
-        if (doc.metadata.h2)
-          headings.push(doc.metadata.h2)
-        if (doc.metadata.h3)
-          headings.push(doc.metadata.h3)
-        if (doc.metadata.h4)
-          headings.push(doc.metadata.h4)
-      }
-
-      let chunkText = doc.pageContent
-      if (headings.length > 0) {
-        chunkText = `> **[Context]** Belong to: ${headings.join(' > ')}\n\n${chunkText}`
-      }
-
-      const chunkResult = await extractStructuredData({
-        config: aiConfig,
-        schema: schemaLoad.schema,
-        text: chunkText,
-        aiexDir,
-        modelOverride,
-        onRetry(info: RetryInfo) {
-          if (!options?.quiet) {
-            s.message(t('command.extract.file.extractRetryChunk', {
-              current: i + 1,
-              total: finalDocs.length,
-              code: info.statusCode,
-              delay: info.delayMs / 1000,
-              attempt: info.attempt,
-              max: info.maxRetries,
-            }))
-          }
-        },
-      })
-
-      if (!chunkResult.success) {
-        success = false
-        errorMsg = chunkResult.error || t('common.unknownError')
-        if (!options?.quiet) {
-          s.stop(t('command.extract.file.extractFailChunk', { current: i + 1 }))
-          consola.error(errorMsg)
+        const headings: string[] = []
+        if (doc.metadata) {
+          if (doc.metadata.h1)
+            headings.push(doc.metadata.h1)
+          if (doc.metadata.h2)
+            headings.push(doc.metadata.h2)
+          if (doc.metadata.h3)
+            headings.push(doc.metadata.h3)
+          if (doc.metadata.h4)
+            headings.push(doc.metadata.h4)
         }
-        break
-      }
 
-      if (chunkResult.data) {
-        chunkResults.push(chunkResult.data as Record<string, any>)
+        let chunkText = doc.pageContent
+        if (headings.length > 0) {
+          chunkText = `> **[Context]** Belong to: ${headings.join(' > ')}\n\n${chunkText}`
+        }
+
+        const chunkResult = await extractStructuredData({
+          config: aiConfig,
+          schema: schemaLoad.schema,
+          text: chunkText,
+          aiexDir,
+          modelOverride,
+          onRetry(info: RetryInfo) {
+            if (!options?.quiet) {
+              s.message(t('command.extract.file.extractRetryChunk', {
+                current: i + 1,
+                total: processedDocs.length,
+                code: info.statusCode,
+                delay: info.delayMs / 1000,
+                attempt: info.attempt,
+                max: info.maxRetries,
+              }))
+            }
+          },
+        })
+
+        if (!chunkResult.success) {
+          success = false
+          errorMsg = chunkResult.error || t('common.unknownError')
+          if (!options?.quiet) {
+            s.stop(t('command.extract.file.extractFailChunk', { current: i + 1 }))
+            consola.error(errorMsg)
+          }
+          return
+        }
+
+        if (chunkResult.data) {
+          chunkResults.push(chunkResult.data as Record<string, any>)
+        }
+        if (chunkResult.tokensUsed) {
+          accumulatedTokens.prompt += chunkResult.tokensUsed.prompt ?? 0
+          accumulatedTokens.completion += chunkResult.tokensUsed.completion ?? 0
+          accumulatedTokens.total += chunkResult.tokensUsed.total ?? 0
+        }
       }
-      if (chunkResult.tokensUsed) {
-        accumulatedTokens.prompt += chunkResult.tokensUsed.prompt ?? 0
-        accumulatedTokens.completion += chunkResult.tokensUsed.completion ?? 0
-        accumulatedTokens.total += chunkResult.tokensUsed.total ?? 0
-      }
+    })
+
+    const concurrency = Math.min(aiConfig.extraction?.concurrency ?? 2, 2)
+
+    if (!options?.quiet && processedDocs.length > 0) {
+      s.message(t('command.extract.file.extractingChunk', { current: 1, total: processedDocs.length }))
+    }
+
+    try {
+      await limitConcurrency(concurrency, extractionTasks, async (task, idx) => {
+        if (!options?.quiet && success) {
+          s.message(t('command.extract.file.extractingChunk', { current: idx + 1, total: processedDocs.length }))
+        }
+        await task()
+      })
+    }
+    catch (e) {
+      success = false
+      errorMsg = e instanceof Error ? e.message : String(e)
     }
 
     if (!success) {

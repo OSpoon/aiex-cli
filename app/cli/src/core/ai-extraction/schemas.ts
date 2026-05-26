@@ -28,6 +28,10 @@ export const PromptConfigSchema = z.object({
 export const ExtractionConfigSchema = z.object({
   outputDir: z.string().min(1),
   mode: z.enum(['pipeline', 'react']).default('pipeline').optional(),
+  concurrency: z.number().int().min(1).optional(),
+  overlapSize: z.number().int().nonnegative().optional(),
+  preFiltering: z.boolean().optional(),
+  preFilteringLimit: z.number().int().min(1).optional(),
 })
 
 export const ImageOcrConfigSchema = z.object({

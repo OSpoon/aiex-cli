@@ -15,13 +15,14 @@ const HEADING_RE = /^(#{1,6})\s+(\S.*)$/
  * Keeps tables and list blocks intact by splitting along paragraphs (\n\n)
  * when a section exceeds the maxSize limit.
  */
-export function splitMarkdown(text: string, maxSize: number = 40000): MarkdownChunk[] {
+export function splitMarkdown(text: string, maxSize: number = 40000, overlapSize: number = 0): MarkdownChunk[] {
   const lines = text.split('\n')
   const chunks: MarkdownChunk[] = []
 
   let currentHeadings: string[] = []
   let currentChunkLines: string[] = []
   let currentSize = 0
+  let hasNewLines = false
 
   const getMetadata = (headings: string[]): MarkdownChunk['metadata'] => {
     return {
@@ -32,11 +33,17 @@ export function splitMarkdown(text: string, maxSize: number = 40000): MarkdownCh
     }
   }
 
-  const flushChunk = (): void => {
-    if (currentChunkLines.length === 0)
+  const flushChunk = (isHeadingChange: boolean = false): void => {
+    if (currentChunkLines.length === 0 || !hasNewLines) {
+      currentChunkLines = []
+      currentSize = 0
+      hasNewLines = false
       return
+    }
 
     const pageContent = currentChunkLines.join('\n')
+    let lastChunkContent = ''
+
     // If this chunk alone is too large, we split it by paragraph boundaries
     if (pageContent.length > maxSize) {
       const paragraphs = pageContent.split('\n\n')
@@ -46,21 +53,36 @@ export function splitMarkdown(text: string, maxSize: number = 40000): MarkdownCh
       for (const para of paragraphs) {
         const paraSize = para.length
         if (subSize + paraSize > maxSize && subLines.length > 0) {
+          const content = subLines.join('\n\n')
           chunks.push({
-            pageContent: subLines.join('\n\n'),
+            pageContent: content,
             metadata: getMetadata(currentHeadings),
           })
-          subLines = []
-          subSize = 0
+
+          // Calculate overlap: keep trailing paragraphs that fit within overlapSize
+          const overlapParas: string[] = []
+          let currentOverlapSize = 0
+          for (let j = subLines.length - 1; j >= 0; j--) {
+            const p = subLines[j]
+            if (currentOverlapSize + p.length > overlapSize && overlapParas.length > 0) {
+              break
+            }
+            overlapParas.unshift(p)
+            currentOverlapSize += p.length + 2
+          }
+          subLines = [...overlapParas]
+          subSize = currentOverlapSize
         }
         subLines.push(para)
         subSize += paraSize + 2
       }
       if (subLines.length > 0) {
+        const content = subLines.join('\n\n')
         chunks.push({
-          pageContent: subLines.join('\n\n'),
+          pageContent: content,
           metadata: getMetadata(currentHeadings),
         })
+        lastChunkContent = content
       }
     }
     else {
@@ -68,17 +90,38 @@ export function splitMarkdown(text: string, maxSize: number = 40000): MarkdownCh
         pageContent,
         metadata: getMetadata(currentHeadings),
       })
+      lastChunkContent = pageContent
     }
 
-    currentChunkLines = []
-    currentSize = 0
+    // Carry over overlap to the next chunk
+    if (!isHeadingChange && lastChunkContent && overlapSize > 0) {
+      const paragraphs = lastChunkContent.split('\n\n')
+      const overlapParas: string[] = []
+      let currentOverlapSize = 0
+      for (let j = paragraphs.length - 1; j >= 0; j--) {
+        const p = paragraphs[j]
+        if (currentOverlapSize + p.length > overlapSize && overlapParas.length > 0) {
+          break
+        }
+        overlapParas.unshift(p)
+        currentOverlapSize += p.length + 2
+      }
+      const overlapText = overlapParas.join('\n\n')
+      currentChunkLines = overlapText.split('\n')
+      currentSize = overlapText.length
+    }
+    else {
+      currentChunkLines = []
+      currentSize = 0
+    }
+    hasNewLines = false
   }
 
   for (const line of lines) {
     const headingMatch = line.match(HEADING_RE)
     if (headingMatch) {
       // Flush accumulated content under the previous heading context
-      flushChunk()
+      flushChunk(true)
 
       const depth = headingMatch[1].length
       const title = headingMatch[2].trim()
@@ -90,12 +133,13 @@ export function splitMarkdown(text: string, maxSize: number = 40000): MarkdownCh
 
     currentChunkLines.push(line)
     currentSize += line.length + 1
+    hasNewLines = true
 
     if (currentSize > maxSize) {
-      flushChunk()
+      flushChunk(false)
     }
   }
 
-  flushChunk()
+  flushChunk(true)
   return chunks
 }

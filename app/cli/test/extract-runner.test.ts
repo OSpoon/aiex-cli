@@ -11,12 +11,14 @@ const imageOcrMock = vi.hoisted(() => ({
 vi.mock('@/core/image-ocr', () => imageOcrMock)
 
 const extractStructuredDataWithAgentMock = vi.hoisted(() => vi.fn())
+const extractStructuredDataMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/core/ai-extraction', async (importOriginal) => {
   const original = await importOriginal<any>()
   return {
     ...original,
     extractStructuredDataWithAgent: extractStructuredDataWithAgentMock,
+    extractStructuredData: extractStructuredDataMock,
   }
 })
 
@@ -24,6 +26,7 @@ afterEach(() => {
   imageOcrMock.recognizeImageText.mockReset()
   imageOcrMock.shouldUseImageOcrFallback.mockReset()
   imageOcrMock.shouldUseImageOcrFallback.mockReturnValue(false)
+  extractStructuredDataMock.mockReset()
 })
 
 describe('listSupportedFiles', () => {
@@ -260,6 +263,74 @@ describe('extractSingle with agent mode routing', () => {
     )
     expect(result.success).toBe(true)
     expect(result.data).toEqual({ name: 'Alice' })
+
+    fs.rmSync(dir, { recursive: true })
+  })
+})
+
+describe('extractSingle with Pipeline mode enhancements', () => {
+  it('runs Pipeline mode with concurrency and pre-filtering', async () => {
+    const dir = `/tmp/test-extract-runner-pipeline-${Date.now()}`
+    fs.mkdirSync(path.join(dir, 'schema'), { recursive: true })
+    const schemaPath = path.join(dir, 'schema', 'company.json')
+    fs.writeFileSync(schemaPath, JSON.stringify({
+      title: 'Company',
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        revenue: { type: 'number' },
+      },
+      table: { name: 'company' },
+    }))
+
+    const config = { schemaPath: path.join(dir, 'schema'), databasePath: '', drizzleSchemaPath: '', migrationsPath: '', drizzleConfigPath: '' }
+    const aiConfig = {
+      provider: {
+        baseURL: 'http://mock-url',
+        apiKey: 'mock-key',
+        models: [{ name: 'mock-model', capabilities: { vision: false, structuredOutput: true } }],
+      },
+      extraction: {
+        outputDir: '.aiex/extracted',
+        concurrency: 2,
+        preFiltering: true,
+        preFilteringLimit: 1,
+        overlapSize: 100,
+      },
+    }
+
+    extractStructuredDataMock.mockImplementation(async (input: any) => {
+      if (input.text.includes('metadata')) {
+        return { success: true, data: { name: 'ACME Corp' } }
+      }
+      if (input.text.includes('revenue')) {
+        return { success: true, data: { revenue: 1000000 } }
+      }
+      return { success: false, error: 'Should not extract irrelevant chunk' }
+    })
+
+    const { extractSingle } = await import('@/core/extract-runner')
+
+    const textChunk0 = '# Cover Page\nThis is document metadata and general info.\n\n'
+    const textChunk1 = '## Section 1\nHere is the financial data with revenue details and profit numbers.\n\n'
+    const textChunk2 = '## Section 2\nThis section is completely irrelevant containing stories and jokes.\n\n'
+
+    const longText = `${textChunk0 + 'A'.repeat(40000)}\n\n${textChunk1}${'B'.repeat(40000)}\n\n${textChunk2}${'C'.repeat(40000)}`
+
+    const result = await extractSingle(
+      dir,
+      config,
+      aiConfig as any,
+      'company',
+      longText,
+      undefined,
+      undefined,
+      { quiet: true, agent: false, insert: false },
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual({ name: 'ACME Corp', revenue: 1000000 })
+    expect(extractStructuredDataMock).toHaveBeenCalledTimes(2)
 
     fs.rmSync(dir, { recursive: true })
   })

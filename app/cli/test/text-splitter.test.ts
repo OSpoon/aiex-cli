@@ -47,4 +47,28 @@ Paragraph 3 content.
     expect(chunks[0].pageContent).toContain('Paragraph 1')
     expect(chunks[1].pageContent).toContain('Paragraph 2')
   })
+
+  it('supports overlapSize to carry over trailing paragraphs to the next chunk', () => {
+    const text = `Paragraph1.
+
+Paragraph2.
+
+Paragraph3.
+`
+    // Paragraph1. is 11 chars. Paragraph2. is 11 chars. Paragraph3. is 11 chars.
+    // Force maxSize = 15, overlapSize = 12
+    const chunks = splitMarkdown(text, 15, 12)
+
+    expect(chunks.length).toBeGreaterThan(1)
+    // First chunk should have Paragraph1
+    expect(chunks[0].pageContent).toContain('Paragraph1')
+    // Second chunk should carry over Paragraph1 and include Paragraph2
+    expect(chunks[1].pageContent).toContain('Paragraph1')
+    expect(chunks[1].pageContent).toContain('Paragraph2')
+    // Third chunk should carry over Paragraph2
+    expect(chunks[2].pageContent).toContain('Paragraph2')
+    // Fourth chunk should carry over Paragraph2 and include Paragraph3
+    expect(chunks[3].pageContent).toContain('Paragraph2')
+    expect(chunks[3].pageContent).toContain('Paragraph3')
+  })
 })
