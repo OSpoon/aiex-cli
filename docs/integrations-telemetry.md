@@ -65,6 +65,6 @@ Webhooks are signed using a HMAC signature (SHA-256) computed using `webhook.sec
 
 If `langfuse.publicKey` and `langfuse.secretKey` are configured:
 
-1. **Traces**: Every call inside `extractStructuredData` or `extractStructuredDataWithAgent` initializes a telemetry trace span.
+1. **Traces**: Every call inside `extractStructuredData` initializes a telemetry trace span.
 2. **Instrumentation**: OpenTelemetry automatically captures request payloads, temperature parameters, model names, latency, and token metrics.
 3. **Trace Visualizer**: You can monitor step execution times, input chunks, and prompt snapshots directly from your Langfuse Dashboard.

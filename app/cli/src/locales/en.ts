@@ -130,8 +130,6 @@ export const en = {
         errorProcessing: 'Error processing {{name}}: {{error}}',
         extractedFrom: 'Extracting from {{file}}...',
         extracting: 'Extracting data...',
-        reactAgentMode: 'Starting ReAct Agent extraction...',
-        agentThought: 'Agent Thought',
         extractFail: 'Extraction failed',
         extractComplete: 'Extraction complete',
         extractRetry: 'API responded with {{code}}, retrying in {{delay}}s ({{attempt}}/{{max}})',

@@ -132,8 +132,6 @@ export const zhCN: Translations = {
         errorProcessing: '处理 {{name}} 时出错: {{error}}',
         extractedFrom: '正在从 {{file}} 中抽取...',
         extracting: '正在抽取数据...',
-        reactAgentMode: '正在启动 ReAct Agent 智能提取模式...',
-        agentThought: 'Agent 推理思考',
         extractFail: '抽取失败',
         extractComplete: '抽取完成',
         extractRetry: 'API 返回 {{code}}，{{delay}} 秒后重试（{{attempt}}/{{max}}）',
