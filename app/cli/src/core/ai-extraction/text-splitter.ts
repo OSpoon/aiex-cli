@@ -38,30 +38,29 @@ function getMetadata(headings: string[]): MarkdownChunk['metadata'] {
  * Preserves the separators when re-joining.
  */
 function splitTextRecursively(text: string, maxTokens: number, separators: string[] = ['\n\n', '\n', '。', '. ', ' ']): string[] {
-  if (countTokens(text) <= maxTokens) {
-    return [text]
-  }
+  const separator = separators[0]
+  const nextSeparators = separators.slice(1)
 
-  if (separators.length === 0) {
-    // Character-level hard fallback
-    const chunks: string[] = []
-    let current = ''
-    for (const char of text) {
-      if (countTokens(current + char) > maxTokens) {
-        chunks.push(current)
-        current = char
-      }
-      else {
-        current += char
-      }
+  // Skip if separator not present — avoids expensive countTokens on large texts
+  if (separator && !text.includes(separator)) {
+    if (nextSeparators.length > 0) {
+      return splitTextRecursively(text, maxTokens, nextSeparators)
     }
-    if (current)
-      chunks.push(current)
+    // No more separators; fallback to char-based split
+    // Conservative ~0.5 chars/token for worst-case (dense byte sequences)
+    const chunkSize = Math.max(1, Math.ceil(maxTokens * 2))
+    const chunks: string[] = []
+    for (let i = 0; i < text.length; i += chunkSize) {
+      chunks.push(text.slice(i, i + chunkSize))
+    }
     return chunks
   }
 
-  const separator = separators[0]
-  const nextSeparators = separators.slice(1)
+  // Only check exact tokens when text is reasonably small
+  if (text.length <= maxTokens * 4 && countTokens(text) <= maxTokens) {
+    return [text]
+  }
+
   const parts = text.split(separator)
   const result: string[] = []
   let currentChunk: string[] = []
@@ -193,13 +192,17 @@ export function splitMarkdown(text: string, maxTokens: number = 8000, overlapTok
   return chunks
 
   function processTextBlock(blockText: string, headings: string[], isAtomic = false): void {
-    const blockTokens = countTokens(blockText)
     const contextText = formatHeadingContext(headings)
     const contextTokens = countTokens(contextText)
 
     // Budget limit: maxTokens minus context size, with a small safety buffer of at most 10% or 10 tokens
     const safetyBuffer = Math.min(100, Math.max(2, Math.floor(maxTokens * 0.1)))
     const budgetLimit = Math.max(5, maxTokens - contextTokens - safetyBuffer)
+
+    // Skip exact tokenization on very large blocks to avoid O(n²) tiktoken behavior on dense text
+    const blockTokens = blockText.length > Math.max(budgetLimit * 4, 20000)
+      ? budgetLimit + 1
+      : countTokens(blockText)
 
     if (blockTokens > budgetLimit) {
       if (isAtomic) {

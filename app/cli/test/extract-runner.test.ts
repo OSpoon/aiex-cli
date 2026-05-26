@@ -259,7 +259,7 @@ describe('extractSingle with Pipeline mode enhancements', () => {
     const textChunk1 = '## Section 1\nHere is the financial data with revenue details and profit numbers.\n\n'
     const textChunk2 = '## Section 2\nThis section is completely irrelevant containing stories and jokes.\n\n'
 
-    const longText = `${textChunk0 + 'A'.repeat(40000)}\n\n${textChunk1}${'B'.repeat(40000)}\n\n${textChunk2}${'C'.repeat(40000)}`
+    const longText = `${textChunk0 + 'A sentence with some content for testing. '.repeat(2000)}\n\n${textChunk1}${'B sentence with different content for testing. '.repeat(2000)}\n\n${textChunk2}${'C sentence with yet more content for testing. '.repeat(2000)}`
 
     const result = await extractSingle(
       dir,
