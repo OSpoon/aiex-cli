@@ -28,7 +28,7 @@ export interface PromptConfig {
 
 export interface ExtractionConfig {
   outputDir: string
-  mode?: 'pipeline' | 'react'
+  mode?: 'pipeline'
   concurrency?: number
   overlapSize?: number
   preFiltering?: boolean

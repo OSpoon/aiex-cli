@@ -214,8 +214,8 @@ describe('readExtractFileInput', () => {
   })
 })
 
-describe('extractSingle with agent mode routing', () => {
-  it('calls extractStructuredDataWithAgent when agent option is true', async () => {
+describe('extractSingle with agent mode routing rejection', () => {
+  it('fails when agent option is true', async () => {
     const dir = `/tmp/test-extract-runner-agent-${Date.now()}`
     fs.mkdirSync(path.join(dir, 'schema'), { recursive: true })
     const schemaPath = path.join(dir, 'schema', 'members.json')
@@ -238,11 +238,6 @@ describe('extractSingle with agent mode routing', () => {
       },
     }
 
-    extractStructuredDataWithAgentMock.mockResolvedValueOnce({
-      success: true,
-      data: { name: 'Alice' },
-    })
-
     const { extractSingle } = await import('@/core/extract-runner')
 
     const result = await extractSingle(
@@ -256,13 +251,8 @@ describe('extractSingle with agent mode routing', () => {
       { quiet: true, agent: true, insert: false },
     )
 
-    expect(extractStructuredDataWithAgentMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        text: 'Alice text',
-      }),
-    )
-    expect(result.success).toBe(true)
-    expect(result.data).toEqual({ name: 'Alice' })
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('ReAct Agent Mode is not supported')
 
     fs.rmSync(dir, { recursive: true })
   })

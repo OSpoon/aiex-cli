@@ -273,12 +273,6 @@ export const extractCommand = defineCommand({
       description: t('command.extract.args.force'),
       default: false,
     },
-    agent: {
-      type: 'boolean',
-      alias: 'a',
-      description: 'Enable ReAct agent extraction mode',
-      default: false,
-    },
   },
   async run({ args, rawArgs }) {
     if (isExtractSubCommand(rawArgs))
@@ -321,7 +315,7 @@ export const extractCommand = defineCommand({
         failCommand(t('command.extract.errors.schemaRequiredBatch'))
         return
       }
-      const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride, { insert: !args.noInsert, force: args.force, agent: args.agent as boolean })
+      const result = await runBatchExtraction(aiexDir, config, aiConfig, args.schema as string, args.dir as string, args.glob as string | undefined, modelOverride, { insert: !args.noInsert, force: args.force })
       if (!result.ok) {
         failCommand(result.error)
         return
@@ -357,7 +351,6 @@ export const extractCommand = defineCommand({
       insert: !args.noInsert,
       force: args.force,
       quiet: false,
-      agent: args.agent as boolean,
     })
 
     if (!result.success) {
