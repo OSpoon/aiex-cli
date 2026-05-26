@@ -119,5 +119,6 @@ export interface EvidenceSummary {
   foundCount: number
   missingCount: number
   inferredCount: number
+  conflictCount?: number
   issueCount: number
 }

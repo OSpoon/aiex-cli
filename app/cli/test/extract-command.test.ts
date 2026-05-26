@@ -13,6 +13,7 @@ vi.stubEnv('LANG', 'en_US.UTF-8')
 
 // —— vitest mocks ——
 vi.mock('@/core/ai-extraction', () => ({
+  calculateChunkTokenBudget: vi.fn(({ configuredMaxTokens }) => configuredMaxTokens ?? 8000),
   extractStructuredData: vi.fn(),
   insertExtractedData: vi.fn(),
   readAIConfig: vi.fn(),

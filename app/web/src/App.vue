@@ -604,6 +604,7 @@ onMounted(() => {
                     : selectedExtraction === record.name ? 'bg-white/15 text-primary-foreground' : 'bg-green-500/10 text-green-700'"
                 >
                   {{ $t("app.evidenceCoverage") }} {{ record.evidenceSummary.evidenceCount }}/{{ record.evidenceSummary.fieldCount }}
+                  <span v-if="record.evidenceSummary.conflictCount"> · {{ $t("app.evidenceConflicts") }} {{ record.evidenceSummary.conflictCount }}</span>
                 </span>
               </button>
             </div>

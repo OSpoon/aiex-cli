@@ -9,7 +9,7 @@ import { getEncoding } from 'js-tiktoken'
 import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
 import { ZodError } from 'zod'
-import { extractStructuredData, insertExtractedData, mergeExtractionResults, splitMarkdown, validateExtractedData } from '@/core/ai-extraction'
+import { calculateChunkTokenBudget, extractStructuredData, insertExtractedData, mergeExtractionResults, splitMarkdown, validateExtractedData } from '@/core/ai-extraction'
 import {
   createExtractionAuditRecord,
   findSucceededAuditByHash,
@@ -21,6 +21,7 @@ import {
 } from '@/core/schema-sqlite'
 import { t } from '@/locales'
 import { getFileHash } from '@/utils/hash'
+import { applySelectedCandidates, buildCandidateMergeReport, writeExtractionEvidence } from './ai-extraction/evidence'
 import { shouldSyncNotion, syncResultToNotion, triggerWebhook } from './integration/dispatcher'
 import { readExtractFileInput } from './pdf-converter/orchestrator'
 
@@ -180,7 +181,11 @@ export async function extractSingle(
     s.start(filePath ? t('command.extract.file.extractedFrom', { file: path.basename(filePath) }) : t('command.extract.file.extracting'))
   }
 
-  const maxTokens = aiConfig.extraction?.maxTokens ?? 8000
+  const configuredMaxTokens = aiConfig.extraction?.maxTokens ?? 8000
+  const maxTokens = calculateChunkTokenBudget({
+    configuredMaxTokens,
+    modelMaxTokens: modelOverride?.capabilities.maxTokens,
+  })
   const overlapTokens = aiConfig.extraction?.overlapSize ?? 1000
   let result: any
   const totalTokens = text ? encoding.encode(text).length : 0
@@ -328,7 +333,15 @@ export async function extractSingle(
       return { success: false, error: errorMsg }
     }
 
-    const mergedData = mergeExtractionResults(schemaLoad.schema, chunkResults)
+    const candidateReport = buildCandidateMergeReport({
+      schema: schemaLoad.schema,
+      chunkResults,
+      chunks: processedDocs,
+    })
+    const mergedData = applySelectedCandidates(
+      mergeExtractionResults(schemaLoad.schema, chunkResults),
+      candidateReport,
+    )
     const validation = validateExtractedData(schemaLoad.schema, mergedData)
     if (!validation.success) {
       const valError = (validation as any).error || 'Merged data validation failed'
@@ -346,12 +359,20 @@ export async function extractSingle(
     const outputFileName = `${schemaLoad.schema.table.name}-${timestamp}.json`
     const finalMergedOutputPath = path.join(outputDir, outputFileName)
     await fsp.writeFile(finalMergedOutputPath, JSON.stringify(mergedData, null, 2))
+    const evidenceSummary = await writeExtractionEvidence({
+      schema: schemaLoad.schema,
+      data: mergedData,
+      outputPath: finalMergedOutputPath,
+      chunks: processedDocs,
+      candidateReport,
+    })
 
     result = {
       success: true,
       data: mergedData,
       tokensUsed: accumulatedTokens,
       outputPath: finalMergedOutputPath,
+      evidenceSummary,
     }
   }
   else {
@@ -389,7 +410,7 @@ export async function extractSingle(
   if (result.evidenceSummary && !options?.quiet) {
     const summary = result.evidenceSummary
     const issueText = summary.issueCount > 0 ? pc.yellow(String(summary.issueCount)) : pc.green('0')
-    consola.info(pc.gray(`Evidence coverage: ${summary.evidenceCount}/${summary.fieldCount} fields, found ${summary.foundCount}, inferred ${summary.inferredCount}, missing ${summary.missingCount}, issues ${issueText}`))
+    consola.info(pc.gray(`Evidence coverage: ${summary.evidenceCount}/${summary.fieldCount} fields, found ${summary.foundCount}, inferred ${summary.inferredCount}, missing ${summary.missingCount}, conflicts ${summary.conflictCount ?? 0}, issues ${issueText}`))
   }
 
   if (result.tokensUsed && !options?.quiet) {

@@ -8,6 +8,7 @@ import { writeFile as writeJsonFile } from 'jsonfile'
 import { getErrorMessage } from '@/core/schema-sqlite'
 import { t } from '@/locales'
 import { withRetry } from '@/utils/retry'
+import { writeExtractionEvidence } from './evidence'
 import { detectMimeType, readFilePart } from './file-utils'
 import { safeParseJSON } from './json-utils'
 import { selectModel } from './model-selector'
@@ -186,11 +187,18 @@ export async function extractStructuredData(input: {
           const outputPath = path.join(outputDir, outputFileName)
 
           await writeJsonFile(outputPath, data, { spaces: 2, EOL: '\n' })
+          const evidenceSummary = await writeExtractionEvidence({
+            schema,
+            data,
+            outputPath,
+            text,
+          })
 
           return {
             success: true,
             outputPath,
             data,
+            evidenceSummary,
             tokensUsed: {
               prompt: totalPromptTokens,
               completion: totalCompletionTokens,

@@ -121,6 +121,7 @@ onMounted(loadContent)
             :class="evidenceIssueTone"
           >
             {{ $t("app.evidenceCoverage") }} {{ evidenceSummary.evidenceCount }}/{{ evidenceSummary.fieldCount }}
+            · {{ $t("app.evidenceConflicts") }} {{ evidenceSummary.conflictCount ?? 0 }}
             · {{ $t("app.evidenceIssues") }} {{ evidenceSummary.issueCount }}
           </span>
           <span

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { splitMarkdown } from '../src/core/ai-extraction/text-splitter'
+import { calculateChunkTokenBudget, splitMarkdown } from '../src/core/ai-extraction/text-splitter'
 
 describe('splitMarkdown', () => {
   it('splits markdown text by headings and associates metadata', () => {
@@ -87,5 +87,49 @@ This is the third paragraph. It is also designed to be around twelve tokens long
     expect(chunks[0].pageContent).toContain('first')
     expect(chunks[1].pageContent).toContain('first')
     expect(chunks[1].pageContent).toContain('second')
+  })
+
+  it('adds stable chunk metadata without changing heading metadata shape', () => {
+    const text = `# Chapter
+Alpha paragraph.
+
+Beta paragraph.
+`
+    const chunks = splitMarkdown(text, 20)
+
+    expect(chunks[0].chunkIndex).toBe(0)
+    expect(chunks[0].totalChunks).toBe(chunks.length)
+    expect(chunks[0].tokenCount).toBeGreaterThan(0)
+    expect(chunks[0].headingPath).toEqual(['Chapter'])
+    expect(chunks[0].charStart).toBeGreaterThanOrEqual(0)
+    expect(chunks[0].charEnd).toBeGreaterThan(chunks[0].charStart!)
+    expect(chunks[0].metadata).toEqual({ h1: 'Chapter', h2: undefined, h3: undefined, h4: undefined })
+  })
+
+  it('splits oversized markdown tables by rows and repeats the table header', () => {
+    const text = `# Table
+| Name | Description |
+| --- | --- |
+| Alpha | ${'alpha '.repeat(30)} |
+| Beta | ${'beta '.repeat(30)} |
+| Gamma | ${'gamma '.repeat(30)} |
+`
+    const chunks = splitMarkdown(text, 45, 0)
+    const tableChunks = chunks.filter(chunk => chunk.pageContent.includes('| Name | Description |'))
+
+    expect(tableChunks.length).toBeGreaterThan(1)
+    expect(tableChunks.every(chunk => chunk.pageContent.includes('| --- | --- |'))).toBe(true)
+    expect(tableChunks.some(chunk => chunk.pageContent.includes('| Beta |'))).toBe(true)
+  })
+
+  it('derives chunk budget from model context when available', () => {
+    expect(calculateChunkTokenBudget({ configuredMaxTokens: 8000 })).toBe(8000)
+    expect(calculateChunkTokenBudget({
+      configuredMaxTokens: 8000,
+      modelMaxTokens: 4096,
+      promptReserveTokens: 512,
+      outputReserveTokens: 1024,
+      safetyBufferTokens: 256,
+    })).toBe(2304)
   })
 })

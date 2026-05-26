@@ -37,6 +37,7 @@ interface ExtractResponse {
     foundCount: number
     missingCount: number
     inferredCount: number
+    conflictCount?: number
     issueCount: number
   }
   tokensUsed?: {

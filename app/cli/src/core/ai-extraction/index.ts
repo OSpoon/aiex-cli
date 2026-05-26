@@ -9,7 +9,7 @@ export { getRegistrySize, lookupModel } from './model-registry'
 export { generateExtractionPrompt, generatePromptSnapshot, schemaToDescription } from './prompt-generator'
 export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, ImageOcrConfigSchema, LangfuseConfigSchema, NotionConfigSchema, NotionSchemaConfigSchema, PdfConfigSchema, WebhookConfigSchema } from './schemas'
 export { savePromptSnapshot } from './snapshot'
-export { splitMarkdown } from './text-splitter'
+export { calculateChunkTokenBudget, splitMarkdown } from './text-splitter'
 export {
   DEFAULT_AI_CONFIG,
   DEFAULT_EXTRACTION_CONFIG,
