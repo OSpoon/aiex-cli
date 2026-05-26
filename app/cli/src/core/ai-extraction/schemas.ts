@@ -93,26 +93,6 @@ export const WebhookConfigSchema = z.object({
   secret: z.string().optional(),
 })
 
-export const McpServerConfigSchema = z.object({
-  name: z.string().min(1),
-  enabled: z.boolean(),
-  transport: z.enum(['stdio', 'sse', 'http']),
-  command: z.string().min(1).optional(),
-  args: z.array(z.string()).optional(),
-  url: z.string().min(1).optional(),
-  allowedTools: z.array(z.string()).optional(),
-})
-
-export const AgentExtensionsConfigSchema = z.object({
-  mcp: z.object({
-    servers: z.array(McpServerConfigSchema).default([]),
-  }).optional(),
-  skills: z.object({
-    enabled: z.boolean().optional(),
-    directories: z.array(z.string()).optional(),
-  }).optional(),
-})
-
 export const AIConfigSchema = z.object({
   provider: AIProviderConfigSchema,
   prompt: PromptConfigSchema,
@@ -122,5 +102,4 @@ export const AIConfigSchema = z.object({
   langfuse: LangfuseConfigSchema.optional(),
   notion: NotionConfigSchema.optional(),
   webhook: WebhookConfigSchema.optional(),
-  agentExtensions: AgentExtensionsConfigSchema.optional(),
 })

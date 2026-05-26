@@ -15,7 +15,6 @@ import { t } from '@/locales'
 
 const FILE_REGEX = /\.json$/
 const EVIDENCE_FILE_SUFFIX = '.evidence.json'
-const AGENT_TRACE_FILE_SUFFIX = '.agent-trace.json'
 const EXTRACTION_TIMESTAMP_RE = /-\d{4}-\d{2}-\d{2}T/
 const INTERNAL_ROWID_COLUMN = '__aiex_rowid'
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
@@ -109,7 +108,7 @@ export async function listExtractions(config: MigrationConfig): Promise<Extracti
     f.endsWith('.json')
     && !f.endsWith('.prompt.md')
     && !f.endsWith(EVIDENCE_FILE_SUFFIX)
-    && !f.endsWith(AGENT_TRACE_FILE_SUFFIX),
+    && !f.endsWith('.agent-trace.json'),
   )
   const auditRecords = await listExtractionAuditRecords(aiexDir)
   const auditByOutputName = new Map(auditRecords.map(record => [record.outputName, record]))

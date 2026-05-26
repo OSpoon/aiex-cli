@@ -187,26 +187,6 @@ export interface WebhookConfig {
   secret?: string
 }
 
-export interface McpServerConfig {
-  name: string
-  enabled: boolean
-  transport: "stdio" | "sse" | "http"
-  command?: string
-  args?: string[]
-  url?: string
-  allowedTools?: string[]
-}
-
-export interface AgentExtensionsConfig {
-  mcp?: {
-    servers: McpServerConfig[]
-  }
-  skills?: {
-    enabled?: boolean
-    directories?: string[]
-  }
-}
-
 export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
@@ -216,7 +196,6 @@ export interface AIConfig {
   langfuse?: LangfuseConfig
   notion?: NotionConfig
   webhook?: WebhookConfig
-  agentExtensions?: AgentExtensionsConfig
 }
 
 export async function getAIConfig(): Promise<AIConfig> {
