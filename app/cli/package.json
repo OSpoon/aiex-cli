@@ -48,7 +48,6 @@
     "dev": "tsdown --watch",
     "start": "tsx src/index.ts",
     "test": "vitest",
-    "eval:agent": "node scripts/agent-eval.mjs",
     "coverage": "vitest --coverage",
     "typecheck": "tsc",
     "lint": "eslint .",

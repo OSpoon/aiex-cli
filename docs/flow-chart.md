@@ -48,19 +48,14 @@ flowchart TD
   T1 --> E1["extractSingle"]
   I2 --> E1
 
-  E1 --> EXMODE{"提取模式"}
-  EXMODE -->|"ReAct Agent"| AG1["extractStructuredDataWithAgent"]
-  EXMODE -->|"流水线分块"| CK1["splitMarkdown 分块"]
-  EXMODE -->|"普通单步"| EX_STD["extractStructuredData"]
+  E1 --> EXMODE{"文本长度超出限制?"}
+  EXMODE -->|"是: 流水线分块"| CK1["splitMarkdown/paragraph 切片 (滑动窗口/重叠切片, 混合检索预过滤)"]
+  EXMODE -->|"否: 普通单步"| EX_STD["extractStructuredData"]
 
-  CK1 --> CK_LOOP["循环提取各切片"]
+  CK1 --> CK_LOOP["并发提取切片 (p-limit 最大并发2)"]
   CK_LOOP --> EX_STD
   CK_LOOP --> CK_MERGE["mergeExtractionResults 合并结果"]
   CK_MERGE --> V1["validateExtractedData 校验 schema"]
-
-  AG1 --> AG_LOOP["ReAct 思考-行动工具环"]
-  AG_LOOP --> AG_SUBMIT["submitExtraction"]
-  AG_SUBMIT --> V1
 
   EX_STD --> M1{"模型选择"}
   M1 -->|"图片附件输入"| M2["selectModel 要求 vision=true"]

@@ -58,7 +58,7 @@ Hosts a local Hono HTTP server. It serves two purposes:
 ### 3. Core Layer (`src/core/`)
 Implements the business logic divided into separate domain modules:
 * `schema-sqlite`: Handles JSON Schema validation, conversion to Drizzle models, and migration execution.
-* `ai-extraction`: Coordinates LLM calls, context stacking, sequential splitting, and ReAct agent tool executions.
+* `ai-extraction`: Coordinates LLM calls, context stacking, sequential splitting, sliding window overlap, and parallel chunk merging.
 * `pdf-converter`: Converts files to Markdown (via unpdf, mineru, markitdown, etc.) and native OCR.
 * `integration`: Dispatches extracted payloads to Notion databases and HTTP webhooks.
 
@@ -76,7 +76,7 @@ Implements the business logic divided into separate domain modules:
 1. User runs `aiex extract -s <schema> -f <file>`.
 2. Core checks if the file hash has already been processed successfully in the audit trail.
 3. If not processed (or `--force` is set), the PDF converter parses the document into Markdown text.
-4. The extraction pipeline splits the text (if too long) or runs the ReAct agent.
+4. The extraction pipeline splits the text (if too long) into overlapping chunks using a sliding window and processes them under concurrency control.
 5. The extracted structured JSON is validated against the JSON Schema.
 6. The valid JSON is written to `.aiex/extracted/`.
 7. The extracted fields are inserted into the SQLite database.

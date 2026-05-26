@@ -15,12 +15,12 @@ const models = defineModel<AIModelConfig[]>("models", { required: true })
 // Model adding state
 const addingModel = ref(false)
 const newModelName = ref("")
-const newModelCaps = ref<ModelCapabilities>({ vision: false, structuredOutput: false, supportsTools: undefined })
+const newModelCaps = ref<ModelCapabilities>({ vision: false, structuredOutput: false })
 const newModelSource = ref<"registry" | "manual">("manual")
 
 function onModelNameInput() {
   newModelSource.value = "manual"
-  newModelCaps.value = { vision: false, structuredOutput: false, supportsTools: undefined }
+  newModelCaps.value = { vision: false, structuredOutput: false }
 
   if (!newModelName.value) return
 
@@ -48,7 +48,7 @@ function cancelAddModel() {
 
 function resetNewModel() {
   newModelName.value = ""
-  newModelCaps.value = { vision: false, structuredOutput: false, supportsTools: undefined }
+  newModelCaps.value = { vision: false, structuredOutput: false }
   newModelSource.value = "manual"
   addingModel.value = false
 }
@@ -107,13 +107,7 @@ function removeModel(index: number) {
             <i :class="m.capabilities.vision ? 'pi pi-check-circle' : 'pi pi-times-circle'" class="text-[10px]" />
             {{ m.capabilities.vision ? $t('app.visionSupported') : $t('app.visionUnsupported') }}
           </span>
-          <span
-            class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
-            :class="m.capabilities.supportsTools === false ? 'bg-red-500/10 text-red-600' : 'bg-blue-500/10 text-blue-600'"
-          >
-            <i :class="m.capabilities.supportsTools === false ? 'pi pi-times-circle' : 'pi pi-wrench'" class="text-[10px]" />
-            {{ m.capabilities.supportsTools === false ? $t('app.toolCallingUnsupported') : $t('app.toolCalling') }}
-          </span>
+
           <Button icon="pi pi-times" severity="danger" text size="small" @click="removeModel(i)" />
         </div>
 
@@ -152,16 +146,7 @@ function removeModel(index: number) {
                 {{ $t("app.visionSupported") }}
               </span>
             </label>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <Checkbox
-                v-model="newModelCaps.supportsTools"
-                :binary="true"
-                input-id="add-tools"
-              />
-              <span :class="newModelCaps.supportsTools ? 'text-blue-600' : 'text-muted-foreground'">
-                {{ $t("app.toolCalling") }}
-              </span>
-            </label>
+
             <span v-if="newModelSource === 'registry'" class="text-muted-foreground ml-auto">
               <i class="pi pi-database mr-0.5" />{{ $t("app.modelCapsRegistry") }}
             </span>

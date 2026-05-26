@@ -84,5 +84,5 @@ describe('Feature Test', () => {
 ### Running Specific Tests
 To run a specific test file during development:
 ```bash
-pnpm --dir app/cli test test/react-agent.test.ts --run
+pnpm --dir app/cli test test/extract-runner.test.ts --run
 ```
