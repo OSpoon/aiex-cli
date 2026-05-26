@@ -3,7 +3,6 @@ import { z } from 'zod'
 export const ModelCapabilitiesSchema = z.object({
   vision: z.boolean(),
   structuredOutput: z.boolean(),
-  supportsTools: z.boolean().optional(),
   maxTokens: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
 })

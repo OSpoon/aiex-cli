@@ -45,7 +45,6 @@ export interface InsertResult {
 export interface RegistryEntry {
   vision: boolean
   structuredOutput: boolean
-  supportsTools?: boolean
   maxTokens?: number
   maxOutputTokens?: number
 }
@@ -53,7 +52,6 @@ export interface RegistryEntry {
 export interface ModelCapabilities {
   structuredOutput: boolean
   vision: boolean
-  supportsTools?: boolean
   maxTokens?: number
   maxOutputTokens?: number
 }

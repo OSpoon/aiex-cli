@@ -81,7 +81,6 @@ export interface AIModelConfig {
   capabilities: {
     vision: boolean
     structuredOutput: boolean
-    supportsTools?: boolean
   }
 }
 
@@ -95,7 +94,6 @@ export interface AIProviderConfig {
 export interface ModelCapabilities {
   structuredOutput: boolean
   vision: boolean
-  supportsTools?: boolean
 }
 
 export interface PromptConfig {

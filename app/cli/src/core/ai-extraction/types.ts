@@ -14,8 +14,8 @@ export const PLACEHOLDER_SCHEMA = '{schema}'
 export const PLACEHOLDER_TEXT = '{text}'
 
 export const DEFAULT_MODELS: AIModelConfig[] = [
-  { name: 'qwen-plus', capabilities: { vision: false, structuredOutput: true, supportsTools: true } },
-  { name: 'qwen-vl-plus', capabilities: { vision: true, structuredOutput: true, supportsTools: true } },
+  { name: 'qwen-plus', capabilities: { vision: false, structuredOutput: true } },
+  { name: 'qwen-vl-plus', capabilities: { vision: true, structuredOutput: true } },
 ]
 
 export const DEFAULT_PROVIDER_CONFIG: AIProviderConfig = {

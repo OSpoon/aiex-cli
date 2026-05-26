@@ -8,7 +8,6 @@ export interface AIModelConfig {
   capabilities: {
     vision: boolean
     structuredOutput: boolean
-    supportsTools?: boolean
     maxTokens?: number
     maxOutputTokens?: number
   }
