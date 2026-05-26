@@ -22,6 +22,7 @@ export interface PromptConfig {
 
 export interface ExtractionConfig {
   outputDir: string
+  mode?: 'pipeline' | 'react'
 }
 
 export type ImageOcrFallbackMode = 'auto' | 'off' | 'local'
@@ -138,6 +139,7 @@ Extraction requirements:
 
 export const DEFAULT_EXTRACTION_CONFIG: ExtractionConfig = {
   outputDir: '.aiex/extracted',
+  mode: 'pipeline',
 }
 
 export const DEFAULT_IMAGE_OCR_CONFIG: ImageOcrConfig = {

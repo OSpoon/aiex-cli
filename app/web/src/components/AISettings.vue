@@ -48,6 +48,7 @@ const timeout = ref(300)
 const models = ref<AIModelConfig[]>([])
 const systemTemplate = ref("")
 const userTemplate = ref("")
+const extractionMode = ref<"pipeline" | "react">("pipeline")
 
 const pdfConverter = ref<PdfConverterKind>("unpdf")
 const mineruCommand = ref("mineru")
@@ -148,6 +149,7 @@ async function loadConfig() {
     models.value = config.provider?.models ?? []
     systemTemplate.value = config.prompt?.systemTemplate ?? defaultSystemTemplate
     userTemplate.value = config.prompt?.userTemplate ?? defaultUserTemplate
+    extractionMode.value = config.extraction?.mode ?? "pipeline"
     pdfConverter.value = config.pdf?.converter ?? "unpdf"
     mineruApiToken.value = config.pdf?.mineruApi?.token ?? ""
     mineruApiBaseUrl.value = config.pdf?.mineruApi?.baseURL ?? "https://mineru.net/api/v4"
@@ -211,7 +213,8 @@ async function handleSave() {
         userTemplate: userTemplate.value
       },
       extraction: {
-        outputDir: ".aiex/extracted"
+        outputDir: ".aiex/extracted",
+        mode: extractionMode.value
       },
       image: {
         ocrFallback: imageOcrFallback.value,
@@ -398,6 +401,7 @@ onMounted(() => {
           ref="promptSettingsRef"
           v-model:system-template="systemTemplate"
           v-model:user-template="userTemplate"
+          v-model:extraction-mode="extractionMode"
         />
       </section>
     </AnchorLayout>
@@ -466,6 +470,7 @@ onMounted(() => {
         ref="promptSettingsRef"
         v-model:system-template="systemTemplate"
         v-model:user-template="userTemplate"
+        v-model:extraction-mode="extractionMode"
       />
     </div>
 

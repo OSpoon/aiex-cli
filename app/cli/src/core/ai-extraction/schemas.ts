@@ -26,6 +26,7 @@ export const PromptConfigSchema = z.object({
 
 export const ExtractionConfigSchema = z.object({
   outputDir: z.string().min(1),
+  mode: z.enum(['pipeline', 'react']).default('pipeline').optional(),
 })
 
 export const ImageOcrConfigSchema = z.object({

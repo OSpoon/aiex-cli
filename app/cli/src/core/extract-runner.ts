@@ -9,7 +9,7 @@ import { consola } from 'consola'
 import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
 import { ZodError } from 'zod'
-import { extractStructuredData, insertExtractedData, mergeExtractionResults, splitMarkdown, validateExtractedData } from '@/core/ai-extraction'
+import { extractStructuredData, extractStructuredDataWithAgent, insertExtractedData, mergeExtractionResults, splitMarkdown, validateExtractedData } from '@/core/ai-extraction'
 import {
   createExtractionAuditRecord,
   findSucceededAuditByHash,
@@ -133,7 +133,7 @@ export async function extractSingle(
   text: string | undefined,
   filePath?: string,
   modelOverride?: AIModelConfig,
-  options?: { quiet?: boolean, insert?: boolean },
+  options?: { quiet?: boolean, insert?: boolean, agent?: boolean },
 ): Promise<ExtractResult> {
   const schemaLoad = await loadSchema(config, schemaName)
   if (!schemaLoad.schema) {
@@ -150,7 +150,44 @@ export async function extractSingle(
   const CHUNK_LIMIT = 40000
   let result: any
 
-  if (text && text.length > CHUNK_LIMIT) {
+  const isAgentMode = options?.agent || aiConfig.extraction?.mode === 'react'
+
+  if (isAgentMode) {
+    if (!options?.quiet) {
+      consola.info(t('command.extract.file.reactAgentMode'))
+    }
+    const agentResult = await extractStructuredDataWithAgent({
+      config: aiConfig,
+      schema: schemaLoad.schema,
+      text: text ?? '',
+      aiexDir,
+      modelOverride,
+      onAgentStep(step) {
+        if (!options?.quiet) {
+          if (step.thought) {
+            const thoughtPreview = step.thought.length > 100 ? `${step.thought.slice(0, 100)}...` : step.thought
+            s.message(`${pc.cyan(t('command.extract.file.agentThought'))}: ${thoughtPreview.replace(/\n/g, ' ')}`)
+          }
+          if (step.toolCalls && step.toolCalls.length > 0) {
+            for (const call of step.toolCalls) {
+              consola.info(`[Agent Action] Calling tool: ${pc.green(call.toolName)}`)
+            }
+          }
+        }
+      },
+    })
+
+    if (!agentResult.success) {
+      if (!options?.quiet) {
+        s.stop(t('command.extract.file.extractFail'))
+        consola.error(agentResult.error)
+      }
+      return { success: false, error: agentResult.error }
+    }
+
+    result = agentResult
+  }
+  else if (text && text.length > CHUNK_LIMIT) {
     if (!options?.quiet) {
       consola.info(t('command.extract.file.chunking', { length: text.length, limit: CHUNK_LIMIT }))
     }
@@ -370,6 +407,7 @@ export interface RunAuditedExtractionOptions {
   insert?: boolean
   force?: boolean
   quiet?: boolean
+  agent?: boolean
 }
 
 export interface RunAuditedExtractionResult {
@@ -403,6 +441,7 @@ export async function runAuditedExtraction(
     insert,
     force,
     quiet = false,
+    agent = false,
   } = options
 
   let fileHash: string | undefined
@@ -478,7 +517,7 @@ export async function runAuditedExtraction(
       text,
       filePath,
       modelOverride,
-      { quiet, insert },
+      { quiet, insert, agent },
     )
 
     if (r.success) {

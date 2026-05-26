@@ -103,6 +103,7 @@ export interface PromptConfig {
 
 export interface ExtractionConfig {
   outputDir: string
+  mode?: 'pipeline' | 'react'
 }
 
 export type ImageOcrFallbackMode = "auto" | "off" | "local"

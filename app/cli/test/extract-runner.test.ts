@@ -10,6 +10,16 @@ const imageOcrMock = vi.hoisted(() => ({
 
 vi.mock('@/core/image-ocr', () => imageOcrMock)
 
+const extractStructuredDataWithAgentMock = vi.hoisted(() => vi.fn())
+
+vi.mock('@/core/ai-extraction', async (importOriginal) => {
+  const original = await importOriginal<any>()
+  return {
+    ...original,
+    extractStructuredDataWithAgent: extractStructuredDataWithAgentMock,
+  }
+})
+
 afterEach(() => {
   imageOcrMock.recognizeImageText.mockReset()
   imageOcrMock.shouldUseImageOcrFallback.mockReset()
@@ -196,6 +206,60 @@ describe('readExtractFileInput', () => {
     expect(input).toEqual({ text: 'total 12.50' })
     expect(imageOcrMock.shouldUseImageOcrFallback).toHaveBeenCalledWith(aiConfig, undefined)
     expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath, aiConfig.image)
+
+    fs.rmSync(dir, { recursive: true })
+  })
+})
+
+describe('extractSingle with agent mode routing', () => {
+  it('calls extractStructuredDataWithAgent when agent option is true', async () => {
+    const dir = `/tmp/test-extract-runner-agent-${Date.now()}`
+    fs.mkdirSync(path.join(dir, 'schema'), { recursive: true })
+    const schemaPath = path.join(dir, 'schema', 'members.json')
+    fs.writeFileSync(schemaPath, JSON.stringify({
+      title: 'Members',
+      type: 'object',
+      properties: { name: { type: 'string' } },
+      table: { name: 'members' },
+    }))
+
+    const config = { schemaPath: path.join(dir, 'schema'), databasePath: '', drizzleSchemaPath: '', migrationsPath: '', drizzleConfigPath: '' }
+    const aiConfig = {
+      provider: {
+        baseURL: 'http://mock-url',
+        apiKey: 'mock-key',
+        models: [{ name: 'mock-model', capabilities: { vision: false, structuredOutput: true } }],
+      },
+      extraction: {
+        outputDir: '.aiex/extracted',
+      },
+    }
+
+    extractStructuredDataWithAgentMock.mockResolvedValueOnce({
+      success: true,
+      data: { name: 'Alice' },
+    })
+
+    const { extractSingle } = await import('@/core/extract-runner')
+
+    const result = await extractSingle(
+      dir,
+      config,
+      aiConfig as any,
+      'members',
+      'Alice text',
+      undefined,
+      undefined,
+      { quiet: true, agent: true, insert: false },
+    )
+
+    expect(extractStructuredDataWithAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'Alice text',
+      }),
+    )
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual({ name: 'Alice' })
 
     fs.rmSync(dir, { recursive: true })
   })
