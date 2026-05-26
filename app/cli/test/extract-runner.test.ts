@@ -10,14 +10,12 @@ const imageOcrMock = vi.hoisted(() => ({
 
 vi.mock('@/core/image-ocr', () => imageOcrMock)
 
-const extractStructuredDataWithAgentMock = vi.hoisted(() => vi.fn())
 const extractStructuredDataMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/core/ai-extraction', async (importOriginal) => {
   const original = await importOriginal<any>()
   return {
     ...original,
-    extractStructuredDataWithAgent: extractStructuredDataWithAgentMock,
     extractStructuredData: extractStructuredDataMock,
   }
 })
