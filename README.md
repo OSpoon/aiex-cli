@@ -206,7 +206,7 @@ aiex completion fish | source
 
 When processing very large documents (exceeding `40,000` characters), `aiex` runs an optimized **Pipeline Mode** to handle context window limits and control API costs:
 
-- **Sliding Window & Overlapping Slices**: Splits the document logically at Markdown headings or paragraph boundaries. It uses an overlapping sliding window to ensure contextual continuity at slice boundaries. Active heading hierarchies are tracked and prepended to each chunk as context.
+- **Token-Aware AST Splitting**: Parses structural Markdown elements (headings, paragraphs, lists) using an AST-based parser (`marked.lexer`) and splits them using precise token counters (`js-tiktoken`). Active heading hierarchies are tracked and prepended to each chunk as context. Tables and code blocks are kept intact (atomic blocks) to avoid syntax corruption.
 - **Concurrency Limiting**: To respect strict model rate limits, chunk extractions are processed in parallel with a strict concurrency limit (capped at 2 concurrent requests).
 - **Pre-filtering**: Integrates hybrid search-based pre-filtering to score and select only the most relevant document chunks based on schema queries, preventing unnecessary token usage on unrelated sections.
 - **Recursive Merging**: The final extracted JSON objects from each chunk are recursively merged, concatenating lists and deduplicating primitive fields.

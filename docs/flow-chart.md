@@ -49,7 +49,7 @@ flowchart TD
   I2 --> E1
 
   E1 --> EXMODE{"文本长度超出限制?"}
-  EXMODE -->|"是: 流水线分块"| CK1["splitMarkdown/paragraph 切片 (滑动窗口/重叠切片, 混合检索预过滤)"]
+  EXMODE -->|"是: 流水线分块"| CK1["splitMarkdown (Token & AST 切片, 重叠/滑动窗口, 混合检索预过滤)"]
   EXMODE -->|"否: 普通单步"| EX_STD["extractStructuredData"]
 
   CK1 --> CK_LOOP["并发提取切片 (p-limit 最大并发2)"]

@@ -25,13 +25,16 @@ Used for files exceeding `40,000` characters to prevent context window clipping.
 
 ### A. Slicing with Heading Metadata Context
 Slicing is handled by `splitMarkdown` in [text-splitter.ts](file:///Users/osp/Documents/GitHub/aiex-cli/app/cli/src/core/ai-extraction/text-splitter.ts):
-1. **Title Slicing**: Splits the document logically at Markdown headings (`#`, `##`, etc.).
-2. **Metadata Stack**: Tracks the active header hierarchy (e.g. `Chapter 1 > Section 1.2`) and prepends it to the top of subsequent sub-chunks:
+1. **AST-Based Block Extraction**: Uses `marked.lexer()` to parse markdown structural elements, ensuring proper recognition of headings, tables, code blocks, and list items.
+2. **Token-Aware Budgeting**: Employs `js-tiktoken` (`cl100k_base` encoding) for precise token-weight calculations instead of character counts. A dynamic safety buffer of up to 10% is reserved to prevent context window clipping.
+3. **Metadata Stack**: Tracks the active header hierarchy (e.g. `Chapter 1 > Section 1.2`) and prepends it to the top of subsequent sub-chunks:
    ```markdown
    > **[Context]** Belong to: Chapter 1 > Section 1.2
    ```
    This prevents the LLM from losing structural context during fragment processing.
-3. **Paragraph Protection**: If a heading section is still larger than the maximum chunk size, the splitter recursively slices along paragraph boundaries (`\n\n`), ensuring that Markdown tables and lists remain unbroken.
+4. **Atomic Block Protection**: Treats tables and code blocks as atomic. If their token count exceeds the local budget, they are output as separate, undivided chunks rather than being split recursively, preserving markdown layout/syntax.
+5. **List Item Expansion**: Automatically breaks down giant lists into individual list items to process them separately if the list as a whole exceeds the token budget.
+6. **Heading Overlap Reset**: Resets the sliding window overlap when crossing heading boundaries, avoiding carrying over trailing paragraphs of a previous section into the next section.
 
 ### B. Recursive Schema Merging
 After extracting JSON from all chunks, [json-merger.ts](file:///Users/osp/Documents/GitHub/aiex-cli/app/cli/src/core/ai-extraction/json-merger.ts) merges the array of JSON chunks recursively:
