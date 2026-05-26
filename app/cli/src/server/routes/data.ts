@@ -13,6 +13,8 @@ import {
 } from '@/core/data-service'
 import { t } from '@/locales'
 
+const JSON_FILE_SUFFIX_RE = /\.json$/
+
 const tableParamSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]*$/),
 })
@@ -99,7 +101,18 @@ export function dataRoutes(config: MigrationConfig): Hono {
 
     try {
       const content = await fs.readFile(filePath, 'utf-8')
-      return c.json({ success: true, content, name })
+      const evidencePath = path.join(extractedDir, name.replace(JSON_FILE_SUFFIX_RE, '.evidence.json'))
+      let evidenceSummary: unknown
+      try {
+        const evidence = JSON.parse(await fs.readFile(evidencePath, 'utf-8')) as any
+        evidenceSummary = evidence?.coverage
+          ? { ...evidence.coverage, path: evidencePath }
+          : undefined
+      }
+      catch {
+        evidenceSummary = undefined
+      }
+      return c.json({ success: true, content, name, evidenceSummary })
     }
     catch {
       return c.json({ error: t('server.extractionNotFound') }, 404)

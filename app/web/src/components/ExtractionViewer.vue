@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExtractionRecord } from "@/api-client"
+import type { EvidenceSummary, ExtractionRecord } from "@/api-client"
 import Button from "primevue/button"
 import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
@@ -17,6 +17,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const extractContent = ref("")
+const evidenceSummary = ref<EvidenceSummary | null>(null)
 const loading = ref(false)
 const retryingNotion = ref(false)
 const notionActionLabel = computed(() => {
@@ -29,10 +30,12 @@ async function loadContent() {
   if (!props.extractionName) return
   loading.value = true
   extractContent.value = ""
+  evidenceSummary.value = props.record?.evidenceSummary ?? null
   try {
     const result = await getExtraction(props.extractionName)
     if (result.success && result.content) {
       extractContent.value = result.content
+      evidenceSummary.value = result.evidenceSummary ?? props.record?.evidenceSummary ?? null
     } else {
       toast.error(result.error || t("app.failedToLoadExtraction"))
     }
@@ -41,6 +44,13 @@ async function loadContent() {
   }
   loading.value = false
 }
+
+const evidenceIssueTone = computed(() => {
+  if (!evidenceSummary.value) return "bg-secondary text-muted-foreground"
+  return evidenceSummary.value.issueCount > 0
+    ? "bg-yellow-500/10 text-yellow-700"
+    : "bg-green-500/10 text-green-700"
+})
 
 function handleDownload() {
   if (!props.extractionName || !extractContent.value) return
@@ -105,6 +115,14 @@ onMounted(loadContent)
           {{ extractionName }}
         </h2>
         <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <span
+            v-if="evidenceSummary"
+            class="rounded px-2 py-1 text-xs font-medium"
+            :class="evidenceIssueTone"
+          >
+            {{ $t("app.evidenceCoverage") }} {{ evidenceSummary.evidenceCount }}/{{ evidenceSummary.fieldCount }}
+            · {{ $t("app.evidenceIssues") }} {{ evidenceSummary.issueCount }}
+          </span>
           <span
             v-if="record"
             class="rounded px-2 py-1 text-xs font-medium"

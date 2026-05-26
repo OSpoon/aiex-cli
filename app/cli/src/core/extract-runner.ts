@@ -301,6 +301,12 @@ export async function extractSingle(
     consola.success(t('command.extract.file.resultSaved', { path: pc.cyan(result.outputPath) }))
   }
 
+  if (result.evidenceSummary && !options?.quiet) {
+    const summary = result.evidenceSummary
+    const issueText = summary.issueCount > 0 ? pc.yellow(String(summary.issueCount)) : pc.green('0')
+    consola.info(pc.gray(`Evidence coverage: ${summary.evidenceCount}/${summary.fieldCount} fields, found ${summary.foundCount}, inferred ${summary.inferredCount}, missing ${summary.missingCount}, issues ${issueText}`))
+  }
+
   if (result.tokensUsed && !options?.quiet) {
     consola.info(
       pc.gray(t('command.extract.file.tokenUsage', {
@@ -337,6 +343,7 @@ export async function extractSingle(
             outputPath: result.outputPath,
             data: result.data,
             tablesInserted: insertResult.tablesInserted,
+            evidenceSummary: result.evidenceSummary,
             tokensUsed: result.tokensUsed,
           }
         }
@@ -363,6 +370,7 @@ export async function extractSingle(
     success: true,
     outputPath: result.outputPath,
     data: result.data,
+    evidenceSummary: result.evidenceSummary,
     tokensUsed: result.tokensUsed,
   }
 }
@@ -528,6 +536,7 @@ export async function runAuditedExtraction(
         outputName: updated.outputName,
         tablesInserted: updated.tablesInserted,
         notionPages: updated.notionPages,
+        evidenceSummary: r.evidenceSummary,
         tokensUsed: updated.tokensUsed,
         auditId: updated.id,
         fileHash,

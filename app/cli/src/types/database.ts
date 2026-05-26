@@ -1,3 +1,5 @@
+import type { EvidenceSummary } from './extraction'
+
 export interface ParsedColumn {
   name: string
   drizzleType: string
@@ -54,6 +56,7 @@ export interface ExtractionRecord {
   timestamp: string
   fileSize: number
   modifiedAt: string
+  evidenceSummary?: EvidenceSummary
   notionStatus: 'synced' | 'failed' | 'not_synced'
   notionPages?: Array<{ databaseId: string, pageId: string }>
   notionError?: string

@@ -46,12 +46,31 @@ After extracting JSON from all chunks, [json-merger.ts](file:///Users/osp/Docume
 When ReAct mode is enabled (via config or `--agent`), `aiex` spawns an agent that uses tool calling to dynamically navigate document slices instead of reading them all.
 
 ### Tools Exposed to the Agent
-- **`listChunks`**: Returns all document chunks, sizes, and heading stack headers.
+- **`listChunks`**: Returns document chunks, sizes, heading stack headers, and heading paths. Supports optional `offset` and `limit` for large documents.
+- **`summarizeChunks`**: Returns a compact map of chunk IDs, heading paths, sizes, and previews.
 - **`readChunk(chunkId)`**: Fetches the full text of a specific chunk.
-- **`searchChunks(query)`**: Performs a case-insensitive keyword search on all chunks, returning IDs and context snippets.
-- **`submitExtraction(data)`**: Submits the final extracted JSON object.
+- **`readChunkRange(chunkId, start, length)`**: Fetches a bounded character range from a chunk when search has already identified the relevant area.
+- **`searchChunks(query, limit)`**: Performs ranked keyword and phrase search on all chunks, using phrase hits, token coverage, token rarity, and heading matches. Returns IDs, offsets, scores, heading paths, and context snippets.
+- **`submitExtraction(data, evidence)`**: Submits the final extracted JSON object and optional field-level evidence keyed by JSON path.
 
 The agent reasons about the schema, searches or lists chunks, reads relevant sections, compiles the JSON object, and submits it.
+
+Before the loop starts, `aiex` builds a schema-aware retrieval plan from field paths, field names, identifiers split from camelCase/snake_case, types, formats, and enums. The plan is included in the agent instructions and trace so the agent is guided to cover each field rather than browsing opportunistically.
+
+ReAct mode also writes adjacent `.evidence.json` and `.agent-trace.json` files. Evidence records field paths, source chunks, snippets, confidence, and whether the value was found, missing, or inferred. If the agent does not provide evidence explicitly, `aiex` creates a heuristic evidence report by matching extracted primitive values back to document chunks. The trace file records selected model, chunk metadata, tool calls, step callbacks, correction attempts, and evidence summary.
+
+Evidence coverage is validated after extraction. Non-null planned fields should have evidence, `found` evidence should include a chunk and snippet, and `null` values should be marked as `missing`. Coverage issues are written to `.evidence.json` and `.agent-trace.json` as warnings; they do not block JSON output.
+
+For regression and model comparison guidance, see [Agent Evaluation](./agent-evaluation.md).
+
+### Agent Extension Entry Points
+
+`agentExtensions` is reserved in AI configuration as the standard entry point for future external tools:
+
+- **`agentExtensions.mcp.servers`**: Reserved for configured MCP servers, transport metadata, and allowed tool filters.
+- **`agentExtensions.skills`**: Reserved for local skill directories and skill enablement.
+
+These fields are currently configuration-compatible placeholders. ReAct extraction only uses the built-in document navigation tools until MCP and Skills adapters are implemented.
 
 ---
 

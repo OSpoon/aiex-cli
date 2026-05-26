@@ -596,6 +596,15 @@ onMounted(() => {
                 <span class="block truncate text-xs" :class="selectedExtraction === record.name ? 'text-primary-foreground/75' : 'text-muted-foreground'">
                   {{ record.name }}
                 </span>
+                <span
+                  v-if="record.evidenceSummary"
+                  class="mt-1 inline-flex rounded px-1.5 py-0.5 text-[11px] font-medium"
+                  :class="record.evidenceSummary.issueCount > 0
+                    ? selectedExtraction === record.name ? 'bg-yellow-100/20 text-yellow-100' : 'bg-yellow-500/10 text-yellow-700'
+                    : selectedExtraction === record.name ? 'bg-white/15 text-primary-foreground' : 'bg-green-500/10 text-green-700'"
+                >
+                  {{ $t("app.evidenceCoverage") }} {{ record.evidenceSummary.evidenceCount }}/{{ record.evidenceSummary.fieldCount }}
+                </span>
               </button>
             </div>
           </section>

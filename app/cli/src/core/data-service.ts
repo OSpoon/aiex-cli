@@ -14,6 +14,8 @@ import { writeNotionPage } from '@/core/notion-sink'
 import { t } from '@/locales'
 
 const FILE_REGEX = /\.json$/
+const EVIDENCE_FILE_SUFFIX = '.evidence.json'
+const AGENT_TRACE_FILE_SUFFIX = '.agent-trace.json'
 const EXTRACTION_TIMESTAMP_RE = /-\d{4}-\d{2}-\d{2}T/
 const INTERNAL_ROWID_COLUMN = '__aiex_rowid'
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
@@ -35,6 +37,29 @@ function getAuditNotionStatus(record: Awaited<ReturnType<typeof listExtractionAu
   if (record.status === 'failed')
     return 'failed'
   return 'not_synced'
+}
+
+async function readEvidenceSummary(extractedDir: string, outputName: string): Promise<ExtractionRecord['evidenceSummary'] | undefined> {
+  const evidencePath = path.join(extractedDir, outputName.replace(FILE_REGEX, EVIDENCE_FILE_SUFFIX))
+  try {
+    const evidence = await readJsonFile(evidencePath) as any
+    const coverage = evidence?.coverage
+    if (!coverage || typeof coverage !== 'object')
+      return undefined
+
+    return {
+      path: evidencePath,
+      fieldCount: Number(coverage.fieldCount) || 0,
+      evidenceCount: Number(coverage.evidenceCount) || 0,
+      foundCount: Number(coverage.foundCount) || 0,
+      missingCount: Number(coverage.missingCount) || 0,
+      inferredCount: Number(coverage.inferredCount) || 0,
+      issueCount: Number(coverage.issueCount) || 0,
+    }
+  }
+  catch {
+    return undefined
+  }
 }
 
 async function getRowExtractionActions(aiexDir: string, tableName: string): Promise<Map<string, RowExtractionAction>> {
@@ -80,7 +105,12 @@ export async function listExtractions(config: MigrationConfig): Promise<Extracti
 
   await fs.mkdir(extractedDir, { recursive: true })
   const files = await fs.readdir(extractedDir)
-  const jsonFiles = files.filter(f => f.endsWith('.json') && !f.endsWith('.prompt.md'))
+  const jsonFiles = files.filter(f =>
+    f.endsWith('.json')
+    && !f.endsWith('.prompt.md')
+    && !f.endsWith(EVIDENCE_FILE_SUFFIX)
+    && !f.endsWith(AGENT_TRACE_FILE_SUFFIX),
+  )
   const auditRecords = await listExtractionAuditRecords(aiexDir)
   const auditByOutputName = new Map(auditRecords.map(record => [record.outputName, record]))
 
@@ -110,6 +140,7 @@ export async function listExtractions(config: MigrationConfig): Promise<Extracti
         timestamp,
         fileSize: stat.size,
         modifiedAt: stat.mtime.toISOString(),
+        evidenceSummary: await readEvidenceSummary(extractedDir, file),
         notionStatus: notionPages ? 'synced' : audit?.status === 'failed' ? 'failed' : 'not_synced',
         notionPages,
         notionError: !notionPages && audit?.status === 'failed' ? audit.error : undefined,

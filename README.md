@@ -214,11 +214,13 @@ When processing very large documents (exceeding `40,000` characters), `aiex` pro
 
 ### 2. ReAct Agent Mode
 - **Mechanism**: Spawns an agent equipped with document navigation tools:
-  - `listChunks()`: Returns a Table of Contents (headings, sizes, indices).
+  - `listChunks()`: Returns a Table of Contents (headings, sizes, indices), with optional pagination.
+  - `summarizeChunks()`: Returns a compact chunk map with previews.
   - `readChunk(chunkId)`: Fetches a specific section.
-  - `searchChunks(query)`: Matches keywords across all chunks.
+  - `readChunkRange(chunkId, start, length)`: Fetches a bounded text window from a section.
+  - `searchChunks(query, limit)`: Ranks phrase and keyword matches across all chunks.
   - `submitExtraction(data)`: Submits the final structured JSON payload.
-  The agent uses these tools to dynamically browse and retrieve only the relevant parts, drastically reducing API token costs for giant documents.
+  The agent uses these tools to dynamically browse and retrieve only the relevant parts, drastically reducing API token costs for giant documents. Each run also writes an `.agent-trace.json` audit file beside the extracted output.
 - **How to run**: Pass `--agent` / `-a` via the CLI, or toggle **Extraction Mode** under the **Prompts** tab in the Web UI.
 
 <br>

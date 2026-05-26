@@ -81,6 +81,7 @@ export interface AIModelConfig {
   capabilities: {
     vision: boolean
     structuredOutput: boolean
+    supportsTools?: boolean
   }
 }
 
@@ -94,6 +95,7 @@ export interface AIProviderConfig {
 export interface ModelCapabilities {
   structuredOutput: boolean
   vision: boolean
+  supportsTools?: boolean
 }
 
 export interface PromptConfig {
@@ -181,6 +183,26 @@ export interface WebhookConfig {
   secret?: string
 }
 
+export interface McpServerConfig {
+  name: string
+  enabled: boolean
+  transport: "stdio" | "sse" | "http"
+  command?: string
+  args?: string[]
+  url?: string
+  allowedTools?: string[]
+}
+
+export interface AgentExtensionsConfig {
+  mcp?: {
+    servers: McpServerConfig[]
+  }
+  skills?: {
+    enabled?: boolean
+    directories?: string[]
+  }
+}
+
 export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
@@ -190,6 +212,7 @@ export interface AIConfig {
   langfuse?: LangfuseConfig
   notion?: NotionConfig
   webhook?: WebhookConfig
+  agentExtensions?: AgentExtensionsConfig
 }
 
 export async function getAIConfig(): Promise<AIConfig> {
@@ -235,9 +258,20 @@ export interface ExtractionRecord {
   timestamp: string
   fileSize: number
   modifiedAt: string
+  evidenceSummary?: EvidenceSummary
   notionStatus: "synced" | "failed" | "not_synced"
   notionPages?: Array<{ databaseId: string, pageId: string }>
   notionError?: string
+}
+
+export interface EvidenceSummary {
+  path?: string
+  fieldCount: number
+  evidenceCount: number
+  foundCount: number
+  missingCount: number
+  inferredCount: number
+  issueCount: number
 }
 
 export interface RetryNotionSyncResult {
@@ -314,6 +348,7 @@ export interface ExtractionDetail {
   success: boolean
   content?: string
   name?: string
+  evidenceSummary?: EvidenceSummary
   error?: string
 }
 

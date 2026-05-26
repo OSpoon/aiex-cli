@@ -6,6 +6,7 @@ export interface ExtractionResult {
   outputPath?: string
   data?: unknown
   error?: string
+  evidenceSummary?: EvidenceSummary
   tokensUsed?: {
     prompt: number
     completion: number
@@ -20,6 +21,7 @@ export interface ExtractResult {
   data?: unknown
   tablesInserted?: Array<{ table: string, rowId: number }>
   notionPages?: Array<{ databaseId: string, pageId: string }>
+  evidenceSummary?: EvidenceSummary
   tokensUsed?: {
     prompt: number
     completion: number
@@ -43,6 +45,7 @@ export interface InsertResult {
 export interface RegistryEntry {
   vision: boolean
   structuredOutput: boolean
+  supportsTools?: boolean
   maxTokens?: number
   maxOutputTokens?: number
 }
@@ -50,6 +53,7 @@ export interface RegistryEntry {
 export interface ModelCapabilities {
   structuredOutput: boolean
   vision: boolean
+  supportsTools?: boolean
   maxTokens?: number
   maxOutputTokens?: number
 }
@@ -101,6 +105,7 @@ export interface RunAuditedExtractionResult {
   outputName?: string
   tablesInserted?: Array<{ table: string, rowId: number }>
   notionPages?: Array<{ databaseId: string, pageId: string }>
+  evidenceSummary?: EvidenceSummary
   tokensUsed?: {
     prompt: number
     completion: number
@@ -108,4 +113,14 @@ export interface RunAuditedExtractionResult {
   }
   auditId?: string
   fileHash?: string
+}
+
+export interface EvidenceSummary {
+  path?: string
+  fieldCount: number
+  evidenceCount: number
+  foundCount: number
+  missingCount: number
+  inferredCount: number
+  issueCount: number
 }

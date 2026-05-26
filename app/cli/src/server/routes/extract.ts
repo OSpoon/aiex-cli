@@ -30,6 +30,15 @@ interface ExtractResponse {
   outputName?: string
   tablesInserted?: Array<{ table: string, rowId: number }>
   notionPages?: Array<{ databaseId: string, pageId: string }>
+  evidenceSummary?: {
+    path?: string
+    fieldCount: number
+    evidenceCount: number
+    foundCount: number
+    missingCount: number
+    inferredCount: number
+    issueCount: number
+  }
   tokensUsed?: {
     prompt: number
     completion: number
@@ -173,6 +182,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
         outputName: result.outputName,
         tablesInserted: result.tablesInserted,
         notionPages: result.notionPages,
+        evidenceSummary: result.evidenceSummary,
         tokensUsed: result.tokensUsed,
         auditId: result.auditId,
       }, 200)
@@ -239,6 +249,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
       outputName: result.outputName,
       tablesInserted: result.tablesInserted,
       notionPages: result.notionPages,
+      evidenceSummary: result.evidenceSummary,
       tokensUsed: result.tokensUsed,
       auditId: result.auditId,
     }, 200)
