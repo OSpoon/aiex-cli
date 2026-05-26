@@ -9,7 +9,7 @@ import { consola } from 'consola'
 import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
 import { ZodError } from 'zod'
-import { extractStructuredData, insertExtractedData } from '@/core/ai-extraction'
+import { extractStructuredData, insertExtractedData, mergeExtractionResults, splitMarkdown, validateExtractedData } from '@/core/ai-extraction'
 import {
   createExtractionAuditRecord,
   findSucceededAuditByHash,
@@ -147,19 +147,133 @@ export async function extractSingle(
     s.start(filePath ? t('command.extract.file.extractedFrom', { file: path.basename(filePath) }) : t('command.extract.file.extracting'))
   }
 
-  const result = await extractStructuredData({
-    config: aiConfig,
-    schema: schemaLoad.schema,
-    text: text ?? '',
-    aiexDir,
-    file: filePath,
-    modelOverride,
-    onRetry(info: RetryInfo) {
+  const CHUNK_LIMIT = 40000
+  let result: any
+
+  if (text && text.length > CHUNK_LIMIT) {
+    if (!options?.quiet) {
+      consola.info(t('command.extract.file.chunking', { length: text.length, limit: CHUNK_LIMIT }))
+    }
+
+    const finalDocs = splitMarkdown(text, CHUNK_LIMIT)
+
+    if (!options?.quiet) {
+      consola.info(t('command.extract.file.chunksCount', { count: finalDocs.length }))
+    }
+
+    const chunkResults: Record<string, any>[] = []
+    const accumulatedTokens = { prompt: 0, completion: 0, total: 0 }
+    let success = true
+    let errorMsg = ''
+
+    for (let i = 0; i < finalDocs.length; i++) {
+      const doc = finalDocs[i]
       if (!options?.quiet) {
-        s.message(t('command.extract.file.extractRetry', { code: info.statusCode, delay: info.delayMs / 1000, attempt: info.attempt, max: info.maxRetries }))
+        s.message(t('command.extract.file.extractingChunk', { current: i + 1, total: finalDocs.length }))
       }
-    },
-  })
+
+      const headings: string[] = []
+      if (doc.metadata) {
+        if (doc.metadata.h1)
+          headings.push(doc.metadata.h1)
+        if (doc.metadata.h2)
+          headings.push(doc.metadata.h2)
+        if (doc.metadata.h3)
+          headings.push(doc.metadata.h3)
+        if (doc.metadata.h4)
+          headings.push(doc.metadata.h4)
+      }
+
+      let chunkText = doc.pageContent
+      if (headings.length > 0) {
+        chunkText = `> **[Context]** Belong to: ${headings.join(' > ')}\n\n${chunkText}`
+      }
+
+      const chunkResult = await extractStructuredData({
+        config: aiConfig,
+        schema: schemaLoad.schema,
+        text: chunkText,
+        aiexDir,
+        modelOverride,
+        onRetry(info: RetryInfo) {
+          if (!options?.quiet) {
+            s.message(t('command.extract.file.extractRetryChunk', {
+              current: i + 1,
+              total: finalDocs.length,
+              code: info.statusCode,
+              delay: info.delayMs / 1000,
+              attempt: info.attempt,
+              max: info.maxRetries,
+            }))
+          }
+        },
+      })
+
+      if (!chunkResult.success) {
+        success = false
+        errorMsg = chunkResult.error || t('common.unknownError')
+        if (!options?.quiet) {
+          s.stop(t('command.extract.file.extractFailChunk', { current: i + 1 }))
+          consola.error(errorMsg)
+        }
+        break
+      }
+
+      if (chunkResult.data) {
+        chunkResults.push(chunkResult.data as Record<string, any>)
+      }
+      if (chunkResult.tokensUsed) {
+        accumulatedTokens.prompt += chunkResult.tokensUsed.prompt ?? 0
+        accumulatedTokens.completion += chunkResult.tokensUsed.completion ?? 0
+        accumulatedTokens.total += chunkResult.tokensUsed.total ?? 0
+      }
+    }
+
+    if (!success) {
+      return { success: false, error: errorMsg }
+    }
+
+    const mergedData = mergeExtractionResults(schemaLoad.schema, chunkResults)
+    const validation = validateExtractedData(schemaLoad.schema, mergedData)
+    if (!validation.success) {
+      const valError = (validation as any).error || 'Merged data validation failed'
+      if (!options?.quiet) {
+        s.stop(t('command.extract.file.validationFail'))
+        consola.error(valError)
+      }
+      return { success: false, error: valError }
+    }
+
+    // Write final merged JSON file to disk
+    const outputDir = path.resolve(aiexDir, aiConfig.extraction?.outputDir?.replace('.aiex/', '') ?? 'extracted')
+    await fsp.mkdir(outputDir, { recursive: true })
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const outputFileName = `${schemaLoad.schema.table.name}-${timestamp}.json`
+    const finalMergedOutputPath = path.join(outputDir, outputFileName)
+    await fsp.writeFile(finalMergedOutputPath, JSON.stringify(mergedData, null, 2))
+
+    result = {
+      success: true,
+      data: mergedData,
+      tokensUsed: accumulatedTokens,
+      outputPath: finalMergedOutputPath,
+    }
+  }
+  else {
+    result = await extractStructuredData({
+      config: aiConfig,
+      schema: schemaLoad.schema,
+      text: text ?? '',
+      aiexDir,
+      file: filePath,
+      modelOverride,
+      onRetry(info: RetryInfo) {
+        if (!options?.quiet) {
+          s.message(t('command.extract.file.extractRetry', { code: info.statusCode, delay: info.delayMs / 1000, attempt: info.attempt, max: info.maxRetries }))
+        }
+      },
+    })
+  }
 
   if (!result.success) {
     if (!options?.quiet) {

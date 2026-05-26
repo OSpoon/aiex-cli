@@ -1,15 +1,17 @@
 export { lookupModelCapabilities } from './capabilities'
 export type { ModelCapabilities } from './capabilities'
 export { getDefaultAIConfig, readAIConfig, writeAIConfig } from './config'
-export { extractStructuredData, selectModel } from './extractor'
+export { extractStructuredData, selectModel, validateExtractedData } from './extractor'
 export type { SelectedModel } from './extractor'
 export { insertExtractedData } from './inserter'
 export type { InsertResult } from './inserter'
+export { mergeExtractionResults } from './json-merger'
 export { safeParseJSON } from './json-utils'
 export { getRegistrySize, lookupModel } from './model-registry'
 export { generateExtractionPrompt, generatePromptSnapshot, schemaToDescription } from './prompt-generator'
 export { AIConfigSchema, AIModelConfigSchema, ExternalPdfConverterConfigSchema, ImageOcrConfigSchema, LangfuseConfigSchema, NotionConfigSchema, NotionSchemaConfigSchema, PdfConfigSchema, WebhookConfigSchema } from './schemas'
 export { savePromptSnapshot } from './snapshot'
+export { splitMarkdown } from './text-splitter'
 export type {
   AIConfig,
   AIModelConfig,
