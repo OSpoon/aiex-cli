@@ -29,6 +29,7 @@ export interface ExtractionConfig {
   outputDir: string
   mode?: 'pipeline'
   concurrency?: number
+  maxTokens?: number
   overlapSize?: number
   preFiltering?: boolean
   preFilteringLimit?: number

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { spinner } from '@clack/prompts'
 import Database from 'better-sqlite3'
 import { consola } from 'consola'
+import { getEncoding } from 'js-tiktoken'
 import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
 import { ZodError } from 'zod'
@@ -22,6 +23,8 @@ import { t } from '@/locales'
 import { getFileHash } from '@/utils/hash'
 import { shouldSyncNotion, syncResultToNotion, triggerWebhook } from './integration/dispatcher'
 import { readExtractFileInput } from './pdf-converter/orchestrator'
+
+const encoding = getEncoding('cl100k_base')
 
 // Re-exports for backwards compatibility and external usage
 export { listSupportedFiles, processOneFile, runBatchExtraction } from './batch/batch-processor'
@@ -177,16 +180,17 @@ export async function extractSingle(
     s.start(filePath ? t('command.extract.file.extractedFrom', { file: path.basename(filePath) }) : t('command.extract.file.extracting'))
   }
 
-  const CHUNK_LIMIT = 40000
+  const maxTokens = aiConfig.extraction?.maxTokens ?? 8000
+  const overlapTokens = aiConfig.extraction?.overlapSize ?? 1000
   let result: any
+  const totalTokens = text ? encoding.encode(text).length : 0
 
-  if (text && text.length > CHUNK_LIMIT) {
+  if (text && totalTokens > maxTokens) {
     if (!options?.quiet) {
-      consola.info(t('command.extract.file.chunking', { length: text.length, limit: CHUNK_LIMIT }))
+      consola.info(t('command.extract.file.chunking', { length: totalTokens, limit: maxTokens }))
     }
 
-    const overlapSize = aiConfig.extraction?.overlapSize ?? 2000
-    const finalDocs = splitMarkdown(text, CHUNK_LIMIT, overlapSize)
+    const finalDocs = splitMarkdown(text, maxTokens, overlapTokens)
 
     if (!options?.quiet) {
       consola.info(t('command.extract.file.chunksCount', { count: finalDocs.length }))

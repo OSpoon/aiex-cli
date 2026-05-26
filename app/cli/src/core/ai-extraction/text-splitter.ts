@@ -1,4 +1,7 @@
-interface MarkdownChunk {
+import { getEncoding } from 'js-tiktoken'
+import { marked } from 'marked'
+
+export interface MarkdownChunk {
   pageContent: string
   metadata: {
     h1?: string
@@ -8,138 +11,226 @@ interface MarkdownChunk {
   }
 }
 
-const HEADING_RE = /^(#{1,6})\s+(\S.*)$/
+const encoding = getEncoding('cl100k_base')
+
+function countTokens(text: string): number {
+  return encoding.encode(text).length
+}
+
+function formatHeadingContext(headings: string[]): string {
+  const active = headings.filter(Boolean)
+  if (active.length === 0)
+    return ''
+  return `> **[Context]** Belong to: ${active.join(' > ')}\n\n`
+}
+
+function getMetadata(headings: string[]): MarkdownChunk['metadata'] {
+  return {
+    h1: headings[0] || undefined,
+    h2: headings[1] || undefined,
+    h3: headings[2] || undefined,
+    h4: headings[3] || undefined,
+  }
+}
 
 /**
- * Splits a Markdown document into chunks based on header hierarchy.
- * Keeps tables and list blocks intact by splitting along paragraphs (\n\n)
- * when a section exceeds the maxSize limit.
+ * Splits text recursively using a list of separators.
+ * Preserves the separators when re-joining.
  */
-export function splitMarkdown(text: string, maxSize: number = 40000, overlapSize: number = 0): MarkdownChunk[] {
-  const lines = text.split('\n')
+function splitTextRecursively(text: string, maxTokens: number, separators: string[] = ['\n\n', '\n', '。', '. ', ' ']): string[] {
+  if (countTokens(text) <= maxTokens) {
+    return [text]
+  }
+
+  if (separators.length === 0) {
+    // Character-level hard fallback
+    const chunks: string[] = []
+    let current = ''
+    for (const char of text) {
+      if (countTokens(current + char) > maxTokens) {
+        chunks.push(current)
+        current = char
+      }
+      else {
+        current += char
+      }
+    }
+    if (current)
+      chunks.push(current)
+    return chunks
+  }
+
+  const separator = separators[0]
+  const nextSeparators = separators.slice(1)
+  const parts = text.split(separator)
+  const result: string[] = []
+  let currentChunk: string[] = []
+  let currentChunkTokens = 0
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]
+    // Re-attach the separator except for the last part
+    const itemText = part + (i < parts.length - 1 ? separator : '')
+    const partTokens = countTokens(itemText)
+
+    if (partTokens > maxTokens) {
+      // Flush current accumulated chunk
+      if (currentChunk.length > 0) {
+        result.push(currentChunk.join(''))
+        currentChunk = []
+        currentChunkTokens = 0
+      }
+      // Recursively split the part
+      const subParts = splitTextRecursively(part, maxTokens, nextSeparators)
+      for (let j = 0; j < subParts.length; j++) {
+        const sub = subParts[j]
+        const isLastSub = j === subParts.length - 1
+        const finalSub = sub + (isLastSub && i < parts.length - 1 ? separator : '')
+        result.push(finalSub)
+      }
+    }
+    else {
+      if (currentChunkTokens + partTokens > maxTokens) {
+        result.push(currentChunk.join(''))
+        currentChunk = [itemText]
+        currentChunkTokens = partTokens
+      }
+      else {
+        currentChunk.push(itemText)
+        currentChunkTokens += partTokens
+      }
+    }
+  }
+
+  if (currentChunk.length > 0) {
+    result.push(currentChunk.join(''))
+  }
+
+  return result
+}
+
+/**
+ * Splits a Markdown document into chunks based on heading contexts, AST block parsing, and token limits.
+ * Protects tables, list items, and code blocks from being broken.
+ */
+export function splitMarkdown(text: string, maxTokens: number = 8000, overlapTokens: number = 1000): MarkdownChunk[] {
+  const tokens = marked.lexer(text)
   const chunks: MarkdownChunk[] = []
 
   let currentHeadings: string[] = []
-  let currentChunkLines: string[] = []
-  let currentSize = 0
-  let hasNewLines = false
+  let currentChunkList: { text: string, headings: string[] }[] = []
+  let accumulatedTokens = 0
 
-  const getMetadata = (headings: string[]): MarkdownChunk['metadata'] => {
-    return {
-      h1: headings[0] || undefined,
-      h2: headings[1] || undefined,
-      h3: headings[2] || undefined,
-      h4: headings[3] || undefined,
-    }
-  }
-
-  const flushChunk = (isHeadingChange: boolean = false): void => {
-    if (currentChunkLines.length === 0 || !hasNewLines) {
-      currentChunkLines = []
-      currentSize = 0
-      hasNewLines = false
+  const flushCurrentChunk = (isHeadingChange = false): void => {
+    if (currentChunkList.length === 0)
       return
-    }
 
-    const pageContent = currentChunkLines.join('\n')
-    let lastChunkContent = ''
+    const pageContent = currentChunkList.map(item => item.text).join('')
+    const firstHeadings = currentChunkList[0].headings
 
-    // If this chunk alone is too large, we split it by paragraph boundaries
-    if (pageContent.length > maxSize) {
-      const paragraphs = pageContent.split('\n\n')
-      let subLines: string[] = []
-      let subSize = 0
+    chunks.push({
+      pageContent,
+      metadata: getMetadata(firstHeadings),
+    })
 
-      for (const para of paragraphs) {
-        const paraSize = para.length
-        if (subSize + paraSize > maxSize && subLines.length > 0) {
-          const content = subLines.join('\n\n')
-          chunks.push({
-            pageContent: content,
-            metadata: getMetadata(currentHeadings),
-          })
-
-          // Calculate overlap: keep trailing paragraphs that fit within overlapSize
-          const overlapParas: string[] = []
-          let currentOverlapSize = 0
-          for (let j = subLines.length - 1; j >= 0; j--) {
-            const p = subLines[j]
-            if (currentOverlapSize + p.length > overlapSize && overlapParas.length > 0) {
-              break
-            }
-            overlapParas.unshift(p)
-            currentOverlapSize += p.length + 2
-          }
-          subLines = [...overlapParas]
-          subSize = currentOverlapSize
-        }
-        subLines.push(para)
-        subSize += paraSize + 2
-      }
-      if (subLines.length > 0) {
-        const content = subLines.join('\n\n')
-        chunks.push({
-          pageContent: content,
-          metadata: getMetadata(currentHeadings),
-        })
-        lastChunkContent = content
-      }
+    // Handle overlap
+    if (isHeadingChange || overlapTokens <= 0) {
+      currentChunkList = []
+      accumulatedTokens = 0
     }
     else {
-      chunks.push({
-        pageContent,
-        metadata: getMetadata(currentHeadings),
-      })
-      lastChunkContent = pageContent
-    }
-
-    // Carry over overlap to the next chunk
-    if (!isHeadingChange && lastChunkContent && overlapSize > 0) {
-      const paragraphs = lastChunkContent.split('\n\n')
-      const overlapParas: string[] = []
-      let currentOverlapSize = 0
-      for (let j = paragraphs.length - 1; j >= 0; j--) {
-        const p = paragraphs[j]
-        if (currentOverlapSize + p.length > overlapSize && overlapParas.length > 0) {
+      const overlapItems: typeof currentChunkList = []
+      let currentOverlapTokens = 0
+      for (let i = currentChunkList.length - 1; i >= 0; i--) {
+        const item = currentChunkList[i]
+        const itemTokens = countTokens(item.text)
+        if (currentOverlapTokens + itemTokens > overlapTokens && overlapItems.length > 0) {
           break
         }
-        overlapParas.unshift(p)
-        currentOverlapSize += p.length + 2
+        overlapItems.unshift(item)
+        currentOverlapTokens += itemTokens
       }
-      const overlapText = overlapParas.join('\n\n')
-      currentChunkLines = overlapText.split('\n')
-      currentSize = overlapText.length
+
+      currentChunkList = [...overlapItems]
+      accumulatedTokens = currentOverlapTokens
     }
-    else {
-      currentChunkLines = []
-      currentSize = 0
-    }
-    hasNewLines = false
   }
 
-  for (const line of lines) {
-    const headingMatch = line.match(HEADING_RE)
-    if (headingMatch) {
-      // Flush accumulated content under the previous heading context
-      flushChunk(true)
+  for (const token of tokens) {
+    if (token.type === 'space') {
+      if (currentChunkList.length > 0) {
+        currentChunkList[currentChunkList.length - 1].text += token.raw
+        accumulatedTokens += countTokens(token.raw)
+      }
+      continue
+    }
 
-      const depth = headingMatch[1].length
-      const title = headingMatch[2].trim()
+    if (token.type === 'heading') {
+      // Flush any accumulated content under the previous heading before updating heading context
+      flushCurrentChunk(true)
 
-      // Update active headings stack
+      const depth = token.depth
+      const title = token.text.trim()
       currentHeadings = currentHeadings.slice(0, depth - 1)
       currentHeadings[depth - 1] = title
     }
 
-    currentChunkLines.push(line)
-    currentSize += line.length + 1
-    hasNewLines = true
+    const rawText = token.raw
 
-    if (currentSize > maxSize) {
-      flushChunk(false)
+    // Expand giant lists to process list items individually
+    if (token.type === 'list' && countTokens(rawText) > maxTokens) {
+      for (const item of token.items) {
+        processTextBlock(item.raw, currentHeadings)
+      }
+    }
+    else {
+      const isAtomic = token.type === 'table' || token.type === 'code'
+      processTextBlock(rawText, currentHeadings, isAtomic)
     }
   }
 
-  flushChunk(true)
+  flushCurrentChunk(true)
   return chunks
+
+  function processTextBlock(blockText: string, headings: string[], isAtomic = false): void {
+    const blockTokens = countTokens(blockText)
+    const contextText = formatHeadingContext(headings)
+    const contextTokens = countTokens(contextText)
+
+    // Budget limit: maxTokens minus context size, with a small safety buffer of at most 10% or 10 tokens
+    const safetyBuffer = Math.min(100, Math.max(2, Math.floor(maxTokens * 0.1)))
+    const budgetLimit = Math.max(5, maxTokens - contextTokens - safetyBuffer)
+
+    if (blockTokens > budgetLimit) {
+      if (isAtomic) {
+        // For atomic blocks like tables and code blocks, avoid splitting internally.
+        // Flush what we have, place this block in its own chunk, and flush again.
+        flushCurrentChunk(false)
+        currentChunkList.push({ text: blockText, headings: [...headings] })
+        accumulatedTokens = blockTokens
+        flushCurrentChunk(false)
+      }
+      else {
+        // Flush anything accumulated
+        flushCurrentChunk(false)
+
+        // Split the block text recursively using semantic dividers
+        const subBlocks = splitTextRecursively(blockText, budgetLimit)
+        for (const sub of subBlocks) {
+          currentChunkList.push({ text: sub, headings: [...headings] })
+          accumulatedTokens += countTokens(sub)
+          if (accumulatedTokens > budgetLimit) {
+            flushCurrentChunk(false)
+          }
+        }
+      }
+    }
+    else {
+      if (accumulatedTokens + blockTokens + contextTokens > maxTokens && currentChunkList.length > 0) {
+        flushCurrentChunk(false)
+      }
+      currentChunkList.push({ text: blockText, headings: [...headings] })
+      accumulatedTokens += blockTokens
+    }
+  }
 }

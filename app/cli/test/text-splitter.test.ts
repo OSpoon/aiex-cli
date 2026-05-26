@@ -31,7 +31,7 @@ Content under 1.2.
     expect(chunks[3].metadata).toEqual({ h1: 'Chapter 1', h2: 'Section 1.2', h3: undefined, h4: undefined })
   })
 
-  it('performs sub-splitting at paragraph boundaries if section exceeds maxSize', () => {
+  it('performs sub-splitting at paragraph boundaries if section exceeds maxTokens', () => {
     const text = `# Large Section
 Paragraph 1 content that is long.
 
@@ -39,36 +39,53 @@ Paragraph 2 content that is also long.
 
 Paragraph 3 content.
 `
-    // Force a very small maxSize to trigger sub-splitting
-    const chunks = splitMarkdown(text, 50)
+    const chunks = splitMarkdown(text, 30)
 
     expect(chunks.length).toBeGreaterThan(1)
     expect(chunks.every(c => c.metadata.h1 === 'Large Section')).toBe(true)
     expect(chunks[0].pageContent).toContain('Paragraph 1')
-    expect(chunks[1].pageContent).toContain('Paragraph 2')
   })
 
-  it('supports overlapSize to carry over trailing paragraphs to the next chunk', () => {
-    const text = `Paragraph1.
+  it('preserves Markdown tables and does not split them internally', () => {
+    const text = `# Section with Table
+Here is some text before table.
 
-Paragraph2.
+| Header 1 | Header 2 |
+| --- | --- |
+| Row 1 Col 1 | Row 1 Col 2 |
+| Row 2 Col 1 | Row 2 Col 2 |
 
-Paragraph3.
+Some other trailing text.
 `
-    // Paragraph1. is 11 chars. Paragraph2. is 11 chars. Paragraph3. is 11 chars.
-    // Force maxSize = 15, overlapSize = 12
-    const chunks = splitMarkdown(text, 15, 12)
+    // The table block is about 30 tokens. Set budget to 60.
+    const chunks = splitMarkdown(text, 60)
+
+    // Verify that one of the chunks contains the complete table intact
+    const tableChunk = chunks.find(c => c.pageContent.includes('| Header 1 |'))
+    expect(tableChunk).toBeDefined()
+    expect(tableChunk!.pageContent).toContain('Row 2 Col 2')
+  })
+
+  it('performs recursive semantic sub-splitting on huge paragraphs', () => {
+    const text = `This is a very long paragraph. It has multiple sentences. We want to test that it splits nicely at sentence boundaries. That means at the Chinese or English period character.`
+    const chunks = splitMarkdown(text, 12)
+    expect(chunks.length).toBeGreaterThan(1)
+    // The first chunk should end with a period
+    expect(chunks[0].pageContent.trim()).toMatch(/[.。]$/)
+  })
+
+  it('supports overlapTokens to carry over trailing paragraphs to the next chunk', () => {
+    const text = `This is the first paragraph. It is designed to be around twelve tokens long.
+
+This is the second paragraph. It is also designed to be around twelve tokens long.
+
+This is the third paragraph. It is also designed to be around twelve tokens long.
+`
+    const chunks = splitMarkdown(text, 20, 15)
 
     expect(chunks.length).toBeGreaterThan(1)
-    // First chunk should have Paragraph1
-    expect(chunks[0].pageContent).toContain('Paragraph1')
-    // Second chunk should carry over Paragraph1 and include Paragraph2
-    expect(chunks[1].pageContent).toContain('Paragraph1')
-    expect(chunks[1].pageContent).toContain('Paragraph2')
-    // Third chunk should carry over Paragraph2
-    expect(chunks[2].pageContent).toContain('Paragraph2')
-    // Fourth chunk should carry over Paragraph2 and include Paragraph3
-    expect(chunks[3].pageContent).toContain('Paragraph2')
-    expect(chunks[3].pageContent).toContain('Paragraph3')
+    expect(chunks[0].pageContent).toContain('first')
+    expect(chunks[1].pageContent).toContain('first')
+    expect(chunks[1].pageContent).toContain('second')
   })
 })

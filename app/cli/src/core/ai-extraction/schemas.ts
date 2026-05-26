@@ -28,6 +28,7 @@ export const ExtractionConfigSchema = z.object({
   outputDir: z.string().min(1),
   mode: z.enum(['pipeline']).default('pipeline').optional(),
   concurrency: z.number().int().min(1).optional(),
+  maxTokens: z.number().int().positive().default(8000).optional(),
   overlapSize: z.number().int().nonnegative().optional(),
   preFiltering: z.boolean().optional(),
   preFilteringLimit: z.number().int().min(1).optional(),

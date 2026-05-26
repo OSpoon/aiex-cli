@@ -44,12 +44,14 @@ catalog:
   hono: ^4.0.0
   i18next: ^26.2.0
   i18next-fs-backend: ^2.6.6
+  js-tiktoken: ^1.0.21
   json-source-map: ^0.6.1
   jsonfile: ^6.2.1
   jsonrepair: ^3.14.0
   ky: ^2.0.2
   kysely: ^0.29.2
   lucide-vue-next: ^0.400.0
+  marked: ^12.0.1
   mime: ^4.1.0
   monaco-editor: ^0.50.0
   open: ^11.0.0
