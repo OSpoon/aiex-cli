@@ -10,6 +10,7 @@ import {
   getAIConfig,
   saveAIConfig
 } from "@/api-client"
+import AnchorLayout from "./AnchorLayout.vue"
 import IntegrationSettings from "./settings/IntegrationSettings.vue"
 import PdfSettings from "./settings/PdfSettings.vue"
 import PromptSettings from "./settings/PromptSettings.vue"
@@ -34,6 +35,12 @@ const currentSettingsTitle = computed(() => {
   if (settingsSection.value === "prompts") return t("app.settingsPrompts")
   return t("app.settingsProvider")
 })
+const settingsAnchors = computed(() => [
+  { key: "provider", label: t("app.settingsProvider"), icon: "pi pi-server" },
+  { key: "documents", label: t("app.settingsDocuments"), icon: "pi pi-file" },
+  { key: "integrations", label: t("app.settingsIntegrations"), icon: "pi pi-send" },
+  { key: "prompts", label: t("app.settingsPrompts"), icon: "pi pi-comment" }
+])
 
 const baseURL = ref("")
 const apiKey = ref("")
@@ -300,8 +307,8 @@ onMounted(() => {
       <i class="pi pi-spin pi-spinner text-xl" />
     </div>
 
-    <div v-else-if="embedded" class="grid h-full min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] bg-background">
-      <section class="flex min-h-0 flex-col border-r border-border bg-card">
+    <AnchorLayout v-else-if="embedded" v-model:active-key="settingsSection" :anchors="settingsAnchors">
+      <template #sidebar-header>
         <div class="border-b border-border p-4">
           <h2 class="m-0 text-lg font-semibold text-foreground">
             {{ $t("app.settings") }}
@@ -310,121 +317,90 @@ onMounted(() => {
             {{ $t("app.settingsSubtitle") }}
           </p>
         </div>
-        <nav class="min-h-0 flex-1 overflow-y-auto p-2">
-          <button
-            class="mb-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors"
-            :class="settingsSection === 'provider' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary'"
-            @click="settingsSection = 'provider'"
-          >
-            <i class="pi pi-server text-xs" />
-            <span>{{ $t("app.settingsProvider") }}</span>
-          </button>
-          <button
-            class="mb-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors"
-            :class="settingsSection === 'documents' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary'"
-            @click="settingsSection = 'documents'"
-          >
-            <i class="pi pi-file text-xs" />
-            <span>{{ $t("app.settingsDocuments") }}</span>
-          </button>
-          <button
-            class="mb-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors"
-            :class="settingsSection === 'integrations' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary'"
-            @click="settingsSection = 'integrations'"
-          >
-            <i class="pi pi-send text-xs" />
-            <span>{{ $t("app.settingsIntegrations") }}</span>
-          </button>
-          <button
-            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors"
-            :class="settingsSection === 'prompts' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary'"
-            @click="settingsSection = 'prompts'"
-          >
-            <i class="pi pi-comment text-xs" />
-            <span>{{ $t("app.settingsPrompts") }}</span>
-          </button>
-        </nav>
-      </section>
+      </template>
 
-      <section class="flex min-h-0 flex-col bg-background">
+      <template #header>
         <div class="flex items-center justify-between gap-3 border-b border-border bg-card p-4">
           <h2 class="m-0 text-lg font-semibold text-foreground">
             {{ currentSettingsTitle }}
           </h2>
           <Button :label="$t('app.save')" icon="pi pi-check" :loading="saving" :disabled="!canSave" size="small" @click="handleSave" />
         </div>
-        <div class="min-h-0 flex-1 overflow-auto p-4">
-          <ProviderSettings
-            v-show="settingsSection === 'provider'"
-            v-model:base-u-r-l="baseURL"
-            v-model:api-key="apiKey"
-            v-model:timeout="timeout"
-            v-model:models="models"
-          />
+      </template>
 
-          <PdfSettings
-            v-show="settingsSection === 'documents'"
-            :has-vision-model="hasVisionModel"
-            v-model:pdf-converter="pdfConverter"
-            v-model:mineru-command="mineruCommand"
-            v-model:mineru-args="mineruArgs"
-            v-model:mineru-timeout="mineruTimeout"
-            v-model:mineru-fallback-to-unpdf="mineruFallbackToUnpdf"
-            v-model:mineru-api-token="mineruApiToken"
-            v-model:mineru-api-base-url="mineruApiBaseUrl"
-            v-model:mineru-api-model="mineruApiModel"
-            v-model:mineru-api-is-ocr="mineruApiIsOcr"
-            v-model:mineru-api-enable-formula="mineruApiEnableFormula"
-            v-model:mineru-api-enable-table="mineruApiEnableTable"
-            v-model:markitdown-command="markitdownCommand"
-            v-model:markitdown-args="markitdownArgs"
-            v-model:markitdown-timeout="markitdownTimeout"
-            v-model:markitdown-fallback-to-unpdf="markitdownFallbackToUnpdf"
-            v-model:marker-command="markerCommand"
-            v-model:marker-args="markerArgs"
-            v-model:marker-timeout="markerTimeout"
-            v-model:marker-fallback-to-unpdf="markerFallbackToUnpdf"
-            v-model:external-command="externalCommand"
-            v-model:external-args="externalArgs"
-            v-model:external-timeout="externalTimeout"
-            v-model:image-ocr-fallback="imageOcrFallback"
-            v-model:image-ocr-languages="imageOcrLanguages"
-            v-model:image-ocr-min-confidence="imageOcrMinConfidence"
-            v-model:image-ocr-advanced-open="imageOcrAdvancedOpen"
-          />
-
-          <IntegrationSettings
-            v-show="settingsSection === 'integrations'"
-            ref="integrationSettingsRef"
-            :schemas="schemas"
-            v-model:langfuse-enabled="langfuseEnabled"
-            v-model:langfuse-public-key="langfusePublicKey"
-            v-model:langfuse-secret-key="langfuseSecretKey"
-            v-model:langfuse-host="langfuseHost"
-            v-model:webhook-enabled="webhookEnabled"
-            v-model:webhook-url="webhookUrl"
-            v-model:webhook-secret="webhookSecret"
-            v-model:notion-enabled="notionEnabled"
-            v-model:notion-token="notionToken"
-            v-model:notion-schemas="notionSchemas"
-            v-model:selected-notion-schema="selectedNotionSchema"
-            v-model:notion-database-id="notionDatabaseId"
-            v-model:notion-title-property="notionTitleProperty"
-            v-model:notion-field-map="notionFieldMap"
-            v-model:notion-properties="notionProperties"
-            v-model:notion-schema-fields="notionSchemaFields"
-            v-model:notion-advanced-open="notionAdvancedOpen"
-          />
-
-          <PromptSettings
-            v-show="settingsSection === 'prompts'"
-            ref="promptSettingsRef"
-            v-model:system-template="systemTemplate"
-            v-model:user-template="userTemplate"
-          />
-        </div>
+      <section data-anchor-section="provider">
+        <ProviderSettings
+          v-model:base-u-r-l="baseURL"
+          v-model:api-key="apiKey"
+          v-model:timeout="timeout"
+          v-model:models="models"
+        />
       </section>
-    </div>
+
+      <section data-anchor-section="documents">
+        <PdfSettings
+          :has-vision-model="hasVisionModel"
+          v-model:pdf-converter="pdfConverter"
+          v-model:mineru-command="mineruCommand"
+          v-model:mineru-args="mineruArgs"
+          v-model:mineru-timeout="mineruTimeout"
+          v-model:mineru-fallback-to-unpdf="mineruFallbackToUnpdf"
+          v-model:mineru-api-token="mineruApiToken"
+          v-model:mineru-api-base-url="mineruApiBaseUrl"
+          v-model:mineru-api-model="mineruApiModel"
+          v-model:mineru-api-is-ocr="mineruApiIsOcr"
+          v-model:mineru-api-enable-formula="mineruApiEnableFormula"
+          v-model:mineru-api-enable-table="mineruApiEnableTable"
+          v-model:markitdown-command="markitdownCommand"
+          v-model:markitdown-args="markitdownArgs"
+          v-model:markitdown-timeout="markitdownTimeout"
+          v-model:markitdown-fallback-to-unpdf="markitdownFallbackToUnpdf"
+          v-model:marker-command="markerCommand"
+          v-model:marker-args="markerArgs"
+          v-model:marker-timeout="markerTimeout"
+          v-model:marker-fallback-to-unpdf="markerFallbackToUnpdf"
+          v-model:external-command="externalCommand"
+          v-model:external-args="externalArgs"
+          v-model:external-timeout="externalTimeout"
+          v-model:image-ocr-fallback="imageOcrFallback"
+          v-model:image-ocr-languages="imageOcrLanguages"
+          v-model:image-ocr-min-confidence="imageOcrMinConfidence"
+          v-model:image-ocr-advanced-open="imageOcrAdvancedOpen"
+        />
+      </section>
+
+      <section data-anchor-section="integrations">
+        <IntegrationSettings
+          ref="integrationSettingsRef"
+          :schemas="schemas"
+          v-model:langfuse-enabled="langfuseEnabled"
+          v-model:langfuse-public-key="langfusePublicKey"
+          v-model:langfuse-secret-key="langfuseSecretKey"
+          v-model:langfuse-host="langfuseHost"
+          v-model:webhook-enabled="webhookEnabled"
+          v-model:webhook-url="webhookUrl"
+          v-model:webhook-secret="webhookSecret"
+          v-model:notion-enabled="notionEnabled"
+          v-model:notion-token="notionToken"
+          v-model:notion-schemas="notionSchemas"
+          v-model:selected-notion-schema="selectedNotionSchema"
+          v-model:notion-database-id="notionDatabaseId"
+          v-model:notion-title-property="notionTitleProperty"
+          v-model:notion-field-map="notionFieldMap"
+          v-model:notion-properties="notionProperties"
+          v-model:notion-schema-fields="notionSchemaFields"
+          v-model:notion-advanced-open="notionAdvancedOpen"
+        />
+      </section>
+
+      <section data-anchor-section="prompts">
+        <PromptSettings
+          ref="promptSettingsRef"
+          v-model:system-template="systemTemplate"
+          v-model:user-template="userTemplate"
+        />
+      </section>
+    </AnchorLayout>
 
     <div v-else class="space-y-6">
       <ProviderSettings

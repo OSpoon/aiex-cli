@@ -411,7 +411,18 @@ onMounted(() => {
       :class="sidebarCollapsed ? 'grid-cols-[64px_minmax(0,1fr)]' : 'grid-cols-[220px_minmax(0,1fr)]'"
     >
       <aside class="flex min-h-0 flex-col rounded-lg border border-border bg-card p-3">
-        <div class="mb-4 flex min-h-[76px] items-start justify-between gap-2 border-b border-border pb-4" :class="sidebarCollapsed ? 'justify-center' : ''">
+        <div
+          class="mb-4 flex border-b border-border pb-4"
+          :class="sidebarCollapsed ? 'min-h-[92px] flex-col items-center justify-start gap-3' : 'min-h-[76px] items-start justify-between gap-2'"
+        >
+          <div
+            v-if="sidebarCollapsed"
+            class="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground"
+            aria-label="AIEX"
+            v-tooltip="'AIEX'"
+          >
+            AI
+          </div>
           <div v-if="!sidebarCollapsed" class="min-w-0">
             <h1 class="m-0 text-lg font-semibold text-foreground">
               AIEX
