@@ -1,15 +1,16 @@
-import type { AIConfig, AIModelConfig, ExtractFileInput } from '@/types'
+import type { AIConfig, ExtractFileInput } from '@/types'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { consola } from 'consola'
+import { transcribeImageWithVision } from '@/core/ai-extraction/transcriber'
 import {
   bytesToMB,
   MAX_UPLOAD_SIZE,
   MAX_UPLOAD_SIZE_TEXT,
 } from '@/core/file-constants'
-import { recognizeImageText, shouldUseImageOcrFallback } from '@/core/image-ocr'
+import { recognizeImageText } from '@/core/image-ocr'
 import { createPdfConverter } from '@/core/pdf-converter'
 import { t } from '@/locales'
 
@@ -33,7 +34,6 @@ export function isImageFile(filePath: string): boolean {
 export async function readExtractFileInput(
   filePath: string,
   aiConfig?: AIConfig,
-  modelOverride?: AIModelConfig,
 ): Promise<ExtractFileInput> {
   const stat = fs.statSync(filePath)
   if (stat.size > MAX_UPLOAD_SIZE) {
@@ -45,12 +45,23 @@ export async function readExtractFileInput(
   }
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   if (FILE_PART_EXTENSIONS.has(ext)) {
-    if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
-      const result = await recognizeImageText(filePath, aiConfig?.image)
-      consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
-      return { text: result.text }
+    const image = aiConfig?.image
+    if (image?.imageConversion === 'vision' && image.imageModelName && aiConfig) {
+      const baseURL = image.visionBaseURL || aiConfig.provider.baseURL
+      const apiKey = image.visionApiKey || aiConfig.provider.apiKey
+      const timeout = (aiConfig.provider.timeout ?? 300) * 1000
+      try {
+        const result = await transcribeImageWithVision(filePath, baseURL, apiKey, image.imageModelName, timeout)
+        consola.info(t('command.extract.file.visionTranscribed', { model: result.modelName }))
+        return { text: result.text }
+      }
+      catch {
+        consola.warn(t('command.extract.file.visionTranscribeFailed', { model: image.imageModelName }))
+      }
     }
-    return { text: '', filePath }
+    const result = await recognizeImageText(filePath, aiConfig?.image)
+    consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
+    return { text: result.text }
   }
   if (ext === 'pdf') {
     const buffer = await fsp.readFile(filePath)

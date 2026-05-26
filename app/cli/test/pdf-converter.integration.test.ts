@@ -7,11 +7,8 @@ const DEMO_PDF = path.resolve(import.meta.dirname, 'demo.pdf')
 
 // MinerU tests require AIEX_TEST_MINERU=1 to run.
 const mineruEnabled = process.env.AIEX_TEST_MINERU === '1'
-// MarkItDown tests require AIEX_TEST_MARKITDOWN=1 to run.
-const markitdownEnabled = process.env.AIEX_TEST_MARKITDOWN === '1'
 
 const mineruSuite = mineruEnabled ? describe : describe.skip
-const markitdownSuite = markitdownEnabled ? describe : describe.skip
 
 mineruSuite('mineru integration', { timeout: 600_000 }, () => {
   const converter = new ExternalCommandPdfConverter('mineru', {
@@ -63,40 +60,5 @@ mineruSuite('mineru integration', { timeout: 600_000 }, () => {
     expect(result.text).toMatch(/flow duration curves/i)
     expect(result.text).toMatch(/Journal of Hydrology/i)
     expect(result.text).toMatch(/Lane/i)
-  })
-})
-
-markitdownSuite('markitdown integration', { timeout: 600_000 }, () => {
-  const converter = new ExternalCommandPdfConverter('markitdown', {
-    command: 'markitdown',
-    args: ['{input}', '-o', '{outputDir}/{basename}.md'],
-    outputFile: '{outputDir}/{basename}.md',
-    timeout: 600,
-  })
-
-  it('markitdown is available', async () => {
-    const { execFile } = await import('node:child_process')
-    const { promisify } = await import('node:util')
-    const exec = promisify(execFile)
-    const { stdout } = await exec('markitdown', ['--version'])
-    expect(stdout).toMatch(/markitdown/i)
-  })
-
-  it('markitdown rejects non-existent input path', async () => {
-    await expect(
-      converter.convert(new Uint8Array([1, 2, 3]), '/tmp/nonexistent-document.pdf'),
-    ).rejects.toThrow()
-  })
-
-  it('markitdown converts demo.pdf to markdown', async () => {
-    const pdfBuffer = await fs.readFile(DEMO_PDF)
-    const result = await converter.convert(new Uint8Array(pdfBuffer), DEMO_PDF)
-
-    expect(result.text).toBeTruthy()
-    expect(typeof result.text).toBe('string')
-    expect(result.text.length).toBeGreaterThan(50)
-    expect(result.metadata?.converter).toBe('markitdown')
-    expect(result.metadata?.outputPath).toBeDefined()
-    expect(result.metadata!.outputPath!.endsWith('.md')).toBe(true)
   })
 })

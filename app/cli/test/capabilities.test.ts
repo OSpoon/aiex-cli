@@ -37,6 +37,7 @@ describe('lookupModelCapabilities', () => {
     const caps = lookupModelCapabilities('claude-3-haiku-20240307')
     expect(caps).not.toBeNull()
     expect(typeof caps!.vision).toBe('boolean')
+    expect(typeof caps!.structuredOutput).toBe('boolean')
   })
 
   it('returns capabilities for DeepSeek models', () => {

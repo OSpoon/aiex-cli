@@ -14,7 +14,7 @@ function filterCompatible(models: AIModelConfig[], inputTokens?: number, outputT
 }
 
 export function selectModel(input: SelectModelInput): SelectedModel {
-  const { models, isImage, fileName, inputTokens, outputTokens } = input
+  const { models, inputTokens, outputTokens } = input
 
   if (models.length === 0) {
     throw new Error(t('errors.ai.noModels'))
@@ -23,18 +23,6 @@ export function selectModel(input: SelectModelInput): SelectedModel {
   let candidates = filterCompatible(models, inputTokens, outputTokens)
   if (candidates.length === 0) {
     candidates = models
-  }
-
-  if (isImage) {
-    const visionModel = candidates.find(m => m.capabilities.vision)
-    if (!visionModel) {
-      const hint = fileName ? ` (${fileName})` : ''
-      const msg = inputTokens
-        ? t('errors.ai.noVisionModelContext', { tokens: inputTokens, hint })
-        : t('errors.ai.noVisionModel', { hint })
-      throw new Error(msg + t('errors.ai.addSuitableModel'))
-    }
-    return { name: visionModel.name, capabilities: visionModel.capabilities }
   }
 
   const soModel = candidates.find(m => m.capabilities.structuredOutput)

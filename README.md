@@ -204,12 +204,12 @@ aiex completion fish | source
 
 ## 📄 Large Document Processing
 
-When processing very large documents (exceeding `40,000` characters), `aiex` runs an optimized **Pipeline Mode** to handle context window limits and control API costs:
+`aiex` uses a unified text extraction pipeline for both short and very large documents. Source files are converted to text or Markdown first; images are converted with OCR before structured extraction.
 
-- **Token-Aware AST Splitting**: Parses structural Markdown elements (headings, paragraphs, lists) using an AST-based parser (`marked.lexer`) and splits them using precise token counters (`js-tiktoken`). Active heading hierarchies are tracked and prepended to each chunk as context. Tables and code blocks are kept intact (atomic blocks) to avoid syntax corruption.
+- **Token-Aware AST Splitting**: Parses structural Markdown elements (headings, paragraphs, lists) using an AST-based parser (`marked.lexer`) and splits them using precise token counters (`js-tiktoken`). Active heading hierarchies are tracked and prepended to each chunk as context. Short documents run through the same pipeline as a single chunk.
 - **Concurrency Limiting**: To respect strict model rate limits, chunk extractions are processed in parallel with a strict concurrency limit (capped at 2 concurrent requests).
-- **Pre-filtering**: Integrates hybrid search-based pre-filtering to score and select only the most relevant document chunks based on schema queries, preventing unnecessary token usage on unrelated sections.
-- **Recursive Merging**: The final extracted JSON objects from each chunk are recursively merged, concatenating lists and deduplicating primitive fields.
+- **Candidate & Evidence Merging**: Chunk results are merged into schema-shaped candidates, with evidence coverage used to select scalar conflicts and preserve traceability.
+- **Schema Validation & Correction**: Merged output is validated against the JSON Schema. When correction is needed, the corrected output is rechecked against evidence before being written.
 
 <br>
 

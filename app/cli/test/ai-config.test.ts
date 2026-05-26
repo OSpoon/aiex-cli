@@ -36,7 +36,7 @@ describe('ai config', () => {
         provider: {
           baseURL: 'http://localhost:11434/v1',
           apiKey: 'test-key',
-          models: [{ name: 'llama3.2', capabilities: { vision: false, structuredOutput: false } }],
+          models: [{ name: 'llama3.2', capabilities: { structuredOutput: false } }],
         },
         prompt: {
           systemTemplate: 'Schema: {schema}',
@@ -72,7 +72,7 @@ describe('ai config', () => {
     it('writes config to disk', async () => {
       const config = getDefaultAIConfig()
       config.provider.baseURL = 'http://localhost:11434/v1'
-      config.provider.models = [{ name: 'test-model', capabilities: { vision: false, structuredOutput: false } }]
+      config.provider.models = [{ name: 'test-model', capabilities: { structuredOutput: false } }]
 
       await writeAIConfig(tempDir, config)
 

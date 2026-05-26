@@ -6,7 +6,6 @@ export interface AppConfig {
 export interface AIModelConfig {
   name: string
   capabilities: {
-    vision: boolean
     structuredOutput: boolean
     maxTokens?: number
     maxOutputTokens?: number
@@ -31,19 +30,20 @@ export interface ExtractionConfig {
   concurrency?: number
   maxTokens?: number
   overlapSize?: number
-  preFiltering?: boolean
-  preFilteringLimit?: number
 }
 
-export type ImageOcrFallbackMode = 'auto' | 'off' | 'local'
+export type ImageInputMode = 'vision' | 'local'
 
 export interface ImageOcrConfig {
-  ocrFallback?: ImageOcrFallbackMode
+  imageConversion?: ImageInputMode
+  visionBaseURL?: string
+  visionApiKey?: string
+  imageModelName?: string
   ocrLanguages?: string
   ocrMinConfidence?: number
 }
 
-export type PdfConverterKind = 'unpdf' | 'mineru' | 'mineru_api' | 'markitdown' | 'marker' | 'external'
+export type PdfConverterKind = 'unpdf' | 'mineru' | 'mineru_api' | 'external'
 
 export interface MineruApiPdfConverterConfig {
   token: string
@@ -66,8 +66,6 @@ export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
   mineruApi?: MineruApiPdfConverterConfig
-  markitdown?: ExternalPdfConverterConfig
-  marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 

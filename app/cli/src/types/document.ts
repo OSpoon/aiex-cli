@@ -1,22 +1,6 @@
 export interface ExtractFileInput {
   text: string
-  filePath?: string
 }
-
-export interface ImageContentPart {
-  type: 'image'
-  image: Uint8Array
-  mimeType?: string
-}
-
-export interface FileContentPart {
-  type: 'file'
-  data: Uint8Array
-  mediaType: string
-  filename?: string
-}
-
-export type ReadFilePartResult = ImageContentPart | FileContentPart
 
 export interface PdfConversionResult {
   text: string

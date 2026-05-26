@@ -10,19 +10,14 @@ export const TEST_VISION_MODEL = 'llava'
 
 export const TEST_MODEL_TEXT: AIModelConfig = {
   name: TEST_MODEL,
-  capabilities: { vision: false, structuredOutput: false },
-}
-
-export const TEST_MODEL_VISION: AIModelConfig = {
-  name: TEST_VISION_MODEL,
-  capabilities: { vision: true, structuredOutput: false },
+  capabilities: { structuredOutput: false },
 }
 
 export const TEST_AI_CONFIG: AIConfig = {
   provider: {
     baseURL: TEST_BASE_URL,
     apiKey: TEST_API_KEY,
-    models: [TEST_MODEL_TEXT, TEST_MODEL_VISION],
+    models: [TEST_MODEL_TEXT],
   },
   prompt: DEFAULT_PROMPT_CONFIG,
   extraction: DEFAULT_EXTRACTION_CONFIG,

@@ -103,7 +103,7 @@ describe('extract routes', () => {
         baseURL: 'http://localhost:11434/v1',
         apiKey: 'test-key',
         models: [
-          { name: 'known-model', capabilities: { vision: false, structuredOutput: true } },
+          { name: 'known-model', capabilities: { structuredOutput: true } },
         ],
       },
       prompt: DEFAULT_PROMPT_CONFIG,
@@ -181,7 +181,7 @@ describe('extract routes', () => {
         baseURL: 'http://localhost:11434/v1',
         apiKey: 'test-key',
         models: [
-          { name: 'known-model', capabilities: { vision: false, structuredOutput: true } },
+          { name: 'known-model', capabilities: { structuredOutput: true } },
         ],
       },
       prompt: DEFAULT_PROMPT_CONFIG,

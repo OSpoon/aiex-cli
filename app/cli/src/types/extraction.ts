@@ -50,16 +50,14 @@ export interface RegistryEntry {
 }
 
 export interface ModelCapabilities {
-  structuredOutput: boolean
   vision: boolean
+  structuredOutput: boolean
   maxTokens?: number
   maxOutputTokens?: number
 }
 
 export interface SelectModelInput {
   models: AIModelConfig[]
-  isImage: boolean
-  fileName?: string
   inputTokens?: number
   outputTokens?: number
 }

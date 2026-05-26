@@ -49,7 +49,7 @@ describe('extractStructuredData provider setup', () => {
           baseURL: 'https://example.test/v1',
           apiKey: 'test-key',
           models: [
-            { name: 'gemini-2.5-flash', capabilities: { vision: true, structuredOutput: true } },
+            { name: 'gemini-2.5-flash', capabilities: { structuredOutput: true } },
           ],
         },
         prompt: DEFAULT_PROMPT_CONFIG,
@@ -87,7 +87,7 @@ describe('extractStructuredData provider setup', () => {
           baseURL: 'https://example.test/v1',
           apiKey: 'test-key',
           models: [
-            { name: 'text-model', capabilities: { vision: false, structuredOutput: false } },
+            { name: 'text-model', capabilities: { structuredOutput: false } },
           ],
         },
         prompt: DEFAULT_PROMPT_CONFIG,

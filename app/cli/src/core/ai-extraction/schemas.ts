@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 export const ModelCapabilitiesSchema = z.object({
-  vision: z.boolean(),
   structuredOutput: z.boolean(),
   maxTokens: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
@@ -30,13 +29,14 @@ export const ExtractionConfigSchema = z.object({
   concurrency: z.number().int().min(1).optional(),
   maxTokens: z.number().int().positive().default(8000).optional(),
   overlapSize: z.number().int().nonnegative().optional(),
-  preFiltering: z.boolean().optional(),
-  preFilteringLimit: z.number().int().min(1).optional(),
 })
 
 export const ImageOcrConfigSchema = z.object({
-  ocrFallback: z.enum(['auto', 'off', 'local']).default('auto').optional(),
-  ocrLanguages: z.string().min(1).optional(),
+  imageConversion: z.enum(['vision', 'local']).default('local').optional(),
+  visionBaseURL: z.string().url().optional(),
+  visionApiKey: z.string().optional(),
+  imageModelName: z.string().min(1).optional(),
+  ocrLanguages: z.string().optional(),
   ocrMinConfidence: z.number().min(0).max(1).optional(),
 })
 
@@ -61,11 +61,9 @@ export const MineruApiPdfConverterConfigSchema = z.object({
 })
 
 export const PdfConfigSchema = z.object({
-  converter: z.enum(['unpdf', 'mineru', 'mineru_api', 'markitdown', 'marker', 'external']),
+  converter: z.enum(['unpdf', 'mineru', 'mineru_api', 'external']),
   mineru: ExternalPdfConverterConfigSchema.optional(),
   mineruApi: MineruApiPdfConverterConfigSchema.optional(),
-  markitdown: ExternalPdfConverterConfigSchema.optional(),
-  marker: ExternalPdfConverterConfigSchema.optional(),
   external: ExternalPdfConverterConfigSchema.optional(),
 })
 

@@ -18,50 +18,45 @@ flowchart TD
   P2 --> P3{"PDF converter"}
   P3 -->|"unpdf"| P4["内置 unpdf 提取文本"]
   P3 -->|"mineru"| P5["外部 mineru 命令转 Markdown"]
-  P3 -->|"markitdown"| P6["外部 markitdown 命令转 Markdown"]
   P3 -->|"external"| P7["用户自定义外部命令"]
   P5 --> P8{"失败且 fallbackToUnpdf?"}
-  P6 --> P8
   P7 --> P8
   P8 -->|"是"| P4
   P8 -->|"否"| ERR1["返回 PDF 转换失败"]
   P4 --> P9["保存 .md 旁路参考文件"]
   P5 --> P9
-  P6 --> P9
   P7 --> P9
   P9 --> T1
 
   F2 -->|"png / jpg / jpeg / gif / webp / bmp / svg"| I0["图片输入"]
-  I0 --> I1{"选定模型/配置中是否有 vision model?"}
-  I1 -->|"是"| I2["保留 filePath，作为图片附件输入"]
-  I1 -->|"否"| ICFG{"image.ocrFallback"}
-  ICFG -->|"off"| ERR2A["返回错误：没有 vision model 且 OCR 关闭"]
-  ICFG -->|"auto"| IPLAT{"当前平台"}
-  ICFG -->|"local"| I3["强制本机 OCR: @napi-rs/system-ocr"]
-  IPLAT -->|"macOS / Windows"| I3
-  IPLAT -->|"其他平台"| ERR2B["返回错误：auto OCR 不支持当前平台"]
-  I3 --> I3A["调用系统 OCR\nmacOS: VisionKit\nWindows: Media OCR"]
-  I3A --> I4{"OCR 成功且满足 minConfidence?"}
+  I0 --> ICFG{"image.imageConversion"}
+  ICFG -->|"local"| I3["本机 OCR: @napi-rs/system-ocr"]
+  ICFG -->|"vision"| IV1{"imageModelName\nis set?"}
+  IV1 -->|"否"| I3
+  IV1 -->|"是"| IV2["transcribeImageWithVision\n(visionBaseURL / visionApiKey)"]
+  IV2 --> IV3{"成功?"}
+  IV3 -->|"否"| IW["警告: 转录失败\n降级到本地 OCR"]
+  IW --> I3
+  I3 --> I_PLAT{"支持平台?"}
+  I_PLAT -->|"macOS / Windows"| I3A["调用系统 OCR\nmacOS: VisionKit\nWindows: Media OCR"]
+  I_PLAT -->|"Linux / 其他"| ERR2B["返回错误: 本地 OCR\n不支持当前平台"]
+  I3A --> I4{"OCR 成功?"}
   I4 -->|"是"| T1
-  I4 -->|"否"| ERR2["返回 OCR 不可用/识别失败"]
+  I4 -->|"否"| ERR2["返回 OCR 识别失败"]
+  IV3 -->|"是"| T1
 
   T1 --> E1["extractSingle"]
-  I2 --> E1
 
-  E1 --> EXMODE{"文本长度超出限制?"}
-  EXMODE -->|"是: 流水线分块"| CK1["splitMarkdown (Token & AST 切片, 重叠/滑动窗口, 混合检索预过滤)"]
-  EXMODE -->|"否: 普通单步"| EX_STD["extractStructuredData"]
+  E1 --> CK1["统一文本流水线：短文本=单切片，长文本=splitMarkdown 切片"]
 
   CK1 --> CK_LOOP["并发提取切片 (p-limit 最大并发2)"]
   CK_LOOP --> EX_STD
-  CK_LOOP --> CK_MERGE["mergeExtractionResults 合并结果"]
+  CK_LOOP --> CK_MERGE["mergeExtractionResults + candidate/evidence 合并"]
   CK_MERGE --> V1["validateExtractedData 校验 schema"]
 
   EX_STD --> M1{"模型选择"}
-  M1 -->|"图片附件输入"| M2["selectModel 要求 vision=true"]
-  M1 -->|"文本输入"| M3["优先 structuredOutput=true，否则第一个可用模型"]
+  M1 --> M3["优先 structuredOutput=true，否则第一个可用模型"]
 
-  M2 --> A1["OpenAI-compatible provider"]
   M3 --> A1
 
   A1 --> A2{"是否支持 structured output?"}

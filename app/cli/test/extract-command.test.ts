@@ -16,7 +16,9 @@ vi.mock('@/core/ai-extraction', () => ({
   calculateChunkTokenBudget: vi.fn(({ configuredMaxTokens }) => configuredMaxTokens ?? 8000),
   extractStructuredData: vi.fn(),
   insertExtractedData: vi.fn(),
+  mergeExtractionResults: vi.fn((_schema: unknown, results: Array<Record<string, unknown>>) => Object.assign({}, ...results)),
   readAIConfig: vi.fn(),
+  validateExtractedData: vi.fn(() => ({ success: true })),
 }))
 
 vi.mock('@clack/prompts', () => ({
@@ -25,7 +27,7 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn(),
   isCancel: vi.fn(() => false),
   select: vi.fn(),
-  spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
+  spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn(), message: vi.fn() })),
   text: vi.fn(),
 }))
 
@@ -75,7 +77,7 @@ function createProjectFixture(): string {
 
 function mockAIConfig(): void {
   vi.mocked(readAIConfig).mockResolvedValueOnce({
-    provider: { baseURL: 'https://test.com', apiKey: 'test-key', models: [{ name: 'test-model', capabilities: { vision: false, structuredOutput: true } }] },
+    provider: { baseURL: 'https://test.com', apiKey: 'test-key', models: [{ name: 'test-model', capabilities: { structuredOutput: true } }] },
     prompt: { systemTemplate: 'sys', userTemplate: 'usr' },
     extraction: { outputDir: '/tmp' },
   })
@@ -242,8 +244,8 @@ describe('extractCommand.run', () => {
       status: 'succeeded',
       schemaName: 'test',
       source: { type: 'file', filePath: inputFile },
-      outputName: 'test_table-result.json',
     })
+    expect(audit.outputName).toMatch(/^test_table-.*\.json$/)
 
     cleanupDir(projectDir)
   })

@@ -5,10 +5,15 @@ import { isImageFile, listSchemas, listSupportedFiles, loadSchema, readExtractFi
 
 const imageOcrMock = vi.hoisted(() => ({
   recognizeImageText: vi.fn(),
-  shouldUseImageOcrFallback: vi.fn(() => false),
 }))
 
 vi.mock('@/core/image-ocr', () => imageOcrMock)
+
+const transcribeMock = vi.hoisted(() => ({
+  transcribeImageWithVision: vi.fn(),
+}))
+
+vi.mock('@/core/ai-extraction/transcriber', () => transcribeMock)
 
 const extractStructuredDataMock = vi.hoisted(() => vi.fn())
 
@@ -22,8 +27,7 @@ vi.mock('@/core/ai-extraction', async (importOriginal) => {
 
 afterEach(() => {
   imageOcrMock.recognizeImageText.mockReset()
-  imageOcrMock.shouldUseImageOcrFallback.mockReset()
-  imageOcrMock.shouldUseImageOcrFallback.mockReturnValue(false)
+  transcribeMock.transcribeImageWithVision.mockReset()
   extractStructuredDataMock.mockReset()
 })
 
@@ -157,21 +161,21 @@ describe('isImageFile', () => {
 })
 
 describe('readExtractFileInput', () => {
-  it('keeps image files as file input when OCR fallback is not selected', async () => {
+  it('runs image files through OCR and reports OCR availability errors', async () => {
     const dir = `/tmp/test-read-image-file-${Date.now()}`
     fs.mkdirSync(dir, { recursive: true })
     const filePath = path.join(dir, 'receipt.png')
     fs.writeFileSync(filePath, 'png')
 
-    const input = await readExtractFileInput(filePath)
+    imageOcrMock.recognizeImageText.mockRejectedValue(new Error('Local OCR is unavailable'))
 
-    expect(input).toEqual({ text: '', filePath })
-    expect(imageOcrMock.recognizeImageText).not.toHaveBeenCalled()
+    await expect(readExtractFileInput(filePath)).rejects.toThrow('Local OCR is unavailable')
+    expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath, undefined)
 
     fs.rmSync(dir, { recursive: true })
   })
 
-  it('returns OCR text instead of file input when image OCR fallback is selected', async () => {
+  it('returns OCR text instead of file input for image files', async () => {
     const dir = `/tmp/test-read-image-ocr-${Date.now()}`
     fs.mkdirSync(dir, { recursive: true })
     const filePath = path.join(dir, 'receipt.png')
@@ -181,7 +185,7 @@ describe('readExtractFileInput', () => {
       provider: {
         baseURL: 'http://localhost:11434/v1',
         apiKey: 'test-key',
-        models: [{ name: 'text-model', capabilities: { vision: false, structuredOutput: true } }],
+        models: [{ name: 'text-model', capabilities: { structuredOutput: true } }],
       },
       prompt: {
         systemTemplate: '{schema}',
@@ -191,12 +195,11 @@ describe('readExtractFileInput', () => {
         outputDir: '.aiex/extracted',
       },
       image: {
-        ocrFallback: 'local' as const,
+        imageConversion: 'local' as const,
         ocrLanguages: 'en-US',
       },
     }
 
-    imageOcrMock.shouldUseImageOcrFallback.mockReturnValue(true)
     imageOcrMock.recognizeImageText.mockResolvedValue({
       text: 'total 12.50',
       confidence: 0.91,
@@ -205,15 +208,163 @@ describe('readExtractFileInput', () => {
     const input = await readExtractFileInput(filePath, aiConfig)
 
     expect(input).toEqual({ text: 'total 12.50' })
-    expect(imageOcrMock.shouldUseImageOcrFallback).toHaveBeenCalledWith(aiConfig, undefined)
     expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath, aiConfig.image)
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('uses vision model transcription when configured', async () => {
+    const dir = `/tmp/test-read-image-vision-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'receipt.png')
+    fs.writeFileSync(filePath, 'png')
+
+    const aiConfig = {
+      provider: {
+        baseURL: 'http://localhost:11434/v1',
+        apiKey: 'test-key',
+        models: [],
+        timeout: 60,
+      },
+      prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
+      extraction: { outputDir: '.aiex/extracted' },
+      image: {
+        imageConversion: 'vision' as const,
+        imageModelName: 'gpt-4o',
+      },
+    }
+
+    transcribeMock.transcribeImageWithVision.mockResolvedValue({
+      text: 'invoice total 100',
+      modelName: 'gpt-4o',
+    })
+
+    const input = await readExtractFileInput(filePath, aiConfig)
+
+    expect(input).toEqual({ text: 'invoice total 100' })
+    expect(transcribeMock.transcribeImageWithVision).toHaveBeenCalledWith(
+      filePath,
+      'http://localhost:11434/v1',
+      'test-key',
+      'gpt-4o',
+      60000,
+    )
+    expect(imageOcrMock.recognizeImageText).not.toHaveBeenCalled()
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('uses vision-specific baseURL and apiKey when provided', async () => {
+    const dir = `/tmp/test-read-image-vision-custom-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'receipt.png')
+    fs.writeFileSync(filePath, 'png')
+
+    const aiConfig = {
+      provider: {
+        baseURL: 'http://default/v1',
+        apiKey: 'default-key',
+        models: [],
+      },
+      prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
+      extraction: { outputDir: '.aiex/extracted' },
+      image: {
+        imageConversion: 'vision' as const,
+        imageModelName: 'gpt-4o',
+        visionBaseURL: 'http://vision/v1',
+        visionApiKey: 'vision-key',
+      },
+    }
+
+    transcribeMock.transcribeImageWithVision.mockResolvedValue({
+      text: 'result',
+      modelName: 'gpt-4o',
+    })
+
+    await readExtractFileInput(filePath, aiConfig)
+
+    expect(transcribeMock.transcribeImageWithVision).toHaveBeenCalledWith(
+      filePath,
+      'http://vision/v1',
+      'vision-key',
+      'gpt-4o',
+      expect.any(Number),
+    )
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('falls back to local OCR when vision transcription fails', async () => {
+    const dir = `/tmp/test-read-image-vision-fallback-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'receipt.png')
+    fs.writeFileSync(filePath, 'png')
+
+    const aiConfig = {
+      provider: {
+        baseURL: 'http://localhost:11434/v1',
+        apiKey: 'test-key',
+        models: [],
+      },
+      prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
+      extraction: { outputDir: '.aiex/extracted' },
+      image: {
+        imageConversion: 'vision' as const,
+        imageModelName: 'gpt-4o',
+      },
+    }
+
+    transcribeMock.transcribeImageWithVision.mockRejectedValue(new Error('API error'))
+    imageOcrMock.recognizeImageText.mockResolvedValue({
+      text: 'ocr fallback text',
+      confidence: 0.85,
+    })
+
+    const input = await readExtractFileInput(filePath, aiConfig)
+
+    expect(input).toEqual({ text: 'ocr fallback text' })
+    expect(transcribeMock.transcribeImageWithVision).toHaveBeenCalled()
+    expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath, aiConfig.image)
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('uses local OCR when vision mode is set but model name is empty', async () => {
+    const dir = `/tmp/test-read-image-vision-noname-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'receipt.png')
+    fs.writeFileSync(filePath, 'png')
+
+    const aiConfig = {
+      provider: {
+        baseURL: 'http://localhost:11434/v1',
+        apiKey: 'test-key',
+        models: [],
+      },
+      prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
+      extraction: { outputDir: '.aiex/extracted' },
+      image: {
+        imageConversion: 'vision' as const,
+      },
+    }
+
+    imageOcrMock.recognizeImageText.mockResolvedValue({
+      text: 'ocr result',
+      confidence: 0.9,
+    })
+
+    const input = await readExtractFileInput(filePath, aiConfig)
+
+    expect(input).toEqual({ text: 'ocr result' })
+    expect(transcribeMock.transcribeImageWithVision).not.toHaveBeenCalled()
+    expect(imageOcrMock.recognizeImageText).toHaveBeenCalled()
 
     fs.rmSync(dir, { recursive: true })
   })
 })
 
 describe('extractSingle with Pipeline mode enhancements', () => {
-  it('runs Pipeline mode with concurrency and pre-filtering', async () => {
+  it('runs Pipeline mode through one unified chunk extraction path', async () => {
     const dir = `/tmp/test-extract-runner-pipeline-${Date.now()}`
     fs.mkdirSync(path.join(dir, 'schema'), { recursive: true })
     const schemaPath = path.join(dir, 'schema', 'company.json')
@@ -232,13 +383,11 @@ describe('extractSingle with Pipeline mode enhancements', () => {
       provider: {
         baseURL: 'http://mock-url',
         apiKey: 'mock-key',
-        models: [{ name: 'mock-model', capabilities: { vision: false, structuredOutput: true } }],
+        models: [{ name: 'mock-model', capabilities: { structuredOutput: true } }],
       },
       extraction: {
         outputDir: '.aiex/extracted',
         concurrency: 2,
-        preFiltering: true,
-        preFilteringLimit: 1,
         overlapSize: 100,
       },
     }
@@ -250,7 +399,7 @@ describe('extractSingle with Pipeline mode enhancements', () => {
       if (input.text.includes('revenue')) {
         return { success: true, data: { revenue: 1000000 } }
       }
-      return { success: false, error: 'Should not extract irrelevant chunk' }
+      return { success: true, data: { name: null, revenue: null } }
     })
 
     const { extractSingle } = await import('@/core/extract-runner')
@@ -274,7 +423,9 @@ describe('extractSingle with Pipeline mode enhancements', () => {
 
     expect(result.success).toBe(true)
     expect(result.data).toEqual({ name: 'ACME Corp', revenue: 1000000 })
-    expect(extractStructuredDataMock).toHaveBeenCalledTimes(2)
+    expect(extractStructuredDataMock).toHaveBeenCalled()
+    expect(extractStructuredDataMock.mock.calls.length).toBeGreaterThan(1)
+    expect(extractStructuredDataMock.mock.calls.every(([input]) => typeof input.text === 'string')).toBe(true)
 
     fs.rmSync(dir, { recursive: true })
   })

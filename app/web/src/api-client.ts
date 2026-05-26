@@ -79,7 +79,6 @@ export async function getPromptSnapshot(tableName: string): Promise<PromptSnapsh
 export interface AIModelConfig {
   name: string
   capabilities: {
-    vision: boolean
     structuredOutput: boolean
   }
 }
@@ -92,8 +91,8 @@ export interface AIProviderConfig {
 }
 
 export interface ModelCapabilities {
-  structuredOutput: boolean
   vision: boolean
+  structuredOutput: boolean
 }
 
 export interface PromptConfig {
@@ -107,19 +106,20 @@ export interface ExtractionConfig {
   concurrency?: number
   maxTokens?: number
   overlapSize?: number
-  preFiltering?: boolean
-  preFilteringLimit?: number
 }
 
-export type ImageOcrFallbackMode = "auto" | "off" | "local"
+export type ImageInputMode = "vision" | "local"
 
 export interface ImageOcrConfig {
-  ocrFallback?: ImageOcrFallbackMode
+  imageConversion?: ImageInputMode
+  visionBaseURL?: string
+  visionApiKey?: string
+  imageModelName?: string
   ocrLanguages?: string
   ocrMinConfidence?: number
 }
 
-export type PdfConverterKind = "unpdf" | "mineru" | "mineru_api" | "markitdown" | "marker" | "external"
+export type PdfConverterKind = "unpdf" | "mineru" | "mineru_api" | "external"
 
 export interface MineruApiPdfConverterConfig {
   token: string
@@ -142,8 +142,6 @@ export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
   mineruApi?: MineruApiPdfConverterConfig
-  markitdown?: ExternalPdfConverterConfig
-  marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 
@@ -212,7 +210,7 @@ export async function saveAIConfig(config: AIConfig): Promise<void> {
 
 export async function registryLookup(modelName: string): Promise<ModelCapabilities | null> {
   const data = await api.post('api/ai/registry-lookup', { json: { modelName } }).json<Partial<ModelCapabilities>>().catch(() => null)
-  if (!data || typeof data.vision !== 'boolean') return null
+  if (!data || typeof data.structuredOutput !== 'boolean') return null
   return data as ModelCapabilities
 }
 

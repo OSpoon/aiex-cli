@@ -146,31 +146,6 @@ describe('externalCommandPdfConverter', () => {
     expect(result.text).toBe('custom markdown')
   })
 
-  it('supports markitdown output file convention', async () => {
-    vi.mocked(execa as any).mockImplementation(async (_command: string, args: string[]) => {
-      const outputPath = args[args.indexOf('-o') + 1]
-      await fs.mkdir(path.dirname(outputPath), { recursive: true })
-      await fs.writeFile(outputPath, '# MarkItDown output')
-      return {} as any
-    })
-
-    const converter = new ExternalCommandPdfConverter('markitdown', {
-      command: 'markitdown',
-      args: ['{input}', '-o', '{outputDir}/{basename}.md'],
-      outputFile: '{outputDir}/{basename}.md',
-    })
-
-    const result = await converter.convert(new Uint8Array([1, 2, 3]), '/tmp/source.pdf')
-
-    expect(result.text).toBe('# MarkItDown output')
-    expect(result.metadata?.converter).toBe('markitdown')
-    expect(execa).toHaveBeenCalledWith(
-      'markitdown',
-      ['/tmp/source.pdf', '-o', expect.stringMatching(/aiex-markitdown-.*\/source\.md$/)],
-      expect.objectContaining({ shell: false }),
-    )
-  })
-
   it('surfaces command failures with stderr', async () => {
     const error = new Error('failed') as Error & { exitCode: number, stderr: string }
     error.exitCode = 2
@@ -428,30 +403,6 @@ describe('createPdfConverter', () => {
     expect(converter.name).toBe('mineru')
   })
 
-  it('creates a markitdown converter from pdf config', () => {
-    const converter = createPdfConverter({
-      converter: 'markitdown',
-      markitdown: {
-        command: 'markitdown',
-        args: ['{input}', '-o', '{outputDir}/{basename}.md'],
-        outputFile: '{outputDir}/{basename}.md',
-      },
-    })
-    expect(converter.name).toBe('markitdown')
-  })
-
-  it('creates a marker converter from pdf config', () => {
-    const converter = createPdfConverter({
-      converter: 'marker',
-      marker: {
-        command: 'marker_single',
-        args: ['{input}', '--output_dir', '{outputDir}'],
-        outputFile: '{outputDir}/{basename}/{basename}.md',
-      },
-    })
-    expect(converter.name).toBe('marker')
-  })
-
   it('rejects external converter without command config', () => {
     expect(() => createPdfConverter({ converter: 'external' })).toThrow(/no external command/i)
   })
@@ -473,20 +424,6 @@ describe('createPdfConverter', () => {
       converter: 'mineru',
     })
     expect(converter.name).toBe('mineru')
-  })
-
-  it('creates markitdown converter with default config when markitdown config is omitted', () => {
-    const converter = createPdfConverter({
-      converter: 'markitdown',
-    })
-    expect(converter.name).toBe('markitdown')
-  })
-
-  it('creates marker converter with default config when marker config is omitted', () => {
-    const converter = createPdfConverter({
-      converter: 'marker',
-    })
-    expect(converter.name).toBe('marker')
   })
 
   it('creates mineru converter without fallback when opted out', () => {

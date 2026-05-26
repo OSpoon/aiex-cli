@@ -1,21 +1,15 @@
 import type { AIConfig, AIModelConfig, ExtractionResult, JsonSchemaDefinition, SelectedModel } from '@/types'
 import type { RetryInfo } from '@/utils/retry'
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { generateText, jsonSchema, Output } from 'ai'
-import { writeFile as writeJsonFile } from 'jsonfile'
 import { getErrorMessage } from '@/core/schema-sqlite'
 import { t } from '@/locales'
 import { withRetry } from '@/utils/retry'
-import { writeExtractionEvidence } from './evidence'
-import { detectMimeType, readFilePart } from './file-utils'
 import { safeParseJSON } from './json-utils'
 import { selectModel } from './model-selector'
 import { generateExtractionPrompt } from './prompt-generator'
-import { loadPromptSnapshot } from './snapshot'
 import { initLangfuse } from './telemetry'
-import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_TEXT } from './types'
+import { DEFAULT_PROMPT_CONFIG } from './types'
 import { schemaToExtractionOutputSchema, validateExtractedData } from './validator'
 
 export { selectModel }
@@ -30,18 +24,14 @@ export async function extractStructuredData(input: {
   schema: JsonSchemaDefinition
   text: string
   aiexDir: string
-  file?: string
   modelOverride?: AIModelConfig
   onRetry?: (info: RetryInfo) => void
 }): Promise<ExtractionResult> {
-  const { config, schema, text, aiexDir, file, modelOverride } = input
+  const { config, schema, text, modelOverride } = input
 
   if (!config.provider.apiKey) {
     return { success: false, error: t('errors.ai.apiKeyMissing') }
   }
-
-  const useFileContent = !!file
-  const isImageFile = useFileContent && detectMimeType(file!).startsWith('image/')
 
   const inputTokens = text ? Math.ceil(text.length / 2) : undefined
 
@@ -52,8 +42,6 @@ export async function extractStructuredData(input: {
   try {
     selected = modelOverride ?? selectModel({
       models: config.provider.models,
-      isImage: isImageFile,
-      fileName: file,
       inputTokens,
       outputTokens,
     })
@@ -78,23 +66,8 @@ export async function extractStructuredData(input: {
       supportsStructuredOutputs: useStructuredOutput,
     })
 
-    let system: string
-    let user: string
-
-    const snapshot = await loadPromptSnapshot(aiexDir, schema.table.name)
-
-    const promptText = file ? PLACEHOLDER_TEXT : text
-
-    if (snapshot) {
-      system = snapshot.system
-      user = snapshot.user.replaceAll(PLACEHOLDER_TEXT, promptText)
-    }
-    else {
-      const promptConfig = config.prompt ?? DEFAULT_PROMPT_CONFIG
-      const generated = generateExtractionPrompt(schema, promptText, promptConfig)
-      system = generated.system
-      user = generated.user
-    }
+    const promptConfig = config.prompt ?? DEFAULT_PROMPT_CONFIG
+    const { system, user } = generateExtractionPrompt(schema, text, promptConfig)
 
     const outputSchema = jsonSchema<Record<string, unknown>>(
       schemaToExtractionOutputSchema(schema),
@@ -116,44 +89,18 @@ export async function extractStructuredData(input: {
       let validationError: string | undefined
 
       try {
-        if (useFileContent) {
-          const filePart = await readFilePart(file!)
-          const fileName = filePart.type === 'file' ? filePart.filename : path.basename(file!)
-          const userContent = userPrompt.includes(PLACEHOLDER_TEXT)
-            ? userPrompt.replaceAll(PLACEHOLDER_TEXT, text || `Data is contained in the attached file: ${fileName}`)
-            : userPrompt
-
-          const contentParts: any[] = [{ type: 'text' as const, text: userContent }, filePart]
-
-          const fileOpts: any = {
-            model: provider.chatModel(selected.name),
-            system: systemPrompt,
-            messages: [
-              { role: 'user', content: contentParts },
-            ],
-            abortSignal: AbortSignal.timeout(timeoutMs),
-            maxRetries: 0,
-            experimental_telemetry: { isEnabled: useTelemetry },
-          }
-          if (useStructuredOutput) {
-            fileOpts.output = Output.object({ schema: outputSchema })
-          }
-          result = await withRetry(() => generateText(fileOpts), input.onRetry)
+        const textOpts: any = {
+          model: provider.chatModel(selected.name),
+          system: systemPrompt,
+          prompt: userPrompt,
+          abortSignal: AbortSignal.timeout(timeoutMs),
+          maxRetries: 0,
+          experimental_telemetry: { isEnabled: useTelemetry },
         }
-        else {
-          const textOpts: any = {
-            model: provider.chatModel(selected.name),
-            system: systemPrompt,
-            prompt: userPrompt,
-            abortSignal: AbortSignal.timeout(timeoutMs),
-            maxRetries: 0,
-            experimental_telemetry: { isEnabled: useTelemetry },
-          }
-          if (useStructuredOutput) {
-            textOpts.output = Output.object({ schema: outputSchema })
-          }
-          result = await withRetry(() => generateText(textOpts), input.onRetry)
+        if (useStructuredOutput) {
+          textOpts.output = Output.object({ schema: outputSchema })
         }
+        result = await withRetry(() => generateText(textOpts), input.onRetry)
 
         if (result.usage) {
           totalPromptTokens += result.usage.inputTokens ?? 0
@@ -179,26 +126,9 @@ export async function extractStructuredData(input: {
       if (!parseError && data !== undefined) {
         const validation = validateExtractedData(schema, data)
         if (validation.success) {
-          const outputDir = path.resolve(aiexDir, config.extraction.outputDir.replace('.aiex/', ''))
-          await fs.mkdir(outputDir, { recursive: true })
-
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-          const outputFileName = `${schema.table.name}-${timestamp}.json`
-          const outputPath = path.join(outputDir, outputFileName)
-
-          await writeJsonFile(outputPath, data, { spaces: 2, EOL: '\n' })
-          const evidenceSummary = await writeExtractionEvidence({
-            schema,
-            data,
-            outputPath,
-            text,
-          })
-
           return {
             success: true,
-            outputPath,
             data,
-            evidenceSummary,
             tokensUsed: {
               prompt: totalPromptTokens,
               completion: totalCompletionTokens,
@@ -230,7 +160,7 @@ CRITICAL RULES:
         userPrompt = `The JSON data you generated previously failed validation. Please correct it.
 
 [Original Text]
-${text || 'Data is contained in the attached file.'}
+${text || 'Original text is empty.'}
 
 [JSON Schema Definition]
 ${JSON.stringify(schemaToExtractionOutputSchema(schema), null, 2)}

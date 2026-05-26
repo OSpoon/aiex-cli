@@ -253,8 +253,8 @@ describe('ai config schema', () => {
       baseURL: 'http://localhost:11434/v1',
       apiKey: '',
       models: [
-        { name: 'llama3.2', capabilities: { vision: false, structuredOutput: false } },
-        { name: 'llava', capabilities: { vision: true, structuredOutput: false } },
+        { name: 'llama3.2', capabilities: { structuredOutput: false } },
+        { name: 'llava', capabilities: { structuredOutput: false } },
       ],
     },
     prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
@@ -287,38 +287,17 @@ describe('ai config schema', () => {
     expect(result.pdf?.mineru?.timeout).toBe(600)
   })
 
-  it('accepts markitdown pdf converter config', () => {
-    const result = AIConfigSchema.parse({
-      ...validConfig,
-      pdf: {
-        converter: 'markitdown',
-        markitdown: {
-          command: 'markitdown',
-          args: ['{input}', '-o', '{outputDir}/{basename}.md'],
-          outputFile: '{outputDir}/{basename}.md',
-          timeout: 600,
-          fallbackToUnpdf: true,
-        },
-      },
-    })
-
-    expect(result.pdf?.converter).toBe('markitdown')
-    expect(result.pdf?.markitdown?.args).toEqual(['{input}', '-o', '{outputDir}/{basename}.md'])
-    expect(result.pdf?.markitdown?.outputFile).toBe('{outputDir}/{basename}.md')
-    expect(result.pdf?.markitdown?.timeout).toBe(600)
-  })
-
-  it('accepts image OCR fallback config', () => {
+  it('accepts image conversion config', () => {
     const result = AIConfigSchema.parse({
       ...validConfig,
       image: {
-        ocrFallback: 'local',
+        imageConversion: 'local',
         ocrLanguages: 'en-US, zh-Hans',
         ocrMinConfidence: 0.4,
       },
     })
 
-    expect(result.image?.ocrFallback).toBe('local')
+    expect(result.image?.imageConversion).toBe('local')
     expect(result.image?.ocrLanguages).toBe('en-US, zh-Hans')
     expect(result.image?.ocrMinConfidence).toBe(0.4)
   })
@@ -329,16 +308,6 @@ describe('ai config schema', () => {
       pdf: {
         converter: 'mineru',
         mineru: { command: '', args: [] },
-      },
-    })).toThrow()
-  })
-
-  it('rejects empty markitdown command', () => {
-    expect(() => AIConfigSchema.parse({
-      ...validConfig,
-      pdf: {
-        converter: 'markitdown',
-        markitdown: { command: '', args: [] },
       },
     })).toThrow()
   })
@@ -370,7 +339,7 @@ describe('ai config schema', () => {
       ...validConfig,
       provider: {
         ...validConfig.provider,
-        models: [{ name: 'gpt-4', capabilities: { vision: false, structuredOutput: true, maxTokens: 128000 } }],
+        models: [{ name: 'gpt-4', capabilities: { structuredOutput: true, maxTokens: 128000 } }],
       },
     })
     expect(result.provider.models[0].capabilities.maxTokens).toBe(128000)
@@ -381,7 +350,7 @@ describe('ai config schema', () => {
       ...validConfig,
       provider: {
         ...validConfig.provider,
-        models: [{ name: 'gpt-4', capabilities: { vision: false, structuredOutput: true, maxTokens: -1 } }],
+        models: [{ name: 'gpt-4', capabilities: { structuredOutput: true, maxTokens: -1 } }],
       },
     })).toThrow()
   })
@@ -389,7 +358,7 @@ describe('ai config schema', () => {
   it('rejects empty model name', () => {
     expect(() => AIConfigSchema.parse({
       ...validConfig,
-      provider: { ...validConfig.provider, models: [{ name: '', capabilities: { vision: false, structuredOutput: false } }] },
+      provider: { ...validConfig.provider, models: [{ name: '', capabilities: { structuredOutput: false } }] },
     })).toThrow()
   })
 
@@ -434,124 +403,95 @@ describe('lookupModelCapabilities', () => {
 // ───────────── Unit tests: selectModel ─────────────
 
 describe('selectModel', () => {
-  const visionModel: AIModelConfig = { name: 'vision-model', capabilities: { vision: true, structuredOutput: true } }
-  const textSO: AIModelConfig = { name: 'text-so', capabilities: { vision: false, structuredOutput: true } }
-  const textOnly: AIModelConfig = { name: 'text-only', capabilities: { vision: false, structuredOutput: false } }
-
-  it('selects vision model when image is provided', () => {
-    const result = selectModel({ models: [textSO, visionModel], isImage: true, fileName: 'test.png' })
-    expect(result.name).toBe('vision-model')
-  })
+  const visionModel: AIModelConfig = { name: 'vision-model', capabilities: { structuredOutput: true } }
+  const textSO: AIModelConfig = { name: 'text-so', capabilities: { structuredOutput: true } }
+  const textOnly: AIModelConfig = { name: 'text-only', capabilities: { structuredOutput: false } }
 
   it('selects structured output model for text input', () => {
-    const result = selectModel({ models: [textOnly, textSO], isImage: false })
+    const result = selectModel({ models: [textOnly, textSO] })
     expect(result.name).toBe('text-so')
   })
 
-  it('selects structured output model for non-image file input (e.g. PDF)', () => {
-    const result = selectModel({ models: [textSO, visionModel], isImage: false, fileName: 'doc.pdf' })
+  it('selects structured output model without branching on source file type', () => {
+    const result = selectModel({ models: [textSO, visionModel] })
     expect(result.name).toBe('text-so')
   })
 
   it('falls back to first model when no structured output model exists', () => {
-    const result = selectModel({ models: [textOnly], isImage: false })
+    const result = selectModel({ models: [textOnly] })
     expect(result.name).toBe('text-only')
   })
 
-  it('throws when image is provided but no vision model exists', () => {
-    expect(() => selectModel({ models: [textSO], isImage: true, fileName: 'photo.png' }))
-      .toThrow(/vision/)
-  })
-
-  it('does NOT throw for non-image file when no vision model exists', () => {
-    const result = selectModel({ models: [textSO], isImage: false, fileName: 'doc.pdf' })
+  it('does NOT require a vision model for model selection', () => {
+    const result = selectModel({ models: [textSO] })
     expect(result.name).toBe('text-so')
   })
 
   it('throws when models list is empty', () => {
-    expect(() => selectModel({ models: [], isImage: false }))
+    expect(() => selectModel({ models: [] }))
       .toThrow(/No AI models/)
-  })
-
-  it('picks first vision model when multiple exist', () => {
-    const models = [
-      { name: 'gpt-4', capabilities: { vision: false, structuredOutput: true } },
-      { name: 'gpt-4-vision', capabilities: { vision: true, structuredOutput: true } },
-      { name: 'claude-vision', capabilities: { vision: true, structuredOutput: true } },
-    ]
-    const result = selectModel({ models, isImage: true })
-    expect(result.name).toBe('gpt-4-vision')
   })
 
   it('filters models with insufficient context window for long text', () => {
     const models: AIModelConfig[] = [
-      { name: 'small', capabilities: { vision: false, structuredOutput: true, maxTokens: 1000 } },
-      { name: 'large', capabilities: { vision: false, structuredOutput: true, maxTokens: 10000 } },
+      { name: 'small', capabilities: { structuredOutput: true, maxTokens: 1000 } },
+      { name: 'large', capabilities: { structuredOutput: true, maxTokens: 10000 } },
     ]
-    const result = selectModel({ models, isImage: false, inputTokens: 2000 })
+    const result = selectModel({ models, inputTokens: 2000 })
     expect(result.name).toBe('large')
-  })
-
-  it('filters vision models with insufficient context window for image inputs', () => {
-    const models: AIModelConfig[] = [
-      { name: 'small-vision', capabilities: { vision: true, structuredOutput: true, maxTokens: 500 } },
-      { name: 'large-vision', capabilities: { vision: true, structuredOutput: true, maxTokens: 5000 } },
-    ]
-    const result = selectModel({ models, isImage: true, fileName: 'test.png', inputTokens: 1000 })
-    expect(result.name).toBe('large-vision')
   })
 
   it('falls back to all models when none can fit inputTokens (best effort)', () => {
     const models: AIModelConfig[] = [
-      { name: 'tiny', capabilities: { vision: false, structuredOutput: false, maxTokens: 100 } },
+      { name: 'tiny', capabilities: { structuredOutput: false, maxTokens: 100 } },
     ]
-    const result = selectModel({ models, isImage: false, inputTokens: 500 })
+    const result = selectModel({ models, inputTokens: 500 })
     expect(result.name).toBe('tiny')
   })
 
   it('ignores context filter when inputTokens is not provided', () => {
     const models: AIModelConfig[] = [
-      { name: 'tiny', capabilities: { vision: false, structuredOutput: false, maxTokens: 100 } },
-      { name: 'large', capabilities: { vision: false, structuredOutput: true, maxTokens: 10000 } },
+      { name: 'tiny', capabilities: { structuredOutput: false, maxTokens: 100 } },
+      { name: 'large', capabilities: { structuredOutput: true, maxTokens: 10000 } },
     ]
-    const result = selectModel({ models, isImage: false })
+    const result = selectModel({ models })
     expect(result.name).toBe('large')
   })
 
   it('uses models without maxTokens as compatible candidates', () => {
     const models: AIModelConfig[] = [
-      { name: 'unknown', capabilities: { vision: false, structuredOutput: true } },
-      { name: 'small', capabilities: { vision: false, structuredOutput: false, maxTokens: 100 } },
+      { name: 'unknown', capabilities: { structuredOutput: true } },
+      { name: 'small', capabilities: { structuredOutput: false, maxTokens: 100 } },
     ]
-    const result = selectModel({ models, isImage: false, inputTokens: 500 })
+    const result = selectModel({ models, inputTokens: 500 })
     expect(result.name).toBe('unknown')
   })
 
   it('filters models with insufficient output tokens', () => {
     const models: AIModelConfig[] = [
-      { name: 'small-out', capabilities: { vision: false, structuredOutput: true, maxOutputTokens: 200 } },
-      { name: 'large-out', capabilities: { vision: false, structuredOutput: true, maxOutputTokens: 5000 } },
+      { name: 'small-out', capabilities: { structuredOutput: true, maxOutputTokens: 200 } },
+      { name: 'large-out', capabilities: { structuredOutput: true, maxOutputTokens: 5000 } },
     ]
-    const result = selectModel({ models, isImage: false, outputTokens: 1000 })
+    const result = selectModel({ models, outputTokens: 1000 })
     expect(result.name).toBe('large-out')
   })
 
   it('uses models without maxOutputTokens as compatible candidates', () => {
     const models: AIModelConfig[] = [
-      { name: 'unknown', capabilities: { vision: false, structuredOutput: true } },
-      { name: 'small', capabilities: { vision: false, structuredOutput: true, maxOutputTokens: 100 } },
+      { name: 'unknown', capabilities: { structuredOutput: true } },
+      { name: 'small', capabilities: { structuredOutput: true, maxOutputTokens: 100 } },
     ]
-    const result = selectModel({ models, isImage: false, outputTokens: 500 })
+    const result = selectModel({ models, outputTokens: 500 })
     expect(result.name).toBe('unknown')
   })
 
   it('filters by both input and output tokens simultaneously', () => {
     const models: AIModelConfig[] = [
-      { name: 'a', capabilities: { vision: false, structuredOutput: true, maxTokens: 500, maxOutputTokens: 5000 } },
-      { name: 'b', capabilities: { vision: false, structuredOutput: true, maxTokens: 5000, maxOutputTokens: 200 } },
-      { name: 'c', capabilities: { vision: false, structuredOutput: true, maxTokens: 10000, maxOutputTokens: 10000 } },
+      { name: 'a', capabilities: { structuredOutput: true, maxTokens: 500, maxOutputTokens: 5000 } },
+      { name: 'b', capabilities: { structuredOutput: true, maxTokens: 5000, maxOutputTokens: 200 } },
+      { name: 'c', capabilities: { structuredOutput: true, maxTokens: 10000, maxOutputTokens: 10000 } },
     ]
-    const result = selectModel({ models, isImage: false, inputTokens: 2000, outputTokens: 1000 })
+    const result = selectModel({ models, inputTokens: 2000, outputTokens: 1000 })
     expect(result.name).toBe('c')
   })
 })

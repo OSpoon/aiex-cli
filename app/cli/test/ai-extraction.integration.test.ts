@@ -1,4 +1,3 @@
-import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -91,11 +90,7 @@ pdfSuite('full flow: pdf to structured data', () => {
     expect(data.journal).toMatch(/Journal of Hydrology/i)
     expect(data.year).toBe(2005)
 
-    // Verify output file
-    expect(result.outputPath).toBeDefined()
-    const saved = JSON.parse(await fs.readFile(result.outputPath!, 'utf-8')) as Record<string, unknown>
-    expect(saved.title).toBe(data.title)
-    expect(saved.year).toBe(data.year)
+    expect(data.title).toBeDefined()
   })
 })
 
@@ -110,7 +105,6 @@ integrationSuite('text extraction', () => {
     })
 
     expect(result.success).toBe(true)
-    expect(result.outputPath).toBeDefined()
 
     const data = result.data as Record<string, unknown>
     // model may not support structured output; verify what we can
@@ -123,27 +117,18 @@ integrationSuite('text extraction', () => {
       }
     }
 
-    // output file must always be written
-    const saved = JSON.parse(await fs.readFile(result.outputPath!, 'utf-8')) as Record<string, unknown>
-    expect(saved).toBeDefined()
+    expect(data).toBeDefined()
   })
 
-  it('extracts from image file', { timeout: 120_000 }, async () => {
-    // Create a minimal test PNG
-    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
-    const imgPath = path.join(tempDir, 'dot.png')
-    await fs.writeFile(imgPath, Buffer.from(pngBase64, 'base64'))
-
+  it('uses text-only extraction even for content converted from images upstream', { timeout: 120_000 }, async () => {
     const result = await extractStructuredData({
       config: TEST_AI_CONFIG,
       schema: personSchema,
       text: 'A person named David, age 42, from Shenzhen',
       aiexDir: tempDir,
-      file: imgPath,
     })
 
     expect(result.success).toBe(true)
-    expect(result.outputPath).toBeDefined()
 
     const data = result.data as Record<string, unknown>
     if (data && Object.keys(data).length > 0) {
@@ -155,12 +140,9 @@ integrationSuite('text extraction', () => {
       }
     }
 
-    // output file must always be written
-    const saved = JSON.parse(await fs.readFile(result.outputPath!, 'utf-8')) as Record<string, unknown>
-    expect(saved).toBeDefined()
+    expect(data).toBeDefined()
   })
 
-  // Override model for vision extraction (first vision-capable model)
   it('handles missing optional fields', { timeout: 60_000 }, async () => {
     const result = await extractStructuredData({
       config: TEST_AI_CONFIG,
@@ -170,7 +152,7 @@ integrationSuite('text extraction', () => {
     })
 
     expect(result.success).toBe(true)
-    expect(result.outputPath).toBeDefined()
+    expect(result.data).toBeDefined()
   })
 
   it('returns error when API key is empty', async () => {

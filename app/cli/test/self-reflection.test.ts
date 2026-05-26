@@ -58,7 +58,7 @@ describe('self-Reflection Loop in extractStructuredData', () => {
         baseURL: 'http://mock-url',
         apiKey: 'mock-key',
         models: [
-          { name: 'mock-model', capabilities: { vision: false, structuredOutput: false } },
+          { name: 'mock-model', capabilities: { structuredOutput: false } },
         ],
       },
       prompt: {
@@ -105,7 +105,7 @@ describe('self-Reflection Loop in extractStructuredData', () => {
         baseURL: 'http://mock-url',
         apiKey: 'mock-key',
         models: [
-          { name: 'mock-model', capabilities: { vision: false, structuredOutput: false } },
+          { name: 'mock-model', capabilities: { structuredOutput: false } },
         ],
       },
       prompt: {
@@ -148,7 +148,7 @@ describe('self-Reflection Loop in extractStructuredData', () => {
         baseURL: 'http://mock-url',
         apiKey: 'mock-key',
         models: [
-          { name: 'mock-model', capabilities: { vision: false, structuredOutput: false } },
+          { name: 'mock-model', capabilities: { structuredOutput: false } },
         ],
       },
       prompt: {

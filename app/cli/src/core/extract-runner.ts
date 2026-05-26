@@ -57,40 +57,6 @@ async function limitConcurrency<T, R>(
   return results
 }
 
-function getSchemaKeywords(schema: any): string[] {
-  const keywords = new Set<string>()
-  function walk(properties: any): void {
-    if (!properties)
-      return
-    for (const [name, prop] of Object.entries(properties)) {
-      keywords.add(name.toLowerCase())
-      const parts = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(/[\s._:/\\-]+/g)
-      for (const part of parts) {
-        if (part.length > 1)
-          keywords.add(part.toLowerCase())
-      }
-      if (prop && typeof prop === 'object') {
-        const p = prop as any
-        if (typeof p.title === 'string')
-          keywords.add(p.title.toLowerCase())
-        if (typeof p.description === 'string') {
-          const descParts = p.description.toLowerCase().match(/[\p{L}\p{N}_-]+/gu) ?? []
-          for (const d of descParts) {
-            if (d.length > 2)
-              keywords.add(d)
-          }
-        }
-        if (p.type === 'object')
-          walk(p.properties)
-        if (p.type === 'array' && p.items?.type === 'object')
-          walk(p.items.properties)
-      }
-    }
-  }
-  walk(schema.properties)
-  return Array.from(keywords)
-}
-
 async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
   try {
     await fsp.access(dbPath)
@@ -187,216 +153,152 @@ export async function extractSingle(
     modelMaxTokens: modelOverride?.capabilities.maxTokens,
   })
   const overlapTokens = aiConfig.extraction?.overlapSize ?? 1000
-  let result: any
   const totalTokens = text ? encoding.encode(text).length : 0
 
-  if (text && totalTokens > maxTokens) {
-    if (!options?.quiet) {
-      consola.info(t('command.extract.file.chunking', { length: totalTokens, limit: maxTokens }))
-    }
+  if (text && totalTokens > maxTokens && !options?.quiet) {
+    consola.info(t('command.extract.file.chunking', { length: totalTokens, limit: maxTokens }))
+  }
 
-    const finalDocs = splitMarkdown(text, maxTokens, overlapTokens)
+  const processedDocs = text && totalTokens > maxTokens
+    ? splitMarkdown(text, maxTokens, overlapTokens)
+    : [{
+        pageContent: text ?? '',
+        metadata: {},
+        chunkIndex: 0,
+        totalChunks: 1,
+        tokenCount: totalTokens,
+        headingPath: [],
+        charStart: 0,
+        charEnd: text?.length ?? 0,
+      }]
 
-    if (!options?.quiet) {
-      consola.info(t('command.extract.file.chunksCount', { count: finalDocs.length }))
-    }
+  if (text && totalTokens > maxTokens && !options?.quiet) {
+    consola.info(t('command.extract.file.chunksCount', { count: processedDocs.length }))
+  }
 
-    let processedDocs = finalDocs
-    const preFiltering = !!aiConfig.extraction?.preFiltering
-    if (preFiltering && finalDocs.length > 1) {
-      const preFilteringLimit = aiConfig.extraction?.preFilteringLimit ?? 5
-      const keywords = getSchemaKeywords(schemaLoad.schema)
-      const chunkScores = finalDocs.map((doc, idx) => {
-        if (idx === 0) {
-          return { index: idx, score: Number.POSITIVE_INFINITY }
-        }
-        let score = 0
-        const docTextLower = doc.pageContent.toLowerCase()
-        for (const kw of keywords) {
-          let pos = docTextLower.indexOf(kw)
-          while (pos !== -1) {
-            score++
-            pos = docTextLower.indexOf(kw, pos + kw.length)
-          }
-        }
-        return { index: idx, score }
-      })
+  const chunkResults: Array<Record<string, any> | undefined> = Array.from({ length: processedDocs.length })
+  const accumulatedTokens = { prompt: 0, completion: 0, total: 0 }
+  let success = true
+  let errorMsg = ''
 
-      const scoredChunks = chunkScores.slice(1).sort((a, b) => b.score - a.score)
-      const selectedIndices = new Set<number>([0])
-      let keptCount = 0
-      for (const sc of scoredChunks) {
-        if (sc.score > 0 && keptCount < preFilteringLimit) {
-          selectedIndices.add(sc.index)
-          keptCount++
-        }
+  const extractionTasks = processedDocs.map((doc, i) => {
+    return async () => {
+      if (!success)
+        return
+
+      const headings = doc.headingPath?.length
+        ? doc.headingPath
+        : [doc.metadata.h1, doc.metadata.h2, doc.metadata.h3, doc.metadata.h4].filter(Boolean) as string[]
+
+      let chunkText = doc.pageContent
+      if (headings.length > 0) {
+        chunkText = `> **[Context]** Belong to: ${headings.join(' > ')}\n\n${chunkText}`
       }
 
-      processedDocs = finalDocs.filter((_, idx) => selectedIndices.has(idx))
-
-      if (!options?.quiet) {
-        consola.info(t('command.extract.file.preFiltering', {
-          original: finalDocs.length,
-          filtered: processedDocs.length,
-        }))
-      }
-    }
-
-    const chunkResults: Record<string, any>[] = []
-    const accumulatedTokens = { prompt: 0, completion: 0, total: 0 }
-    let success = true
-    let errorMsg = ''
-
-    const extractionTasks = processedDocs.map((doc, i) => {
-      return async () => {
-        if (!success)
-          return
-
-        const headings: string[] = []
-        if (doc.metadata) {
-          if (doc.metadata.h1)
-            headings.push(doc.metadata.h1)
-          if (doc.metadata.h2)
-            headings.push(doc.metadata.h2)
-          if (doc.metadata.h3)
-            headings.push(doc.metadata.h3)
-          if (doc.metadata.h4)
-            headings.push(doc.metadata.h4)
-        }
-
-        let chunkText = doc.pageContent
-        if (headings.length > 0) {
-          chunkText = `> **[Context]** Belong to: ${headings.join(' > ')}\n\n${chunkText}`
-        }
-
-        const chunkResult = await extractStructuredData({
-          config: aiConfig,
-          schema: schemaLoad.schema,
-          text: chunkText,
-          aiexDir,
-          modelOverride,
-          onRetry(info: RetryInfo) {
-            if (!options?.quiet) {
-              s.message(t('command.extract.file.extractRetryChunk', {
-                current: i + 1,
-                total: processedDocs.length,
-                code: info.statusCode,
-                delay: info.delayMs / 1000,
-                attempt: info.attempt,
-                max: info.maxRetries,
-              }))
-            }
-          },
-        })
-
-        if (!chunkResult.success) {
-          success = false
-          errorMsg = chunkResult.error || t('common.unknownError')
+      const chunkResult = await extractStructuredData({
+        config: aiConfig,
+        schema: schemaLoad.schema,
+        text: chunkText,
+        aiexDir,
+        modelOverride,
+        onRetry(info: RetryInfo) {
           if (!options?.quiet) {
-            s.stop(t('command.extract.file.extractFailChunk', { current: i + 1 }))
-            consola.error(errorMsg)
+            s.message(t('command.extract.file.extractRetryChunk', {
+              current: i + 1,
+              total: processedDocs.length,
+              code: info.statusCode,
+              delay: info.delayMs / 1000,
+              attempt: info.attempt,
+              max: info.maxRetries,
+            }))
           }
-          return
-        }
-
-        if (chunkResult.data) {
-          chunkResults.push(chunkResult.data as Record<string, any>)
-        }
-        if (chunkResult.tokensUsed) {
-          accumulatedTokens.prompt += chunkResult.tokensUsed.prompt ?? 0
-          accumulatedTokens.completion += chunkResult.tokensUsed.completion ?? 0
-          accumulatedTokens.total += chunkResult.tokensUsed.total ?? 0
-        }
-      }
-    })
-
-    const concurrency = Math.min(aiConfig.extraction?.concurrency ?? 2, 2)
-
-    if (!options?.quiet && processedDocs.length > 0) {
-      s.message(t('command.extract.file.extractingChunk', { current: 1, total: processedDocs.length }))
-    }
-
-    try {
-      await limitConcurrency(concurrency, extractionTasks, async (task, idx) => {
-        if (!options?.quiet && success) {
-          s.message(t('command.extract.file.extractingChunk', { current: idx + 1, total: processedDocs.length }))
-        }
-        await task()
+        },
       })
-    }
-    catch (e) {
-      success = false
-      errorMsg = e instanceof Error ? e.message : String(e)
-    }
 
-    if (!success) {
-      return { success: false, error: errorMsg }
-    }
-
-    const candidateReport = buildCandidateMergeReport({
-      schema: schemaLoad.schema,
-      chunkResults,
-      chunks: processedDocs,
-    })
-    const mergedData = applySelectedCandidates(
-      mergeExtractionResults(schemaLoad.schema, chunkResults),
-      candidateReport,
-    )
-    const validation = validateExtractedData(schemaLoad.schema, mergedData)
-    if (!validation.success) {
-      const valError = (validation as any).error || 'Merged data validation failed'
-      if (!options?.quiet) {
-        s.stop(t('command.extract.file.validationFail'))
-        consola.error(valError)
-      }
-      return { success: false, error: valError }
-    }
-
-    // Write final merged JSON file to disk
-    const outputDir = path.resolve(aiexDir, aiConfig.extraction?.outputDir?.replace('.aiex/', '') ?? 'extracted')
-    await fsp.mkdir(outputDir, { recursive: true })
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const outputFileName = `${schemaLoad.schema.table.name}-${timestamp}.json`
-    const finalMergedOutputPath = path.join(outputDir, outputFileName)
-    await fsp.writeFile(finalMergedOutputPath, JSON.stringify(mergedData, null, 2))
-    const evidenceSummary = await writeExtractionEvidence({
-      schema: schemaLoad.schema,
-      data: mergedData,
-      outputPath: finalMergedOutputPath,
-      chunks: processedDocs,
-      candidateReport,
-    })
-
-    result = {
-      success: true,
-      data: mergedData,
-      tokensUsed: accumulatedTokens,
-      outputPath: finalMergedOutputPath,
-      evidenceSummary,
-    }
-  }
-  else {
-    result = await extractStructuredData({
-      config: aiConfig,
-      schema: schemaLoad.schema,
-      text: text ?? '',
-      aiexDir,
-      file: filePath,
-      modelOverride,
-      onRetry(info: RetryInfo) {
+      if (!chunkResult.success) {
+        success = false
+        errorMsg = chunkResult.error || t('common.unknownError')
         if (!options?.quiet) {
-          s.message(t('command.extract.file.extractRetry', { code: info.statusCode, delay: info.delayMs / 1000, attempt: info.attempt, max: info.maxRetries }))
+          s.stop(t('command.extract.file.extractFailChunk', { current: i + 1 }))
+          consola.error(errorMsg)
         }
-      },
-    })
+        return
+      }
+
+      if (chunkResult.data) {
+        chunkResults[i] = chunkResult.data as Record<string, any>
+      }
+      if (chunkResult.tokensUsed) {
+        accumulatedTokens.prompt += chunkResult.tokensUsed.prompt ?? 0
+        accumulatedTokens.completion += chunkResult.tokensUsed.completion ?? 0
+        accumulatedTokens.total += chunkResult.tokensUsed.total ?? 0
+      }
+    }
+  })
+
+  const concurrency = Math.min(aiConfig.extraction?.concurrency ?? 2, 2)
+
+  if (!options?.quiet && processedDocs.length > 0) {
+    s.message(t('command.extract.file.extractingChunk', { current: 1, total: processedDocs.length }))
   }
 
-  if (!result.success) {
+  try {
+    await limitConcurrency(concurrency, extractionTasks, async (task, idx) => {
+      if (!options?.quiet && success) {
+        s.message(t('command.extract.file.extractingChunk', { current: idx + 1, total: processedDocs.length }))
+      }
+      await task()
+    })
+  }
+  catch (e) {
+    success = false
+    errorMsg = e instanceof Error ? e.message : String(e)
+  }
+
+  if (!success) {
+    return { success: false, error: errorMsg }
+  }
+
+  const successfulChunkResults = chunkResults.filter((chunkResult): chunkResult is Record<string, any> => !!chunkResult)
+  const candidateReport = buildCandidateMergeReport({
+    schema: schemaLoad.schema,
+    chunkResults: successfulChunkResults,
+    chunks: processedDocs,
+  })
+  const mergedData = applySelectedCandidates(
+    mergeExtractionResults(schemaLoad.schema, successfulChunkResults),
+    candidateReport,
+  )
+  const validation = validateExtractedData(schemaLoad.schema, mergedData)
+  if (!validation.success) {
+    const valError = (validation as any).error || 'Merged data validation failed'
     if (!options?.quiet) {
-      s.stop(t('command.extract.file.extractFail'))
-      consola.error(result.error || t('common.unknownError'))
+      s.stop(t('command.extract.file.validationFail'))
+      consola.error(valError)
     }
-    return { success: false, error: result.error || t('common.unknownError') }
+    return { success: false, error: valError }
+  }
+
+  const outputDir = path.resolve(aiexDir, aiConfig.extraction?.outputDir?.replace('.aiex/', '') ?? 'extracted')
+  await fsp.mkdir(outputDir, { recursive: true })
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const outputFileName = `${schemaLoad.schema.table.name}-${timestamp}.json`
+  const outputPath = path.join(outputDir, outputFileName)
+  await fsp.writeFile(outputPath, JSON.stringify(mergedData, null, 2))
+  const evidenceSummary = await writeExtractionEvidence({
+    schema: schemaLoad.schema,
+    data: mergedData,
+    outputPath,
+    chunks: processedDocs,
+    candidateReport,
+  })
+
+  const result = {
+    success: true,
+    data: mergedData,
+    tokensUsed: accumulatedTokens,
+    outputPath,
+    evidenceSummary,
   }
 
   if (!options?.quiet) {
@@ -551,12 +453,10 @@ export async function runAuditedExtraction(
 
   try {
     let text = ''
-    let filePath: string | undefined
 
     if (source.type === 'file') {
-      const input = await readExtractFileInput(source.filePath, aiConfig, modelOverride)
+      const input = await readExtractFileInput(source.filePath, aiConfig)
       text = input.text
-      filePath = input.filePath
     }
     else {
       text = source.text
@@ -568,7 +468,7 @@ export async function runAuditedExtraction(
       aiConfig,
       schemaName,
       text,
-      filePath,
+      source.type === 'file' ? source.filePath : undefined,
       modelOverride,
       { quiet, insert },
     )

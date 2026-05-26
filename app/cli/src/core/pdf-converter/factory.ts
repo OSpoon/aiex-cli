@@ -1,12 +1,12 @@
 import type { PdfConfig, PdfConversionResult, PdfConverter } from '@/types'
 import { consola } from 'consola'
-import { DEFAULT_MARKER_CONFIG, DEFAULT_MARKITDOWN_CONFIG, DEFAULT_MINERU_API_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
+import { DEFAULT_MINERU_API_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
 import { t } from '@/locales'
 import { ExternalCommandPdfConverter } from './external'
 import { MineruApiPdfConverter } from './mineru-api'
 import { UnpdfConverter } from './unpdf'
 
-export type PdfConverterType = 'unpdf' | 'mineru' | 'mineru_api' | 'markitdown' | 'marker' | 'external'
+export type PdfConverterType = 'unpdf' | 'mineru' | 'mineru_api' | 'external'
 
 const registry = new Map<PdfConverterType, PdfConverter>()
 
@@ -55,16 +55,6 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
     if (config.converter === 'mineru_api') {
       const mineruApiConfig = config.mineruApi ?? DEFAULT_MINERU_API_CONFIG
       return new MineruApiPdfConverter(mineruApiConfig)
-    }
-
-    if (config.converter === 'markitdown') {
-      const markitdownConfig = config.markitdown ?? DEFAULT_MARKITDOWN_CONFIG
-      return withFallback(new ExternalCommandPdfConverter('markitdown', markitdownConfig), markitdownConfig)
-    }
-
-    if (config.converter === 'marker') {
-      const markerConfig = config.marker ?? DEFAULT_MARKER_CONFIG
-      return withFallback(new ExternalCommandPdfConverter('marker', markerConfig), markerConfig)
     }
 
     if (config.converter === 'external') {

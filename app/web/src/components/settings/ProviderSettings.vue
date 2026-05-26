@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AIModelConfig, ModelCapabilities } from "@/api-client"
+import type { AIModelConfig } from "@/api-client"
 import Button from "primevue/button"
 import Checkbox from "primevue/checkbox"
 import InputText from "primevue/inputtext"
@@ -15,19 +15,21 @@ const models = defineModel<AIModelConfig[]>("models", { required: true })
 // Model adding state
 const addingModel = ref(false)
 const newModelName = ref("")
-const newModelCaps = ref<ModelCapabilities>({ vision: false, structuredOutput: false })
+const newModelStructuredOutput = ref(false)
 const newModelSource = ref<"registry" | "manual">("manual")
+let providerLookupId = 0
 
 function onModelNameInput() {
+  const id = ++providerLookupId
   newModelSource.value = "manual"
-  newModelCaps.value = { vision: false, structuredOutput: false }
+  newModelStructuredOutput.value = false
 
   if (!newModelName.value) return
 
-  // Look up in registry (no network, instant)
   registryLookup(newModelName.value).then((caps) => {
+    if (id !== providerLookupId) return
     if (caps) {
-      newModelCaps.value = { ...caps }
+      newModelStructuredOutput.value = caps.structuredOutput
       newModelSource.value = "registry"
     }
   })
@@ -37,7 +39,7 @@ function confirmAddModel() {
   if (!newModelName.value) return
   models.value.push({
     name: newModelName.value,
-    capabilities: { ...newModelCaps.value }
+    capabilities: { structuredOutput: newModelStructuredOutput.value }
   })
   resetNewModel()
 }
@@ -48,7 +50,7 @@ function cancelAddModel() {
 
 function resetNewModel() {
   newModelName.value = ""
-  newModelCaps.value = { vision: false, structuredOutput: false }
+  newModelStructuredOutput.value = false
   newModelSource.value = "manual"
   addingModel.value = false
 }
@@ -93,21 +95,7 @@ function removeModel(index: number) {
           class="flex items-center gap-2 px-3 py-2 rounded border border-border bg-card"
         >
           <code class="text-sm font-mono flex-1">{{ m.name }}</code>
-          <span
-            class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
-            :class="m.capabilities.structuredOutput ? 'bg-green-500/10 text-green-600' : 'bg-yellow-500/10 text-yellow-600'"
-          >
-            <i :class="m.capabilities.structuredOutput ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'" class="text-[10px]" />
-            {{ m.capabilities.structuredOutput ? $t('app.structuredOutput') : $t('app.textOnlyOutput') }}
-          </span>
-          <span
-            class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
-            :class="m.capabilities.vision ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'"
-          >
-            <i :class="m.capabilities.vision ? 'pi pi-check-circle' : 'pi pi-times-circle'" class="text-[10px]" />
-            {{ m.capabilities.vision ? $t('app.visionSupported') : $t('app.visionUnsupported') }}
-          </span>
-
+          <span v-if="m.capabilities.structuredOutput" class="text-xs text-green-600 font-medium">SO</span>
           <Button icon="pi pi-times" severity="danger" text size="small" @click="removeModel(i)" />
         </div>
 
@@ -128,25 +116,14 @@ function removeModel(index: number) {
           <div class="flex items-center gap-4 text-xs">
             <label class="flex items-center gap-1.5 cursor-pointer">
               <Checkbox
-                v-model="newModelCaps.structuredOutput"
+                v-model="newModelStructuredOutput"
                 :binary="true"
                 input-id="add-so"
               />
-              <span :class="newModelCaps.structuredOutput ? 'text-green-600' : 'text-muted-foreground'">
-                {{ $t("app.structuredOutput") }}
+              <span :class="newModelStructuredOutput ? 'text-green-600' : 'text-muted-foreground'">
+                Structured Output
               </span>
             </label>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <Checkbox
-                v-model="newModelCaps.vision"
-                :binary="true"
-                input-id="add-vision"
-              />
-              <span :class="newModelCaps.vision ? 'text-green-600' : 'text-muted-foreground'">
-                {{ $t("app.visionSupported") }}
-              </span>
-            </label>
-
             <span v-if="newModelSource === 'registry'" class="text-muted-foreground ml-auto">
               <i class="pi pi-database mr-0.5" />{{ $t("app.modelCapsRegistry") }}
             </span>

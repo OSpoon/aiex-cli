@@ -195,7 +195,7 @@ describe('data routes', () => {
       provider: {
         baseURL: 'https://example.test/v1',
         apiKey: 'test-key',
-        models: [{ name: 'test-model', capabilities: { vision: false, structuredOutput: true } }],
+        models: [{ name: 'test-model', capabilities: { structuredOutput: true } }],
       },
       prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
       extraction: { outputDir: '.aiex/extracted' },
@@ -250,7 +250,7 @@ describe('data routes', () => {
       provider: {
         baseURL: 'https://example.test/v1',
         apiKey: 'test-key',
-        models: [{ name: 'test-model', capabilities: { vision: false, structuredOutput: true } }],
+        models: [{ name: 'test-model', capabilities: { structuredOutput: true } }],
       },
       prompt: { systemTemplate: '{schema}', userTemplate: '{text}' },
       extraction: { outputDir: '.aiex/extracted' },

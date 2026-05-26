@@ -44,7 +44,7 @@ describe('ai routes', () => {
         provider: {
           baseURL: 'http://localhost:11434/v1',
           apiKey: 'test-key',
-          models: [{ name: 'llama3.2', capabilities: { vision: false, structuredOutput: false } }],
+          models: [{ name: 'llama3.2', capabilities: { structuredOutput: false } }],
         },
         prompt: {
           systemTemplate: 'Schema: {schema}',
@@ -96,7 +96,7 @@ describe('ai routes', () => {
           provider: {
             baseURL: 'http://localhost:11434/v1',
             apiKey: 'new-key',
-            models: [{ name: 'test-model', capabilities: { vision: false, structuredOutput: false } }],
+            models: [{ name: 'test-model', capabilities: { structuredOutput: false } }],
           },
           prompt: {
             systemTemplate: '{schema}',
@@ -121,7 +121,7 @@ describe('ai routes', () => {
           provider: {
             baseURL: 'http://localhost:11434/v1',
             apiKey: 'key',
-            models: [{ name: 'test', capabilities: { vision: false, structuredOutput: false } }],
+            models: [{ name: 'test', capabilities: { structuredOutput: false } }],
           },
           prompt: {
             systemTemplate: 'no placeholder',
@@ -142,7 +142,7 @@ describe('ai routes', () => {
           provider: {
             baseURL: 'http://localhost:11434/v1',
             apiKey: 'key',
-            models: [{ name: 'test', capabilities: { vision: false, structuredOutput: false } }],
+            models: [{ name: 'test', capabilities: { structuredOutput: false } }],
           },
           prompt: {
             systemTemplate: '{schema}',

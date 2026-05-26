@@ -14,8 +14,7 @@ export const PLACEHOLDER_SCHEMA = '{schema}'
 export const PLACEHOLDER_TEXT = '{text}'
 
 export const DEFAULT_MODELS: AIModelConfig[] = [
-  { name: 'qwen-plus', capabilities: { vision: false, structuredOutput: true } },
-  { name: 'qwen-vl-plus', capabilities: { vision: true, structuredOutput: true } },
+  { name: 'qwen-plus', capabilities: { structuredOutput: true } },
 ]
 
 export const DEFAULT_PROVIDER_CONFIG: AIProviderConfig = {
@@ -48,7 +47,7 @@ export const DEFAULT_EXTRACTION_CONFIG: ExtractionConfig = {
 }
 
 export const DEFAULT_IMAGE_OCR_CONFIG: ImageOcrConfig = {
-  ocrFallback: 'auto',
+  imageConversion: 'local',
   ocrLanguages: 'en-US, zh-Hans',
   ocrMinConfidence: 0,
 }
@@ -56,20 +55,6 @@ export const DEFAULT_IMAGE_OCR_CONFIG: ImageOcrConfig = {
 export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
   command: 'mineru',
   args: ['-p', '{input}', '-o', '{outputDir}'],
-  timeout: 600,
-  fallbackToUnpdf: true,
-}
-
-export const DEFAULT_MARKITDOWN_CONFIG: ExternalPdfConverterConfig = {
-  command: 'markitdown',
-  args: ['{input}', '-o', '{outputDir}/{basename}.md'],
-  timeout: 600,
-  fallbackToUnpdf: true,
-}
-
-export const DEFAULT_MARKER_CONFIG: ExternalPdfConverterConfig = {
-  command: 'marker_single',
-  args: ['{input}', '--output_dir', '{outputDir}'],
   timeout: 600,
   fallbackToUnpdf: true,
 }
@@ -87,8 +72,6 @@ export const DEFAULT_PDF_CONFIG: PdfConfig = {
   converter: 'unpdf',
   mineru: DEFAULT_MINERU_CONFIG,
   mineruApi: DEFAULT_MINERU_API_CONFIG,
-  markitdown: DEFAULT_MARKITDOWN_CONFIG,
-  marker: DEFAULT_MARKER_CONFIG,
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {

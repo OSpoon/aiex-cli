@@ -1,4 +1,4 @@
-import type { AIConfig, AIModelConfig, ImageOcrConfig, ImageOcrRuntime, ImageOcrSelfCheckResult, ImageOcrTextResult } from '@/types'
+import type { ImageOcrConfig, ImageOcrRuntime, ImageOcrSelfCheckResult, ImageOcrTextResult } from '@/types'
 import process from 'node:process'
 import { t } from '@/locales'
 
@@ -15,33 +15,7 @@ const defaultRuntime: ImageOcrRuntime = {
   },
 }
 
-function imageOcrMode(config?: ImageOcrConfig): NonNullable<ImageOcrConfig['ocrFallback']> {
-  return config?.ocrFallback ?? 'auto'
-}
-
-function hasVisionModel(aiConfig?: AIConfig, modelOverride?: AIModelConfig): boolean {
-  if (modelOverride)
-    return modelOverride.capabilities.vision
-  return aiConfig?.provider.models.some(model => model.capabilities.vision) ?? true
-}
-
-export function shouldUseImageOcrFallback(
-  aiConfig?: AIConfig,
-  modelOverride?: AIModelConfig,
-  runtime: Pick<ImageOcrRuntime, 'platform'> = defaultRuntime,
-): boolean {
-  if (hasVisionModel(aiConfig, modelOverride))
-    return false
-
-  const mode = imageOcrMode(aiConfig?.image)
-  if (mode === 'off')
-    return false
-  if (mode === 'local')
-    return true
-  return isLocalOcrPlatform(runtime.platform)
-}
-
-function isLocalOcrPlatform(platform: NodeJS.Platform): boolean {
+export function isLocalOcrPlatform(platform: NodeJS.Platform): boolean {
   return platform === 'darwin' || platform === 'win32'
 }
 
@@ -57,14 +31,9 @@ export async function recognizeImageText(
   config?: ImageOcrConfig,
   runtime: ImageOcrRuntime = defaultRuntime,
 ): Promise<ImageOcrTextResult> {
-  const mode = imageOcrMode(config)
   if (!isLocalOcrPlatform(runtime.platform)) {
     throw new Error(t('errors.ocr.platformUnsupported', { platform: runtime.platform }))
   }
-  if (mode === 'off') {
-    throw new Error(t('errors.ocr.disabled'))
-  }
-
   let localOcr: LocalOcr
   try {
     localOcr = await runtime.loadLocalOcr()
