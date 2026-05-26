@@ -1,4 +1,4 @@
-import type { MigrationConfig } from './types'
+import type { MigrationConfig } from '@/types'
 
 export function createMigrationConfig(cwd: string): MigrationConfig {
   return {

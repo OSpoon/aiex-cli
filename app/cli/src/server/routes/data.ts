@@ -1,4 +1,4 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { MigrationConfig } from '@/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { zValidator } from '@hono/zod-validator'

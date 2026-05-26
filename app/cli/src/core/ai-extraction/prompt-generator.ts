@@ -1,5 +1,4 @@
-import type { PromptConfig } from './types'
-import type { JsonSchemaDefinition, JsonSchemaProperty } from '@/core/schema-sqlite/schemas'
+import type { JsonSchemaDefinition, JsonSchemaProperty, PromptConfig } from '@/types'
 import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_SCHEMA, PLACEHOLDER_TEXT } from './types'
 
 function propertyToDescription(name: string, prop: JsonSchemaProperty, indent: string = ''): string {

@@ -1,4 +1,4 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
+import type { AIConfig, AIModelConfig } from '@/types'
 import path from 'node:path'
 import process from 'node:process'
 import { confirm, intro, isCancel, outro, select, text } from '@clack/prompts'

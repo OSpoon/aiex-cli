@@ -1,15 +1,9 @@
-import type { PromptConfig } from './types'
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { JsonSchemaDefinition, PromptConfig, PromptSnapshot } from '@/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { readAIConfig } from './config'
 import { generatePromptSnapshot } from './prompt-generator'
 import { DEFAULT_PROMPT_CONFIG } from './types'
-
-export interface PromptSnapshot {
-  system: string
-  user: string
-}
 
 const SYSTEM_PROMPT_REGEX = /## System Prompt\n([\s\S]*?)(?=## User Prompt|$)/
 const USER_PROMPT_REGEX = /## User Prompt Template\n([\s\S]*)$/

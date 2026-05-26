@@ -1,24 +1,5 @@
-import type { WebhookConfig } from '@/core/ai-extraction'
+import type { WebhookConfig, WebhookPayload } from '@/types'
 import crypto from 'node:crypto'
-
-export interface WebhookPayload {
-  event: 'extraction.success' | 'extraction.failed'
-  schemaName: string
-  auditId: string
-  timestamp: string
-  source: {
-    type: 'file' | 'text'
-    fileName?: string
-    filePath?: string
-  }
-  data?: unknown
-  error?: string
-  tokensUsed?: {
-    prompt: number
-    completion: number
-    total: number
-  }
-}
 
 export async function sendWebhook(
   config: WebhookConfig | undefined,

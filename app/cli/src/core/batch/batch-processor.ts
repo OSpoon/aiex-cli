@@ -1,5 +1,5 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
 import type { createMigrationConfig } from '@/core/schema-sqlite'
+import type { AIConfig, AIModelConfig, BatchExtractionResult } from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import { consola } from 'consola'
@@ -23,13 +23,6 @@ export const SUPPORTED_EXTENSIONS = new Set([
 ])
 
 export const SUPPORTED_FILE_PATTERN = `*.{${[...SUPPORTED_EXTENSIONS].join(',')}}`
-
-export interface BatchExtractionResult {
-  ok: boolean
-  successCount: number
-  failCount: number
-  error?: string
-}
 
 export function listSupportedFiles(dir: string, pattern?: string): string[] {
   if (!fs.statSync(dir).isDirectory())

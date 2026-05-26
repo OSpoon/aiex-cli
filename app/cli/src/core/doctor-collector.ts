@@ -1,4 +1,4 @@
-import type { DoctorDiagnostics } from '@/core/doctor'
+import type { DoctorDiagnostics } from '@/types'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'

@@ -1,4 +1,4 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { ExtractionRecord, MigrationConfig, RowExtractionAction, SqliteTableInfoRow, TableColumn, TableDataResult } from '@/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import Database from 'better-sqlite3'
@@ -18,38 +18,6 @@ const EXTRACTION_TIMESTAMP_RE = /-\d{4}-\d{2}-\d{2}T/
 const INTERNAL_ROWID_COLUMN = '__aiex_rowid'
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
 const TIMESTAMP_TZ = /(\d{3})Z/
-
-export interface ExtractionRecord {
-  name: string
-  schemaName: string
-  timestamp: string
-  fileSize: number
-  modifiedAt: string
-  notionStatus: 'synced' | 'failed' | 'not_synced'
-  notionPages?: Array<{ databaseId: string, pageId: string }>
-  notionError?: string
-}
-
-export interface RowExtractionAction {
-  extractionName: string
-  notionStatus: 'synced' | 'failed' | 'not_synced'
-  notionPages?: Array<{ databaseId: string, pageId: string }>
-  notionError?: string
-}
-
-export interface SqliteTableInfoRow {
-  name: string
-  type: string
-  notnull: number
-  pk: number
-}
-
-export interface TableColumn {
-  name: string
-  type: string
-  notNull: boolean
-  pk: boolean
-}
 
 type DynamicDatabase = Record<string, Record<string, unknown>>
 
@@ -207,17 +175,6 @@ export async function listTables(config: MigrationConfig): Promise<Array<{ name:
   }
 
   return tables
-}
-
-export interface TableDataResult {
-  columns: TableColumn[]
-  rows: any[]
-  rowActions: Record<string, RowExtractionAction>
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-  schema: any
 }
 
 export async function getTableData(

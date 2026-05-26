@@ -1,5 +1,4 @@
-import type { PdfConversionResult, PdfConverter } from './types'
-import type { PdfConfig } from '@/core/ai-extraction/types'
+import type { PdfConfig, PdfConversionResult, PdfConverter } from '@/types'
 import { consola } from 'consola'
 import { DEFAULT_MARKER_CONFIG, DEFAULT_MARKITDOWN_CONFIG, DEFAULT_MINERU_API_CONFIG, DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
 import { t } from '@/locales'

@@ -1,18 +1,5 @@
-import type { AIModelConfig } from './types'
+import type { AIModelConfig, SelectedModel, SelectModelInput } from '@/types'
 import { t } from '@/locales'
-
-export interface SelectModelInput {
-  models: AIModelConfig[]
-  isImage: boolean
-  fileName?: string
-  inputTokens?: number
-  outputTokens?: number
-}
-
-export interface SelectedModel {
-  name: string
-  capabilities: AIModelConfig['capabilities']
-}
 
 function filterCompatible(models: AIModelConfig[], inputTokens?: number, outputTokens?: number): AIModelConfig[] {
   return models.filter((m) => {

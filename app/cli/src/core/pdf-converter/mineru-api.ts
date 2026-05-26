@@ -1,5 +1,4 @@
-import type { PdfConversionResult, PdfConverter } from './types'
-import type { MineruApiPdfConverterConfig } from '@/core/ai-extraction/types'
+import type { MineruApiPdfConverterConfig, PdfConversionResult, PdfConverter } from '@/types'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import process from 'node:process'

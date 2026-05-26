@@ -1,4 +1,4 @@
-import type { AIConfig } from '@/core/ai-extraction/types'
+import type { AIConfig } from '@/types'
 import path from 'node:path'
 import { consola } from 'consola'
 import { writeNotionPage } from '@/core/notion-sink'

@@ -1,31 +1,6 @@
-import type { NotionConfig } from '@/core/ai-extraction'
+import type { NotionConfig, NotionDatabaseInfo, NotionSchemaField, NotionWriteResult } from '@/types'
 import { Client, extractNotionId } from '@notionhq/client'
 import { t } from '@/locales'
-
-export interface NotionWriteResult {
-  pageId: string
-  databaseId: string
-  dataSourceId?: string
-}
-
-export interface NotionSchemaField {
-  name: string
-  title?: string
-  description?: string
-}
-
-export interface NotionDatabaseProperty {
-  name: string
-  type: string
-}
-
-export interface NotionDatabaseInfo {
-  databaseId: string
-  dataSourceId?: string
-  titleProperty?: string
-  properties: NotionDatabaseProperty[]
-  suggestedFieldMap: Record<string, string>
-}
 
 interface NotionPropertyObject {
   type: string

@@ -1,4 +1,4 @@
-import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from './types'
+import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from '@/types'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'

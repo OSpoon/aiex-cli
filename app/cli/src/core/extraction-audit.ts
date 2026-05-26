@@ -1,3 +1,4 @@
+import type { CreateExtractionAuditInput, ExtractionAuditRecord } from '@/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
@@ -13,42 +14,6 @@ interface CacheEntry {
 }
 
 const recordCache = new Map<string, CacheEntry>()
-
-export type ExtractionAuditStatus = 'running' | 'succeeded' | 'failed' | 'stale'
-
-export interface ExtractionAuditRecord {
-  id: string
-  status: ExtractionAuditStatus
-  schemaName: string
-  modelName?: string
-  source: {
-    type: 'text' | 'file'
-    text?: string
-    filePath?: string
-    fileName?: string
-    fileHash?: string
-  }
-  retryOf?: string
-  outputName?: string
-  outputPath?: string
-  tablesInserted?: Array<{ table: string, rowId: number }>
-  notionPages?: Array<{ databaseId: string, pageId: string }>
-  tokensUsed?: {
-    prompt: number
-    completion: number
-    total: number
-  }
-  error?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CreateExtractionAuditInput {
-  schemaName: string
-  modelName?: string
-  source: ExtractionAuditRecord['source']
-  retryOf?: string
-}
 
 function auditDir(aiexDir: string): string {
   return path.join(aiexDir, 'extracted', '_audit')

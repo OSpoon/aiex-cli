@@ -1,4 +1,4 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { MigrationConfig } from '@/types'
 import path from 'node:path'
 import { Hono } from 'hono'
 import { readFile as readJsonFile } from 'jsonfile'

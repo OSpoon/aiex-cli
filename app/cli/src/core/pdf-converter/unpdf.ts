@@ -1,4 +1,4 @@
-import type { PdfConversionResult, PdfConverter } from './types'
+import type { PdfConversionResult, PdfConverter } from '@/types'
 import { Buffer } from 'node:buffer'
 import { extractText, getMeta } from 'unpdf'
 

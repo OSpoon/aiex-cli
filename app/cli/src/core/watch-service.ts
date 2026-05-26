@@ -1,6 +1,5 @@
 import type { FSWatcher } from 'chokidar'
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { createMigrationConfig } from '@/core/schema-sqlite'
+import type { AIConfig, AIModelConfig, MigrationConfig } from '@/types'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -138,7 +137,7 @@ async function notifyFailure(fileName: string, errorMessage: string): Promise<vo
 
 export interface WatchOptions {
   aiexDir: string
-  config: ReturnType<typeof createMigrationConfig>
+  config: MigrationConfig
   aiConfig: AIConfig
   schemaName: string
   watchDir: string

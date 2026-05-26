@@ -1,5 +1,4 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { createMigrationConfig } from '@/core/schema-sqlite'
+import type { AIConfig, AIModelConfig, ExtractResult, MigrationConfig, RunAuditedExtractionOptions, RunAuditedExtractionResult } from '@/types'
 import type { RetryInfo } from '@/utils/retry'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -30,32 +29,6 @@ export { shouldSyncNotion, syncResultToNotion, triggerWebhook } from './integrat
 export { isImageFile, readExtractFileInput } from './pdf-converter/orchestrator'
 
 const JSON_EXT_RE = /\.json$/
-
-export interface ExtractFileInput {
-  text: string
-  filePath?: string
-}
-
-export interface ExtractResult {
-  success: boolean
-  error?: string
-  outputPath?: string
-  data?: unknown
-  tablesInserted?: Array<{ table: string, rowId: number }>
-  notionPages?: Array<{ databaseId: string, pageId: string }>
-  tokensUsed?: {
-    prompt: number
-    completion: number
-    total: number
-  }
-}
-
-export interface BatchExtractionResult {
-  ok: boolean
-  successCount: number
-  failCount: number
-  error?: string
-}
 
 async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
   try {
@@ -89,7 +62,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
   return null
 }
 
-export async function loadSchema(config: ReturnType<typeof createMigrationConfig>, schemaName: string): Promise<{ schema: any, error?: string }> {
+export async function loadSchema(config: MigrationConfig, schemaName: string): Promise<{ schema: any, error?: string }> {
   const schemaPath = path.join(config.schemaPath, `${schemaName}.json`)
   try {
     const parsed = await readJsonFile(schemaPath)
@@ -127,7 +100,7 @@ export async function listSchemas(aiexDir: string): Promise<string[]> {
 
 export async function extractSingle(
   aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
+  config: MigrationConfig,
   aiConfig: AIConfig,
   schemaName: string,
   text: string | undefined,
@@ -392,39 +365,6 @@ export async function extractSingle(
     data: result.data,
     tokensUsed: result.tokensUsed,
   }
-}
-
-export interface RunAuditedExtractionOptions {
-  aiexDir: string
-  config: ReturnType<typeof createMigrationConfig>
-  aiConfig: AIConfig
-  schemaName: string
-  source:
-    | { type: 'file', filePath: string }
-    | { type: 'text', text: string }
-  modelOverride?: AIModelConfig
-  retryOf?: string
-  insert?: boolean
-  force?: boolean
-  quiet?: boolean
-  agent?: boolean
-}
-
-export interface RunAuditedExtractionResult {
-  success: boolean
-  skipped?: boolean
-  error?: string
-  outputPath?: string
-  outputName?: string
-  tablesInserted?: Array<{ table: string, rowId: number }>
-  notionPages?: Array<{ databaseId: string, pageId: string }>
-  tokensUsed?: {
-    prompt: number
-    completion: number
-    total: number
-  }
-  auditId?: string
-  fileHash?: string
 }
 
 export async function runAuditedExtraction(

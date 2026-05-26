@@ -1,6 +1,4 @@
-import type { SelectedModel } from './model-selector'
-import type { AIConfig, AIModelConfig, ExtractionResult } from './types'
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { AIConfig, AIModelConfig, ExtractionResult, JsonSchemaDefinition, SelectedModel } from '@/types'
 import type { RetryInfo } from '@/utils/retry'
 import fs from 'node:fs/promises'
 import path from 'node:path'

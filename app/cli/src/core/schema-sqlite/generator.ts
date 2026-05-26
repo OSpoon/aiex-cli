@@ -1,4 +1,4 @@
-import type { ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from './types'
+import type { ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from '@/types'
 
 function generateColumnDefinition(column: ParsedColumn): string {
   if (column.isPrimary && column.isAutoIncrement) {

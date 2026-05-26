@@ -1,28 +1,8 @@
-import type { AIConfig, AIModelConfig, ImageOcrConfig } from '@/core/ai-extraction/types'
+import type { AIConfig, AIModelConfig, ImageOcrConfig, ImageOcrRuntime, ImageOcrSelfCheckResult, ImageOcrTextResult } from '@/types'
 import process from 'node:process'
 import { t } from '@/locales'
 
 type LocalOcr = typeof import('@napi-rs/system-ocr')
-
-export interface ImageOcrRuntime {
-  platform: NodeJS.Platform
-  loadLocalOcr: () => Promise<LocalOcr>
-}
-
-export interface ImageOcrTextResult {
-  text: string
-  confidence: number
-}
-
-export interface ImageOcrSelfCheckResult {
-  platformSupported: boolean
-  dependencyLoaded: boolean
-  ocrOk: boolean | null
-  imagePath?: string
-  recognizedText?: string
-  confidence?: number
-  error?: string
-}
 
 const DEFAULT_OCR_LANGUAGES = 'en-US, zh-Hans'
 const SELF_CHECK_EXPECTED_TEXT = 'AIEX'

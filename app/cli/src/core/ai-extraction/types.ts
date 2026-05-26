@@ -1,115 +1,17 @@
-export interface AIModelConfig {
-  name: string
-  capabilities: {
-    vision: boolean
-    structuredOutput: boolean
-    maxTokens?: number
-    maxOutputTokens?: number
-  }
-}
-
-export interface AIProviderConfig {
-  baseURL: string
-  apiKey: string
-  models: AIModelConfig[]
-  timeout?: number
-}
-
-export interface PromptConfig {
-  systemTemplate: string
-  userTemplate: string
-}
-
-export interface ExtractionConfig {
-  outputDir: string
-  mode?: 'pipeline' | 'react'
-}
-
-export type ImageOcrFallbackMode = 'auto' | 'off' | 'local'
-
-export interface ImageOcrConfig {
-  ocrFallback?: ImageOcrFallbackMode
-  ocrLanguages?: string
-  ocrMinConfidence?: number
-}
-
-export type PdfConverterKind = 'unpdf' | 'mineru' | 'mineru_api' | 'markitdown' | 'marker' | 'external'
-
-export interface MineruApiPdfConverterConfig {
-  token: string
-  baseURL?: string
-  modelVersion?: string
-  isOcr?: boolean
-  enableFormula?: boolean
-  enableTable?: boolean
-}
-
-export interface ExternalPdfConverterConfig {
-  command: string
-  args: string[]
-  outputFile?: string
-  timeout?: number
-  fallbackToUnpdf?: boolean
-}
-
-export interface PdfConfig {
-  converter: PdfConverterKind
-  mineru?: ExternalPdfConverterConfig
-  mineruApi?: MineruApiPdfConverterConfig
-  markitdown?: ExternalPdfConverterConfig
-  marker?: ExternalPdfConverterConfig
-  external?: ExternalPdfConverterConfig
-}
-
-export interface LangfuseConfig {
-  publicKey: string
-  secretKey: string
-  host?: string
-}
-
-export interface NotionSchemaConfig {
-  databaseId: string
-  titleProperty?: string
-  fieldMap?: Record<string, string>
-}
-
-export interface NotionConfig {
-  enabled: boolean
-  token: string
-  schemas: Record<string, NotionSchemaConfig>
-}
-
-export interface WebhookConfig {
-  enabled: boolean
-  url: string
-  secret?: string
-}
-
-export interface AIConfig {
-  provider: AIProviderConfig
-  prompt: PromptConfig
-  extraction: ExtractionConfig
-  image?: ImageOcrConfig
-  pdf?: PdfConfig
-  langfuse?: LangfuseConfig
-  notion?: NotionConfig
-  webhook?: WebhookConfig
-}
+import type {
+  AIConfig,
+  AIModelConfig,
+  AIProviderConfig,
+  ExternalPdfConverterConfig,
+  ExtractionConfig,
+  ImageOcrConfig,
+  MineruApiPdfConverterConfig,
+  PdfConfig,
+  PromptConfig,
+} from '@/types'
 
 export const PLACEHOLDER_SCHEMA = '{schema}'
 export const PLACEHOLDER_TEXT = '{text}'
-
-export interface ExtractionResult {
-  success: boolean
-  outputPath?: string
-  data?: unknown
-  error?: string
-  tokensUsed?: {
-    prompt: number
-    completion: number
-    total: number
-  }
-}
 
 export const DEFAULT_MODELS: AIModelConfig[] = [
   { name: 'qwen-plus', capabilities: { vision: false, structuredOutput: true } },

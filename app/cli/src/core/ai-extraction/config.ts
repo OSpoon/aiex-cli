@@ -1,4 +1,4 @@
-import type { AIConfig } from './types'
+import type { AIConfig } from '@/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'

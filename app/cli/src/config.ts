@@ -1,11 +1,7 @@
+import type { AppConfig } from '@/types'
 import process from 'node:process'
 import Conf from 'conf'
 import pkg from '~/package.json'
-
-export interface AppConfig {
-  name?: string
-  version?: string
-}
 
 export function createConfig(): Conf<AppConfig> {
   return new Conf<AppConfig>({

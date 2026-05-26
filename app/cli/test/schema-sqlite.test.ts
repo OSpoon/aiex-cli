@@ -1,4 +1,4 @@
-import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from '@/core/schema-sqlite/types'
+import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from '@/types'
 import { describe, expect, it } from 'vitest'
 import {
   createMigrationConfig,

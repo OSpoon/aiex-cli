@@ -1,6 +1,5 @@
 export {
   buildDoctorDiagnostics,
-  type DoctorDiagnostics,
   doctorDiagnosticsTableRows,
   formatDoctorDiagnosticsJson,
 } from '@/core/doctor'
@@ -19,3 +18,4 @@ export {
   parseJsonSchema,
   type ParseResult,
 } from '@/core/schema-sqlite'
+export type { DoctorDiagnostics } from '@/types'

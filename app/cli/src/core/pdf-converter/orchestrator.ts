@@ -1,4 +1,4 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
+import type { AIConfig, AIModelConfig, ExtractFileInput } from '@/types'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
@@ -24,11 +24,6 @@ export const FILE_PART_EXTENSIONS = new Set([
 ])
 
 const PDF_EXT_RE = /\.pdf$/i
-
-export interface ExtractFileInput {
-  text: string
-  filePath?: string
-}
 
 export function isImageFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase().replace('.', '')

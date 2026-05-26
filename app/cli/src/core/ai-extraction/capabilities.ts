@@ -1,11 +1,5 @@
+import type { ModelCapabilities } from '@/types'
 import { lookupModel } from './model-registry'
-
-export interface ModelCapabilities {
-  structuredOutput: boolean
-  vision: boolean
-  maxTokens?: number
-  maxOutputTokens?: number
-}
 
 export function lookupModelCapabilities(modelName: string): ModelCapabilities | null {
   const entry = lookupModel(modelName)

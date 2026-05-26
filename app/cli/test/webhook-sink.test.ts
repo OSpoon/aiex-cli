@@ -1,4 +1,4 @@
-import type { WebhookPayload } from '@/core/webhook-sink'
+import type { WebhookPayload } from '@/types'
 import crypto from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { sendWebhook } from '@/core/webhook-sink'

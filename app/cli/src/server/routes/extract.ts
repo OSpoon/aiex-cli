@@ -1,4 +1,4 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { MigrationConfig } from '@/types'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import path from 'node:path'

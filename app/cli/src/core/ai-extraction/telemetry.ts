@@ -1,4 +1,4 @@
-import type { AIConfig } from './types'
+import type { AIConfig } from '@/types'
 import { LangfuseSpanProcessor } from '@langfuse/otel'
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 

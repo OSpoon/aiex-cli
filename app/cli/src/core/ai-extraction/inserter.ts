@@ -1,15 +1,8 @@
 import type Database from 'better-sqlite3'
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
-import type { ParsedColumn, ParsedTable, ParseResult } from '@/core/schema-sqlite/types'
+import type { InsertResult, JsonSchemaDefinition, ParsedColumn, ParsedTable, ParseResult } from '@/types'
 import { parseJsonSchema, toSnakeCase } from '@/core/schema-sqlite'
 
 const DRIZZLE_MODE_RE = /mode:\s*'(\w+)'/
-
-export interface InsertResult {
-  success: boolean
-  tablesInserted: Array<{ table: string, rowId: number }>
-  error?: string
-}
 
 function extractDrizzleMode(column: ParsedColumn): string | undefined {
   return column.drizzleType.match(DRIZZLE_MODE_RE)?.[1]

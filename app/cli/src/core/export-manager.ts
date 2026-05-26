@@ -1,10 +1,6 @@
+import type { ExportColumnInfo } from '@/types'
 import { Buffer } from 'node:buffer'
 import * as XLSX from 'xlsx'
-
-export interface ExportColumnInfo {
-  name: string
-  type?: string
-}
 
 export function formatRowsConformingToSchema(
   rows: any[],

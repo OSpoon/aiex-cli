@@ -1,4 +1,4 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { GenerateSchemaResult, MigrationConfig, MigrationResult, SchemaSyncResult } from '@/types'
 import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -12,32 +12,6 @@ import {
 import { t } from '@/locales'
 
 const execFileAsync = promisify(execFile)
-
-export interface GenerateSchemaResult {
-  success: boolean
-  error?: string
-  warnings: string[]
-  schemaCount: number
-  tables: number
-  relations: number
-}
-
-export interface MigrationResult {
-  success: boolean
-  changes?: number
-  tag?: string
-  error?: string
-}
-
-export interface SchemaSyncResult {
-  success: boolean
-  error?: string
-  warnings: string[]
-  schemaCount: number
-  tables: number
-  relations: number
-  migration?: MigrationResult
-}
 
 export async function listSchemaFiles(schemaDir: string): Promise<string[]> {
   try {

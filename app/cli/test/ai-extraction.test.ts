@@ -1,4 +1,4 @@
-import type { AIModelConfig } from '@/core/ai-extraction/types'
+import type { AIModelConfig } from '@/types'
 import { describe, expect, it } from 'vitest'
 import { lookupModelCapabilities } from '@/core/ai-extraction/capabilities'
 import { schemaToExtractionOutputSchema, validateExtractedData } from '@/core/ai-extraction/extractor'

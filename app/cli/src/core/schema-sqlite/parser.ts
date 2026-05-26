@@ -1,5 +1,4 @@
-import type { JsonSchemaDefinition, JsonSchemaProperty } from './schemas'
-import type { ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from './types'
+import type { JsonSchemaDefinition, JsonSchemaProperty, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from '@/types'
 
 export function toSnakeCase(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)

@@ -1,6 +1,4 @@
-import type { SelectedModel } from './model-selector'
-import type { AIConfig, AIModelConfig, ExtractionResult } from './types'
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { AIConfig, AIModelConfig, ExtractionResult, JsonSchemaDefinition, SelectedModel } from '@/types'
 import type { RetryInfo } from '@/utils/retry'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -20,8 +18,8 @@ import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_TEXT } from './types'
 import { schemaToExtractionOutputSchema, validateExtractedData } from './validator'
 
 export { selectModel }
-export type { SelectedModel } from './model-selector'
 export { schemaToExtractionOutputSchema, validateExtractedData } from './validator'
+export type { SelectedModel } from '@/types'
 export type { RetryInfo } from '@/utils/retry'
 
 const OPENAI_COMPATIBLE_PROVIDER_NAME = 'openai-compatible'
