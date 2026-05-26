@@ -129,7 +129,9 @@ describe('self-Reflection Loop in extractStructuredData', () => {
     // Inspect reflection prompt
     const secondCallArg = generateTextMock.mock.calls[1][0] as any
     expect(secondCallArg.system).toContain('You are a precise data correction assistant')
+    expect(secondCallArg.system).toContain('If a value cannot be confirmed, set it to null')
     expect(secondCallArg.prompt).toContain('[Validation Error Details]')
+    expect(secondCallArg.prompt).toContain('Do not invent missing facts')
     expect(secondCallArg.prompt).toContain('expected integer or null')
   })
 

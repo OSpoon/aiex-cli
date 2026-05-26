@@ -34,7 +34,10 @@ Extraction requirements:
 1. Extract strictly according to the field names and types defined in the structure
 2. If the text lacks information for a field, set that field to null
 3. Do not add fields that do not exist in the structure definition
-4. Maintain data accuracy and completeness`,
+4. Use only facts present in the source text; do not infer, guess, or complete missing values from outside knowledge
+5. Normalize values to the target type: numbers as JSON numbers, booleans as true/false, dates and formatted strings exactly as requested by the field format
+6. For repeated or conflicting mentions, prefer the most specific final value in the source text and ignore placeholder values such as N/A, unknown, TBD, or empty strings
+7. Maintain data accuracy and completeness`,
   userTemplate: `Please extract data from the following text:
 {text}`,
 }

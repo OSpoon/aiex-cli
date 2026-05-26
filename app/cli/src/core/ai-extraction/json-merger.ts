@@ -4,6 +4,51 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function stableKey(value: unknown): string {
+  if (!isRecord(value)) {
+    return JSON.stringify(value)
+  }
+
+  return JSON.stringify(Object.keys(value).sort().reduce<Record<string, unknown>>((acc, key) => {
+    acc[key] = value[key]
+    return acc
+  }, {}))
+}
+
+function isBlankString(value: unknown): boolean {
+  return typeof value === 'string' && value.trim() === ''
+}
+
+function isPlaceholderString(value: unknown): boolean {
+  if (typeof value !== 'string')
+    return false
+
+  const normalized = value.trim().toLowerCase()
+  return normalized === ''
+    || normalized === 'n/a'
+    || normalized === 'na'
+    || normalized === 'none'
+    || normalized === 'null'
+    || normalized === 'unknown'
+    || normalized === 'tbd'
+    || normalized === '-'
+    || normalized === '--'
+}
+
+function pickPrimitiveValue(values: unknown[]): unknown {
+  const meaningful = values.filter(v => !isBlankString(v) && !isPlaceholderString(v))
+  if (meaningful.length === 0)
+    return null
+
+  if (typeof meaningful[0] === 'boolean') {
+    const trueCount = meaningful.filter(Boolean).length
+    const falseCount = meaningful.length - trueCount
+    return trueCount >= falseCount
+  }
+
+  return meaningful[0]
+}
+
 function mergePropertyValue(
   property: JsonSchemaProperty,
   values: any[],
@@ -15,11 +60,18 @@ function mergePropertyValue(
   }
 
   if (property.type === 'array') {
-    // Concatenate all elements of the arrays
+    // Concatenate and deduplicate all elements of the arrays.
     const concatenated: any[] = []
+    const seen = new Set<string>()
     for (const val of nonNullValues) {
       if (Array.isArray(val)) {
-        concatenated.push(...val)
+        for (const item of val) {
+          const key = stableKey(item)
+          if (!seen.has(key)) {
+            seen.add(key)
+            concatenated.push(item)
+          }
+        }
       }
     }
     return concatenated
@@ -48,15 +100,7 @@ function mergePropertyValue(
   }
 
   // Primitive values (string, integer, number, boolean)
-  // We prefer the first non-empty, non-null value.
-  const bestValue = nonNullValues.find((v) => {
-    if (typeof v === 'string') {
-      return v.trim() !== ''
-    }
-    return true
-  })
-
-  return bestValue !== undefined ? bestValue : null
+  return pickPrimitiveValue(nonNullValues)
 }
 
 /**

@@ -214,7 +214,10 @@ export async function extractStructuredData(input: {
 CRITICAL RULES:
 1. Only correct the fields that failed validation.
 2. Preserve all other correctly extracted fields and their values exactly.
-3. Return ONLY the corrected JSON object. No explanations, no markdown blocks other than JSON.`
+3. Use only values supported by the original text. If a value cannot be confirmed, set it to null.
+4. Remove any fields not defined by the JSON Schema.
+5. Normalize values to the expected JSON type without changing the intended meaning.
+6. Return ONLY the corrected JSON object. No explanations, no markdown blocks other than JSON.`
 
         userPrompt = `The JSON data you generated previously failed validation. Please correct it.
 
@@ -229,6 +232,11 @@ ${invalidJson}
 
 [Validation Error Details]
 ${errorMsg}
+
+Correction checklist:
+- Fix each field path mentioned in the validation error.
+- Keep schema-valid fields unchanged.
+- Do not invent missing facts; use null when the original text does not support a value.
 
 Please output the corrected JSON object now:`
       }

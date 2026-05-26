@@ -98,4 +98,42 @@ describe('mergeExtractionResults', () => {
       },
     })
   })
+
+  it('ignores placeholder primitive values when merging chunk results', () => {
+    const results = [
+      { name: 'N/A', age: null },
+      { name: 'Alice', age: 30 },
+      { name: 'Bob', age: 31 },
+    ]
+
+    const merged = mergeExtractionResults(flatSchema, results)
+
+    expect(merged).toEqual({
+      name: 'Alice',
+      age: 30,
+    })
+  })
+
+  it('deduplicates arrays while preserving first-seen order', () => {
+    const results = [
+      {
+        email: 'alice@example.com',
+        bio: null,
+        score: null,
+        tags: ['tech', 'finance'],
+        metadata: null,
+      },
+      {
+        email: null,
+        bio: null,
+        score: null,
+        tags: ['finance', 'news'],
+        metadata: null,
+      },
+    ]
+
+    const merged = mergeExtractionResults(annotatedSchema, results)
+
+    expect(merged.tags).toEqual(['tech', 'finance', 'news'])
+  })
 })

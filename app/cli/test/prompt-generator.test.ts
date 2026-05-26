@@ -28,7 +28,31 @@ describe('prompt-generator', () => {
       expect(desc).toContain('format: email')
       expect(desc).toContain('unique: true')
       expect(desc).toContain('length: 10 - 1000')
+      expect(desc).toContain('range: 0 - 100')
       expect(desc).toContain('default: 0')
+    })
+
+    it('includes descriptions, required markers, and search terms', () => {
+      const schema = {
+        title: 'Contract',
+        type: 'object' as const,
+        properties: {
+          effectiveDate: {
+            type: 'string' as const,
+            format: 'date',
+            description: 'The date when the agreement becomes active.',
+          },
+          vendor_name: { type: 'string' as const },
+        },
+        required: ['effectiveDate'],
+        table: { name: 'contract' },
+      } satisfies JsonSchemaDefinition
+
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('- effectiveDate: string (required)')
+      expect(desc).toContain('search terms: effective, date')
+      expect(desc).toContain('description: The date when the agreement becomes active.')
+      expect(desc).toContain('search terms: vendor, name')
     })
 
     it('describes nested relations', () => {

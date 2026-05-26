@@ -1,17 +1,41 @@
 import type { JsonSchemaDefinition, JsonSchemaProperty, PromptConfig } from '@/types'
 import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_SCHEMA, PLACEHOLDER_TEXT } from './types'
 
-function propertyToDescription(name: string, prop: JsonSchemaProperty, indent: string = ''): string {
+const CAMEL_CASE_BOUNDARY_RE = /([a-z0-9])([A-Z])/g
+const IDENTIFIER_SEPARATOR_RE = /[\s_-]+/
+
+function splitIdentifier(name: string): string[] {
+  return name
+    .replace(CAMEL_CASE_BOUNDARY_RE, '$1 $2')
+    .split(IDENTIFIER_SEPARATOR_RE)
+    .map(part => part.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+function propertyToDescription(name: string, prop: JsonSchemaProperty, indent: string = '', required = false): string {
   const lines: string[] = []
 
   let typeStr: string = prop.type
   if (prop.type === 'array' && prop.items) {
     typeStr = `array of ${prop.items.type}`
   }
-  lines.push(`${indent}- ${name}: ${typeStr}`)
+  lines.push(`${indent}- ${name}: ${typeStr}${required ? ' (required)' : ''}`)
+
+  const terms = splitIdentifier(name)
+  if (terms.length > 1) {
+    lines.push(`${indent}  search terms: ${terms.join(', ')}`)
+  }
+
+  if (prop.description) {
+    lines.push(`${indent}  description: ${prop.description}`)
+  }
 
   if (prop.minLength !== undefined || prop.maxLength !== undefined) {
     lines.push(`${indent}  length: ${prop.minLength ?? 0} - ${prop.maxLength ?? 'unlimited'}`)
+  }
+
+  if (prop.minimum !== undefined || prop.maximum !== undefined) {
+    lines.push(`${indent}  range: ${prop.minimum ?? '-∞'} - ${prop.maximum ?? '+∞'}`)
   }
 
   if (prop.format) {
@@ -29,16 +53,17 @@ function propertyToDescription(name: string, prop: JsonSchemaProperty, indent: s
   return lines.join('\n')
 }
 
-function nestedPropertyToDescription(name: string, prop: JsonSchemaProperty, indent: string = ''): string {
+function nestedPropertyToDescription(name: string, prop: JsonSchemaProperty, indent: string = '', requiredFields: string[] = []): string {
   const lines: string[] = []
+  const isRequired = requiredFields.includes(name)
 
   // Handle nested object (e.g., address with nested.enabled)
   if (prop.nested?.enabled && prop.type === 'object') {
     const relation = prop.nested.relation || 'has-one'
-    lines.push(`${indent}- ${name}: object (related table, ${relation})`)
+    lines.push(`${indent}- ${name}: object (related table, ${relation})${isRequired ? ' (required)' : ''}`)
     if (prop.properties) {
       for (const [childName, childProp] of Object.entries(prop.properties)) {
-        lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}  `))
+        lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}  `, prop.required ?? []))
       }
     }
     return lines.join('\n')
@@ -47,22 +72,22 @@ function nestedPropertyToDescription(name: string, prop: JsonSchemaProperty, ind
   // Handle nested array (e.g., orders with items.nested.enabled)
   if (prop.type === 'array' && prop.items?.nested?.enabled) {
     const relation = prop.items.nested.relation || 'has-many'
-    lines.push(`${indent}- ${name}: array of object (related table, ${relation})`)
+    lines.push(`${indent}- ${name}: array of object (related table, ${relation})${isRequired ? ' (required)' : ''}`)
     if (prop.items.properties) {
       for (const [childName, childProp] of Object.entries(prop.items.properties)) {
-        lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}  `))
+        lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}  `, prop.items.required ?? []))
       }
     }
     return lines.join('\n')
   }
 
   // Non-nested property: basic description
-  lines.push(propertyToDescription(name, prop, indent))
+  lines.push(propertyToDescription(name, prop, indent, isRequired))
 
   // Non-nested object children
   if (prop.type === 'object' && prop.properties) {
     for (const [childName, childProp] of Object.entries(prop.properties)) {
-      lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}  `))
+      lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}  `, prop.required ?? []))
     }
   }
 
@@ -70,7 +95,7 @@ function nestedPropertyToDescription(name: string, prop: JsonSchemaProperty, ind
   if (prop.type === 'array' && prop.items?.properties && !prop.items?.nested?.enabled) {
     lines.push(`${indent}  item fields:`)
     for (const [childName, childProp] of Object.entries(prop.items.properties)) {
-      lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}    `))
+      lines.push(nestedPropertyToDescription(childName, childProp as JsonSchemaProperty, `${indent}    `, prop.items.required ?? []))
     }
   }
 
@@ -91,7 +116,7 @@ export function schemaToDescription(schema: JsonSchemaDefinition): string {
 
   for (const [name, prop] of Object.entries(schema.properties)) {
     const property = prop as JsonSchemaProperty
-    lines.push(nestedPropertyToDescription(name, property))
+    lines.push(nestedPropertyToDescription(name, property, '', schema.required ?? []))
   }
 
   if (schema.examples && schema.examples.length > 0) {
