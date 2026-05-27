@@ -27,7 +27,7 @@ import { readExtractFileInput } from './pdf-converter/orchestrator'
 // Re-exports for backwards compatibility and external usage
 export { listSupportedFiles, processOneFile, runBatchExtraction } from './batch/batch-processor'
 export { shouldSyncNotion, syncResultToNotion, triggerWebhook } from './integration/dispatcher'
-export { isImageFile, readExtractFileInput } from './pdf-converter/orchestrator'
+export { describeExtractFileInput, isImageFile, readExtractFileInput } from './pdf-converter/orchestrator'
 
 const JSON_EXT_RE = /\.json$/
 
@@ -351,6 +351,9 @@ export async function runAuditedExtraction(
       const input = await readExtractFileInput(source.filePath, aiConfig, modelOverride)
       text = input.text
       filePath = input.filePath
+      await updateExtractionAuditRecord(aiexDir, audit.id, {
+        inputProcessing: input.inputProcessing,
+      })
     }
     else {
       text = source.text

@@ -8,12 +8,12 @@ flowchart TD
   B -->|"--dir 批量目录"| D1["listSupportedFiles 扫描支持文件"]
   D1 --> F1
 
-  F1 --> F2{"文件扩展名"}
+  F1 --> F2{"内容检测\nfile-type + UTF-8 文本识别"}
 
-  F2 -->|"txt / md / csv / json / html / xml / yaml / yml"| TX1["fs.readFile UTF-8"]
+  F2 -->|"text/plain 等文本内容"| TX1["fs.readFile UTF-8"]
   TX1 --> T1["文本内容"]
 
-  F2 -->|"pdf"| P1["读取 PDF Buffer"]
+  F2 -->|"application/pdf"| P1["读取 PDF Buffer"]
   P1 --> P2["createPdfConverter(aiConfig.pdf)"]
   P2 --> P3{"PDF converter"}
   P3 -->|"unpdf"| P4["内置 unpdf 提取文本"]
@@ -30,7 +30,7 @@ flowchart TD
   P7 --> P9
   P9 --> T1
 
-  F2 -->|"png / jpg / jpeg / webp"| I0["图片输入"]
+  F2 -->|"image/png / image/jpeg / image/webp"| I0["图片输入"]
   I0 --> I1{"选定模型/配置中是否有 vision model?"}
   I1 -->|"是"| I2["保留 filePath，作为图片附件输入"]
   I1 -->|"否"| IPLAT{"当前平台支持本地 OCR?"}
@@ -41,8 +41,9 @@ flowchart TD
   I4 -->|"是"| T1
   I4 -->|"否"| ERR2["返回 OCR 不可用/识别失败"]
 
-  T1 --> E1["extractSingle / extractStructuredData"]
-  I2 --> E1
+  T1 --> META["记录 inputProcessing\nkind / mime / handler / converter"]
+  I2 --> META
+  META --> E1["extractSingle / extractStructuredData"]
 
   E1 --> M1{"模型选择"}
   M1 -->|"图片附件输入"| M2["selectModel 要求 vision=true"]
@@ -66,7 +67,7 @@ flowchart TD
   DB1 -->|"是"| DB2["ensureDatabaseReady"]
   DB2 --> DB3["insertExtractedData 写入 SQLite"]
   DB3 --> N1{"Notion sync enabled?"}
-  N1 -->|"否"| AUDIT["更新 extraction audit"]
+  N1 -->|"否"| AUDIT["更新 extraction audit\n含输入处理路径"]
   N1 -->|"是"| N2["writeNotionPage 同步 Notion"]
   N2 --> AUDIT
   AUDIT --> DONE

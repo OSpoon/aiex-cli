@@ -24,14 +24,58 @@ export const FILE_PART_EXTENSIONS = new Set([
 
 const PDF_EXT_RE = /\.pdf$/i
 
+export interface InputProcessingInfo {
+  kind: 'pdf' | 'image' | 'text'
+  mime?: string
+  handler: 'text' | 'image_vision' | 'image_local_ocr' | 'pdf_converter'
+  converter?: string
+}
+
 export interface ExtractFileInput {
   text: string
   filePath?: string
+  inputProcessing: InputProcessingInfo
 }
 
 export function isImageFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   return FILE_PART_EXTENSIONS.has(ext)
+}
+
+export async function describeExtractFileInput(
+  filePath: string,
+  aiConfig?: AIConfig,
+  modelOverride?: AIModelConfig,
+): Promise<InputProcessingInfo> {
+  const detected = await detectInputFileKind(filePath)
+
+  if (detected.kind === 'image') {
+    return {
+      kind: 'image',
+      mime: detected.mime,
+      handler: shouldUseImageOcrFallback(aiConfig, modelOverride) ? 'image_local_ocr' : 'image_vision',
+    }
+  }
+
+  if (detected.kind === 'pdf') {
+    const converter = createPdfConverter(aiConfig?.pdf)
+    return {
+      kind: 'pdf',
+      mime: detected.mime,
+      handler: 'pdf_converter',
+      converter: converter.name,
+    }
+  }
+
+  if (detected.kind === 'text') {
+    return {
+      kind: 'text',
+      mime: detected.mime,
+      handler: 'text',
+    }
+  }
+
+  throw new Error(unsupportedFileTypeMessage(detected.mime ?? 'application/octet-stream'))
 }
 
 export async function readExtractFileInput(
@@ -47,16 +91,16 @@ export async function readExtractFileInput(
       file: filePath,
     }))
   }
-  const detected = await detectInputFileKind(filePath)
-  if (detected.kind === 'image') {
-    if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
+  const inputProcessing = await describeExtractFileInput(filePath, aiConfig, modelOverride)
+  if (inputProcessing.kind === 'image') {
+    if (inputProcessing.handler === 'image_local_ocr') {
       const result = await recognizeImageText(filePath)
       consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
-      return { text: result.text }
+      return { text: result.text, inputProcessing }
     }
-    return { text: '', filePath }
+    return { text: '', filePath, inputProcessing }
   }
-  if (detected.kind === 'pdf') {
+  if (inputProcessing.kind === 'pdf') {
     const buffer = await fsp.readFile(filePath)
     const converter = createPdfConverter(aiConfig?.pdf)
     const result = await converter.convert(buffer, filePath)
@@ -78,10 +122,10 @@ export async function readExtractFileInput(
       await fsp.writeFile(fallbackMd, result.text)
       consola.info(t('command.extract.file.markdownSaved', { path: fallbackMd }))
     }
-    return { text: result.text }
+    return { text: result.text, inputProcessing }
   }
-  if (detected.kind === 'text')
-    return { text: await fsp.readFile(filePath, 'utf-8') }
+  if (inputProcessing.kind === 'text')
+    return { text: await fsp.readFile(filePath, 'utf-8'), inputProcessing }
 
-  throw new Error(unsupportedFileTypeMessage(detected.mime ?? 'application/octet-stream'))
+  throw new Error(unsupportedFileTypeMessage(inputProcessing.mime ?? 'application/octet-stream'))
 }

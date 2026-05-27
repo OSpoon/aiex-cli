@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isImageFile, listSchemas, listSupportedFiles, loadSchema, readExtractFileInput } from '@/core/extract-runner'
+import { describeExtractFileInput, isImageFile, listSchemas, listSupportedFiles, loadSchema, readExtractFileInput } from '@/core/extract-runner'
 
 const imageOcrMock = vi.hoisted(() => ({
   recognizeImageText: vi.fn(),
@@ -147,6 +147,23 @@ describe('isImageFile', () => {
 })
 
 describe('readExtractFileInput', () => {
+  it('describes image files as vision input when OCR fallback is not selected', async () => {
+    const dir = `/tmp/test-describe-image-file-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'receipt.dat')
+    fs.writeFileSync(filePath, Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'))
+
+    const input = await describeExtractFileInput(filePath)
+
+    expect(input).toEqual({
+      kind: 'image',
+      mime: 'image/png',
+      handler: 'image_vision',
+    })
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
   it('keeps image files as file input when OCR fallback is not selected', async () => {
     const dir = `/tmp/test-read-image-file-${Date.now()}`
     fs.mkdirSync(dir, { recursive: true })
@@ -155,7 +172,15 @@ describe('readExtractFileInput', () => {
 
     const input = await readExtractFileInput(filePath)
 
-    expect(input).toEqual({ text: '', filePath })
+    expect(input).toEqual({
+      text: '',
+      filePath,
+      inputProcessing: {
+        kind: 'image',
+        mime: 'image/png',
+        handler: 'image_vision',
+      },
+    })
     expect(imageOcrMock.recognizeImageText).not.toHaveBeenCalled()
 
     fs.rmSync(dir, { recursive: true })
@@ -194,7 +219,14 @@ describe('readExtractFileInput', () => {
 
     const input = await readExtractFileInput(filePath, aiConfig)
 
-    expect(input).toEqual({ text: 'total 12.50' })
+    expect(input).toEqual({
+      text: 'total 12.50',
+      inputProcessing: {
+        kind: 'image',
+        mime: 'image/png',
+        handler: 'image_local_ocr',
+      },
+    })
     expect(imageOcrMock.shouldUseImageOcrFallback).toHaveBeenCalledWith(aiConfig, undefined)
     expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath)
 
@@ -210,6 +242,23 @@ describe('readExtractFileInput', () => {
     const input = await readExtractFileInput(filePath)
 
     expect(input.text).toContain('flow duration curves')
+    expect(input.inputProcessing).toEqual({
+      kind: 'pdf',
+      mime: 'application/pdf',
+      handler: 'pdf_converter',
+      converter: 'unpdf',
+    })
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('rejects SVG content during input description', async () => {
+    const dir = `/tmp/test-describe-svg-file-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'icon.dat')
+    fs.writeFileSync(filePath, '<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+
+    await expect(describeExtractFileInput(filePath)).rejects.toThrow('Unsupported file type "image/svg+xml"')
 
     fs.rmSync(dir, { recursive: true })
   })

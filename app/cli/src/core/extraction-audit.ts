@@ -38,6 +38,12 @@ export interface ExtractionAuditRecord {
     completion: number
     total: number
   }
+  inputProcessing?: {
+    kind: 'pdf' | 'image' | 'text'
+    mime?: string
+    handler: 'text' | 'image_vision' | 'image_local_ocr' | 'pdf_converter'
+    converter?: string
+  }
   error?: string
   createdAt: string
   updatedAt: string
