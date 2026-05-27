@@ -1,3 +1,4 @@
+import type { InputProcessingInfo } from './pdf-converter/orchestrator'
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
 import type { createMigrationConfig } from '@/core/schema-sqlite'
 import type { RetryInfo } from '@/utils/retry'
@@ -34,6 +35,7 @@ const JSON_EXT_RE = /\.json$/
 export interface ExtractFileInput {
   text: string
   filePath?: string
+  inputProcessing?: InputProcessingInfo
 }
 
 export interface ExtractResult {
@@ -273,6 +275,12 @@ export interface RunAuditedExtractionResult {
   }
   auditId?: string
   fileHash?: string
+  inputProcessing?: InputProcessingInfo
+}
+
+function formatInputProcessing(input: InputProcessingInfo): string {
+  const handler = input.converter ? `${input.handler}(${input.converter})` : input.handler
+  return `${input.mime ?? input.kind} -> ${handler}`
 }
 
 export async function runAuditedExtraction(
@@ -329,6 +337,7 @@ export async function runAuditedExtraction(
           tablesInserted: existing.tablesInserted,
           notionPages: existing.notionPages,
           tokensUsed: existing.tokensUsed,
+          inputProcessing: existing.inputProcessing,
         }
       }
     }
@@ -346,13 +355,17 @@ export async function runAuditedExtraction(
   try {
     let text = ''
     let filePath: string | undefined
+    let inputProcessing: InputProcessingInfo | undefined
 
     if (source.type === 'file') {
       const input = await readExtractFileInput(source.filePath, aiConfig, modelOverride)
       text = input.text
       filePath = input.filePath
+      inputProcessing = input.inputProcessing
+      if (!quiet)
+        consola.info(`Input: ${formatInputProcessing(inputProcessing)}`)
       await updateExtractionAuditRecord(aiexDir, audit.id, {
-        inputProcessing: input.inputProcessing,
+        inputProcessing,
       })
     }
     else {
@@ -407,6 +420,7 @@ export async function runAuditedExtraction(
             error: error instanceof Error ? error.message : String(error),
             auditId: audit.id,
             fileHash,
+            inputProcessing,
           }
         }
       }
@@ -441,6 +455,7 @@ export async function runAuditedExtraction(
         tokensUsed: updated.tokensUsed,
         auditId: updated.id,
         fileHash,
+        inputProcessing: updated.inputProcessing,
       }
     }
     else {
@@ -467,6 +482,7 @@ export async function runAuditedExtraction(
         error: r.error,
         auditId: audit.id,
         fileHash,
+        inputProcessing,
       }
     }
   }

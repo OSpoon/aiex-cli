@@ -35,6 +35,12 @@ interface ExtractResponse {
     total: number
   }
   auditId?: string
+  inputProcessing?: {
+    kind: 'pdf' | 'image' | 'text'
+    mime?: string
+    handler: 'text' | 'image_vision' | 'image_local_ocr' | 'pdf_converter'
+    converter?: string
+  }
 }
 
 type BodyValue = string | File
@@ -172,6 +178,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
         notionPages: result.notionPages,
         tokensUsed: result.tokensUsed,
         auditId: result.auditId,
+        inputProcessing: result.inputProcessing,
       }, 200)
     }
     catch (error: unknown) {
@@ -238,6 +245,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
       notionPages: result.notionPages,
       tokensUsed: result.tokensUsed,
       auditId: result.auditId,
+      inputProcessing: result.inputProcessing,
     }, 200)
   })
 

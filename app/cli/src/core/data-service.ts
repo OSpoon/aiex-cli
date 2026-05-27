@@ -1,3 +1,4 @@
+import type { ExtractionAuditRecord } from '@/core/extraction-audit'
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -28,6 +29,7 @@ export interface ExtractionRecord {
   notionStatus: 'synced' | 'failed' | 'not_synced'
   notionPages?: Array<{ databaseId: string, pageId: string }>
   notionError?: string
+  inputProcessing?: ExtractionAuditRecord['inputProcessing']
 }
 
 export interface RowExtractionAction {
@@ -145,6 +147,7 @@ export async function listExtractions(config: MigrationConfig): Promise<Extracti
         notionStatus: notionPages ? 'synced' : audit?.status === 'failed' ? 'failed' : 'not_synced',
         notionPages,
         notionError: !notionPages && audit?.status === 'failed' ? audit.error : undefined,
+        inputProcessing: audit?.inputProcessing,
       })
     }
     catch {

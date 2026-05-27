@@ -1,4 +1,5 @@
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
+import type { ExtractionAuditRecord } from '@/core/extraction-audit'
 import path from 'node:path'
 import process from 'node:process'
 import { confirm, intro, isCancel, outro, select, text } from '@clack/prompts'
@@ -38,6 +39,13 @@ function isExtractSubCommand(rawArgs: unknown): boolean {
 
 function formatSource(source: { type: 'text' | 'file', fileName?: string }): string {
   return source.type === 'file' ? source.fileName || 'file' : 'unknown'
+}
+
+function formatInputProcessing(input?: ExtractionAuditRecord['inputProcessing']): string {
+  if (!input)
+    return ''
+  const handler = input.converter ? `${input.handler}(${input.converter})` : input.handler
+  return ` [${input.mime ?? input.kind} -> ${handler}]`
 }
 
 export async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
@@ -89,7 +97,7 @@ const historyCommand = defineCommand({
 
     for (const record of records) {
       const suffix = record.error ? ` — ${record.error}` : record.outputName ? ` — ${record.outputName}` : ''
-      consola.info(`${record.status.padEnd(9)} ${record.id}  ${record.schemaName}  ${formatSource(record.source)}${suffix}`)
+      consola.info(`${record.status.padEnd(9)} ${record.id}  ${record.schemaName}  ${formatSource(record.source)}${formatInputProcessing(record.inputProcessing)}${suffix}`)
     }
   },
 })

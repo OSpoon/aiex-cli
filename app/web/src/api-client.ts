@@ -217,6 +217,13 @@ export async function inspectNotionDatabase(input: {
 
 // Data Browser API
 
+export interface InputProcessingInfo {
+  kind: "pdf" | "image" | "text"
+  mime?: string
+  handler: "text" | "image_vision" | "image_local_ocr" | "pdf_converter"
+  converter?: string
+}
+
 export interface ExtractionRecord {
   name: string
   schemaName: string
@@ -226,6 +233,7 @@ export interface ExtractionRecord {
   notionStatus: "synced" | "failed" | "not_synced"
   notionPages?: Array<{ databaseId: string, pageId: string }>
   notionError?: string
+  inputProcessing?: InputProcessingInfo
 }
 
 export interface RetryNotionSyncResult {

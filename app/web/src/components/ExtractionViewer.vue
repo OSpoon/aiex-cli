@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExtractionRecord } from "@/api-client"
+import type { ExtractionRecord, InputProcessingInfo } from "@/api-client"
 import Button from "primevue/button"
 import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
@@ -24,6 +24,7 @@ const notionActionLabel = computed(() => {
   if (props.record?.notionStatus === "failed") return t("app.retryNotion")
   return t("app.syncNotion")
 })
+const inputProcessingLabel = computed(() => formatInputProcessing(props.record?.inputProcessing))
 
 async function loadContent() {
   if (!props.extractionName) return
@@ -74,6 +75,18 @@ function notionStatusLabel(status: ExtractionRecord["notionStatus"] | undefined)
   return t("app.notionStatusNotSynced")
 }
 
+function handlerLabel(input: InputProcessingInfo): string {
+  if (input.handler === "image_vision") return "Vision"
+  if (input.handler === "image_local_ocr") return "Local OCR"
+  if (input.handler === "pdf_converter") return input.converter ? `PDF ${input.converter}` : "PDF converter"
+  return "Text"
+}
+
+function formatInputProcessing(input?: InputProcessingInfo): string {
+  if (!input) return ""
+  return `${input.mime ?? input.kind} -> ${handlerLabel(input)}`
+}
+
 function tryParseAndFormat(json: string): string {
   try {
     return JSON.stringify(JSON.parse(json), null, 2)
@@ -105,6 +118,12 @@ onMounted(loadContent)
           {{ extractionName }}
         </h2>
         <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <span
+            v-if="inputProcessingLabel"
+            class="rounded bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground"
+          >
+            {{ inputProcessingLabel }}
+          </span>
           <span
             v-if="record"
             class="rounded px-2 py-1 text-xs font-medium"

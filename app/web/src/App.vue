@@ -139,6 +139,19 @@ function selectExtraction(name: string) {
   currentView.value = "extract"
 }
 
+function extractionInputLabel(record: ExtractionRecord): string {
+  const input = record.inputProcessing
+  if (!input) return ""
+  const handler = input.handler === "image_vision"
+    ? "Vision"
+    : input.handler === "image_local_ocr"
+      ? "Local OCR"
+      : input.handler === "pdf_converter"
+        ? input.converter ? `PDF ${input.converter}` : "PDF converter"
+        : "Text"
+  return `${input.mime ?? input.kind} -> ${handler}`
+}
+
 // ── Schema editor state ──
 
 const ECOMMERCE_EXAMPLE: JSONSchema = {
@@ -595,6 +608,13 @@ onMounted(() => {
                 <span class="block truncate font-medium">{{ record.schemaName }}</span>
                 <span class="block truncate text-xs" :class="selectedExtraction === record.name ? 'text-primary-foreground/75' : 'text-muted-foreground'">
                   {{ record.name }}
+                </span>
+                <span
+                  v-if="extractionInputLabel(record)"
+                  class="mt-1 block truncate text-[11px]"
+                  :class="selectedExtraction === record.name ? 'text-primary-foreground/70' : 'text-muted-foreground'"
+                >
+                  {{ extractionInputLabel(record) }}
                 </span>
               </button>
             </div>
