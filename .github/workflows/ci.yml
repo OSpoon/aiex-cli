@@ -64,7 +64,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter aiex-cli exec vitest run --coverage
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: app/cli/coverage/lcov.info
