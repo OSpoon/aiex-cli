@@ -52,6 +52,14 @@ export interface ExtractionQualityMetrics {
   }
 }
 
+export interface FieldEvidence {
+  quote: string
+  start: number
+  end: number
+  verified: true
+  matchMethod: 'exact_unique'
+}
+
 export interface ExtractionAuditRecord {
   id: string
   status: ExtractionAuditStatus
@@ -82,6 +90,7 @@ export interface ExtractionAuditRecord {
   }
   quality?: ExtractionQualityMetrics
   failureStage?: ExtractionFailureStage
+  evidence?: Record<string, FieldEvidence>
   error?: string
   createdAt: string
   updatedAt: string

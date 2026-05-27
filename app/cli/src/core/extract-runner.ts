@@ -1,6 +1,6 @@
 import type { InputProcessingInfo } from './pdf-converter/orchestrator'
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { ExtractionFailureStage, ExtractionQualityMetrics } from '@/core/extraction-audit'
+import type { ExtractionFailureStage, ExtractionQualityMetrics, FieldEvidence } from '@/core/extraction-audit'
 import type { createMigrationConfig } from '@/core/schema-sqlite'
 import type { RetryInfo } from '@/utils/retry'
 import fsp from 'node:fs/promises'
@@ -54,6 +54,7 @@ export interface ExtractResult {
   }
   quality?: ExtractionQualityMetrics
   failureStage?: ExtractionFailureStage
+  evidence?: Record<string, FieldEvidence>
 }
 
 export interface BatchExtractionResult {
@@ -221,6 +222,7 @@ export async function extractSingle(
             tablesInserted: insertResult.tablesInserted,
             tokensUsed: result.tokensUsed,
             quality: result.quality,
+            evidence: result.evidence,
           }
         }
         else {
@@ -248,6 +250,7 @@ export async function extractSingle(
     data: result.data,
     tokensUsed: result.tokensUsed,
     quality: result.quality,
+    evidence: result.evidence,
   }
 }
 
@@ -284,6 +287,7 @@ export interface RunAuditedExtractionResult {
   inputProcessing?: InputProcessingInfo
   quality?: ExtractionQualityMetrics
   failureStage?: ExtractionFailureStage
+  evidence?: Record<string, FieldEvidence>
 }
 
 function formatInputProcessing(input: InputProcessingInfo): string {
@@ -374,6 +378,7 @@ export async function runAuditedExtraction(
           inputProcessing: existing.inputProcessing,
           quality: existing.quality,
           failureStage: existing.failureStage,
+          evidence: existing.evidence,
         }
       }
     }
@@ -441,6 +446,7 @@ export async function runAuditedExtraction(
             tokensUsed: r.tokensUsed,
             quality: mergeQuality(inputQuality, r.quality),
             failureStage: 'integration',
+            evidence: r.evidence,
             error: error instanceof Error ? error.message : String(error),
           })
           if (!quiet) {
@@ -465,6 +471,7 @@ export async function runAuditedExtraction(
             inputProcessing,
             quality: mergeQuality(inputQuality, r.quality),
             failureStage: 'integration',
+            evidence: r.evidence,
           }
         }
       }
@@ -477,6 +484,7 @@ export async function runAuditedExtraction(
         notionPages,
         tokensUsed: r.tokensUsed,
         quality: mergeQuality(inputQuality, r.quality),
+        evidence: r.evidence,
       })
 
       await triggerWebhook(
@@ -503,6 +511,7 @@ export async function runAuditedExtraction(
         inputProcessing: updated.inputProcessing,
         quality: updated.quality,
         failureStage: updated.failureStage,
+        evidence: updated.evidence,
       }
     }
     else {
@@ -511,6 +520,7 @@ export async function runAuditedExtraction(
         error: r.error || 'Extraction failed',
         quality: mergeQuality(inputQuality, r.quality),
         failureStage: r.failureStage ?? 'ai_extraction',
+        evidence: r.evidence,
       })
       if (!quiet) {
         consola.error(t('command.extract.file.extractionFailed', { error: r.error }))
@@ -534,6 +544,7 @@ export async function runAuditedExtraction(
         inputProcessing,
         quality: mergeQuality(inputQuality, r.quality),
         failureStage: r.failureStage ?? 'ai_extraction',
+        evidence: r.evidence,
       }
     }
   }

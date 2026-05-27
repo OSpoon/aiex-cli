@@ -1,74 +1,151 @@
-# 文件提取流程
+# Extraction Flow Charts
+
+This document splits the extraction pipeline into smaller diagrams so each stage can be read independently.
+
+## 1. Entry And File Routing
 
 ```mermaid
 flowchart TD
-  A["用户运行 aiex extract"] --> B{"输入来源"}
+  A["User runs aiex extract"] --> B{"Input source"}
 
-  B -->|"--file 单文件"| F1["readExtractFileInput(file)"]
-  B -->|"--dir 批量目录"| D1["listSupportedFiles 扫描支持文件"]
+  B -->|"--file"| F1["readExtractFileInput(file)"]
+  B -->|"--dir"| D1["listSupportedFiles scans supported paths"]
   D1 --> F1
 
-  F1 --> F2{"内容检测\nfile-type + UTF-8 文本识别"}
+  F1 --> D2{"Detect content type\nfile-type + UTF-8 text detection"}
 
-  F2 -->|"text/plain 等文本内容"| TX1["fs.readFile UTF-8"]
-  TX1 --> T1["文本内容"]
+  D2 -->|"text content"| T1["Read as UTF-8 text"]
+  D2 -->|"application/pdf"| P1["PDF pipeline"]
+  D2 -->|"image/png, image/jpeg, image/webp"| I1["Image pipeline"]
+  D2 -->|"unsupported"| E1["Return unsupported file type error"]
 
-  F2 -->|"application/pdf"| P1["读取 PDF Buffer"]
-  P1 --> P2["createPdfConverter(aiConfig.pdf)"]
-  P2 --> P3{"PDF converter"}
-  P3 -->|"unpdf"| P4["内置 unpdf 提取文本"]
-  P3 -->|"mineru"| P5["外部 mineru 命令转 Markdown"]
-  P3 -->|"mineru_api"| P6["MinerU API 转 Markdown"]
-  P3 -->|"external"| P7["用户自定义外部命令"]
-  P5 --> P8{"失败且 fallbackToUnpdf?"}
-  P7 --> P8
-  P8 -->|"是"| P4
-  P8 -->|"否"| ERR1["返回 PDF 转换失败"]
-  P4 --> P9["保存 .md 旁路参考文件"]
-  P5 --> P9
-  P6 --> P9
-  P7 --> P9
-  P9 --> T1
+  T1 --> O1["Text input for extraction"]
+  P1 --> O1
+  I1 --> O2{"Image handler"}
+  O2 -->|"vision"| O3["File input for vision model"]
+  O2 -->|"local OCR"| O1
 
-  F2 -->|"image/png / image/jpeg / image/webp"| I0["图片输入"]
-  I0 --> I1{"选定模型/配置中是否有 vision model?"}
-  I1 -->|"是"| I2["保留 filePath，作为图片附件输入"]
-  I1 -->|"否"| IPLAT{"当前平台支持本地 OCR?"}
-  IPLAT -->|"macOS / Windows"| I3
-  IPLAT -->|"其他平台"| ERR2B["返回错误：没有 vision model 且本地 OCR 不支持当前平台"]
-  I3 --> I3A["调用系统 OCR\nmacOS: VisionKit\nWindows: Media OCR"]
-  I3A --> I4{"OCR 成功且满足内置质量要求?"}
-  I4 -->|"是"| T1
-  I4 -->|"否"| ERR2["返回 OCR 不可用/识别失败"]
-
-  T1 --> META["记录 inputProcessing 与 input quality\nkind / mime / handler / converter\nPDF 页数/文本长度/fallback\nOCR confidence/文本长度"]
-  I2 --> META
-  META --> E1["extractSingle / extractStructuredData"]
-
-  E1 --> M1{"模型选择"}
-  M1 -->|"图片附件输入"| M2["selectModel 要求 vision=true"]
-  M1 -->|"文本输入"| M3["优先 structuredOutput=true，否则第一个可用模型"]
-
-  M2 --> A1["OpenAI-compatible provider"]
-  M3 --> A1
-
-  A1 --> A2{"是否支持 structured output?"}
-  A2 -->|"是"| A3["AI SDK Output.object(JSON Schema)"]
-  A2 -->|"否"| A4["普通文本生成 + safeParseJSON"]
-
-  A3 --> V1["validateExtractedData 校验 schema\n记录 AI quality\nattempts / selfCorrectionCount / apiRetryCount / missingFieldRate"]
-  A4 --> V1
-
-  V1 -->|"失败"| ERR3["返回结构校验错误"]
-  V1 -->|"成功"| O1["写入 .aiex/extracted/*.json"]
-
-  O1 --> DB1{"insert !== false?"}
-  DB1 -->|"否"| DONE["完成"]
-  DB1 -->|"是"| DB2["ensureDatabaseReady"]
-  DB2 --> DB3["insertExtractedData 写入 SQLite"]
-  DB3 --> N1{"Notion sync enabled?"}
-  N1 -->|"否"| AUDIT["更新 extraction audit\n含处理路径、质量指标、失败阶段"]
-  N1 -->|"是"| N2["writeNotionPage 同步 Notion"]
-  N2 --> AUDIT
-  AUDIT --> DONE
+  O1 --> M1["Record inputProcessing and input quality"]
+  O3 --> M1
+  M1 --> X1["extractSingle / extractStructuredData"]
 ```
+
+## 2. PDF Conversion Pipeline
+
+```mermaid
+flowchart TD
+  P0["Detected application/pdf"] --> P1["Read PDF buffer"]
+  P1 --> P2["createPdfConverter(aiConfig.pdf)"]
+  P2 --> P3{"Configured converter"}
+
+  P3 -->|"unpdf"| U1["Built-in unpdf text extraction"]
+  P3 -->|"mineru"| M1["External mineru command to Markdown"]
+  P3 -->|"mineru_api"| A1["MinerU API to Markdown"]
+  P3 -->|"external"| X1["User configured external command"]
+
+  M1 --> F1{"Failed and fallbackToUnpdf?"}
+  X1 --> F1
+  F1 -->|"yes"| U1
+  F1 -->|"no"| E1["Return file_conversion failure"]
+
+  U1 --> Q1["Collect PDF quality\npageCount, textLength, emptyText, fallbackUsed, converter"]
+  M1 --> Q1
+  A1 --> Q1
+  X1 --> Q1
+
+  Q1 --> S1["Save sidecar Markdown when possible"]
+  S1 --> O1["Return converted text"]
+```
+
+## 3. Image Pipeline
+
+```mermaid
+flowchart TD
+  I0["Detected supported bitmap image\nPNG / JPEG / WebP"] --> I1{"Vision model available?"}
+
+  I1 -->|"yes"| V1["Keep filePath as image attachment"]
+  V1 --> Q1["Record handler=image_vision\nNo text offset evidence"]
+  Q1 --> O1["Return file input"]
+
+  I1 -->|"no"| L1{"Local OCR platform supported?"}
+  L1 -->|"macOS / Windows"| L2["Run system OCR\nmacOS VisionKit / Windows Media OCR"]
+  L1 -->|"other"| E1["Return OCR platform unsupported"]
+
+  L2 --> L3{"OCR text available?"}
+  L3 -->|"yes"| Q2["Record OCR quality\nconfidence, textLength, platform"]
+  L3 -->|"no"| E2["Return OCR unavailable or no text"]
+  Q2 --> O2["Return OCR text input"]
+```
+
+## 4. AI Extraction And Validation
+
+```mermaid
+flowchart TD
+  X0["extractStructuredData"] --> M1{"Input kind"}
+
+  M1 -->|"image attachment"| M2["selectModel requires vision=true"]
+  M1 -->|"text"| M3["Prefer structuredOutput=true\notherwise first compatible model"]
+
+  M2 --> P1["OpenAI-compatible provider"]
+  M3 --> P1
+
+  P1 --> S1{"Selected model supports structured output?"}
+  S1 -->|"yes"| S2["AI SDK Output.object(JSON Schema)"]
+  S1 -->|"no"| S3["generateText + safeParseJSON"]
+
+  S2 --> V1["validateExtractedData"]
+  S3 --> V1
+
+  V1 -->|"valid"| Q1["Record AI quality\nvalidationPassed, attempts, selfCorrectionCount, apiRetryCount, missingFieldRate"]
+  V1 -->|"invalid"| R1{"Attempts remaining?"}
+  R1 -->|"yes"| R2["Self-correction prompt\noriginal text + schema + invalid JSON + validation error"]
+  R2 --> P1
+  R1 -->|"no"| E1["Return ai_extraction failure"]
+
+  Q1 --> O1["Write business JSON to .aiex/extracted/*.json"]
+```
+
+## 5. Evidence Location Rules
+
+```mermaid
+flowchart TD
+  E0["Validated business JSON"] --> E1{"Text chain is locatable?"}
+
+  E1 -->|"text / PDF text / OCR text"| E2["Ask model for _evidence.<field>.quote only"]
+  E1 -->|"vision image attachment"| N1["Do not record location evidence"]
+
+  E2 --> E3["Strip _evidence from business JSON"]
+  E3 --> E4{"For each scalar field"}
+  E4 --> E5{"Quote appears exactly once in source text?"}
+  E5 -->|"no"| N2["Do not record location"]
+  E5 -->|"yes"| E6{"Field value is contained in quote?"}
+  E6 -->|"no"| N2
+  E6 -->|"yes"| E7["System records quote, start, end\nverified=true, matchMethod=exact_unique"]
+
+  E7 --> A1["Store verified evidence in audit only"]
+  N1 --> A1
+  N2 --> A1
+```
+
+## 6. Persistence, Integrations, And Audit
+
+```mermaid
+flowchart TD
+  O0["Extraction output ready"] --> D1{"insert !== false?"}
+
+  D1 -->|"no"| A1["Update extraction audit"]
+  D1 -->|"yes"| D2["ensureDatabaseReady"]
+  D2 --> D3{"Database ready?"}
+  D3 -->|"no"| E1["Return db_insert failure"]
+  D3 -->|"yes"| D4["insertExtractedData into SQLite"]
+
+  D4 --> N1{"Notion sync enabled?"}
+  N1 -->|"no"| A1
+  N1 -->|"yes"| N2["writeNotionPage"]
+  N2 -->|"success"| A1
+  N2 -->|"failure"| E2["Return integration failure"]
+
+  A1 --> A2["Audit stores\nsource, inputProcessing, quality, failureStage, evidence, tokens, output, DB rows, integration result"]
+  A2 --> DONE["Done"]
+```
+

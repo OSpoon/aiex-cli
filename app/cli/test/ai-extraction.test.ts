@@ -1,6 +1,7 @@
 import type { AIModelConfig } from '@/core/ai-extraction/types'
 import { describe, expect, it } from 'vitest'
 import { lookupModelCapabilities } from '@/core/ai-extraction/capabilities'
+import { stripEvidence, verifyFieldEvidence } from '@/core/ai-extraction/evidence'
 import { schemaToExtractionOutputSchema, validateExtractedData } from '@/core/ai-extraction/extractor'
 import { safeParseJSON } from '@/core/ai-extraction/json-utils'
 import { selectModel } from '@/core/ai-extraction/model-selector'
@@ -64,6 +65,65 @@ describe('schemaToExtractionOutputSchema', () => {
     expect(schema).not.toHaveProperty('$defs')
     expect(properties).toHaveProperty('name')
     expect(properties).not.toHaveProperty('properties')
+  })
+})
+
+describe('field evidence verification', () => {
+  it('keeps only exact unique quotes whose value is inside the quote', () => {
+    const data = {
+      name: 'Alice',
+      age: 32,
+      _evidence: {
+        name: { quote: 'Customer: Alice' },
+        age: { quote: 'Age: 32' },
+      },
+    }
+    const stripped = stripEvidence(data)
+
+    const evidence = verifyFieldEvidence({
+      schema: flatSchema,
+      text: 'Customer: Alice\nAge: 32',
+      data: stripped.data,
+      rawEvidence: stripped.rawEvidence,
+    })
+
+    expect(stripped.data).toEqual({ name: 'Alice', age: 32 })
+    expect(evidence).toEqual({
+      name: {
+        quote: 'Customer: Alice',
+        start: 0,
+        end: 15,
+        verified: true,
+        matchMethod: 'exact_unique',
+      },
+      age: {
+        quote: 'Age: 32',
+        start: 16,
+        end: 23,
+        verified: true,
+        matchMethod: 'exact_unique',
+      },
+    })
+  })
+
+  it('does not record locations for missing or repeated quotes', () => {
+    const stripped = stripEvidence({
+      name: 'Alice',
+      age: 32,
+      _evidence: {
+        name: { quote: 'Alice' },
+        age: { quote: 'Age: 33' },
+      },
+    })
+
+    const evidence = verifyFieldEvidence({
+      schema: flatSchema,
+      text: 'Alice met Alice. Age: 32',
+      data: stripped.data,
+      rawEvidence: stripped.rawEvidence,
+    })
+
+    expect(evidence).toBeUndefined()
   })
 })
 

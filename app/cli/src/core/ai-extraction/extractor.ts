@@ -10,6 +10,7 @@ import { writeFile as writeJsonFile } from 'jsonfile'
 import { getErrorMessage } from '@/core/schema-sqlite'
 import { t } from '@/locales'
 import { withRetry } from '@/utils/retry'
+import { stripEvidence, verifyFieldEvidence } from './evidence'
 import { detectMimeType, readFilePart } from './file-utils'
 import { safeParseJSON } from './json-utils'
 import { selectModel } from './model-selector'
@@ -25,6 +26,12 @@ export { schemaToExtractionOutputSchema, validateExtractedData } from './validat
 export type { RetryInfo } from '@/utils/retry'
 
 const OPENAI_COMPATIBLE_PROVIDER_NAME = 'openai-compatible'
+const EVIDENCE_INSTRUCTIONS = `Evidence requirements:
+- Also return a top-level "_evidence" object.
+- For each top-level scalar field you extracted from the text, include "_evidence.<field>.quote".
+- The quote must be an exact contiguous substring copied from the input text.
+- Do not invent offsets. Only provide quotes.
+- If no exact quote supports a field, omit that field from "_evidence".`
 
 function expectedExtractionFields(schema: JsonSchemaDefinition): string[] {
   return Object.entries(schema.properties)
@@ -45,6 +52,33 @@ function calculateMissingFields(schema: JsonSchemaDefinition, data: unknown): { 
     return value === undefined || value === null || value === ''
   })
   return { fields, rate: fields.length / expected.length }
+}
+
+function withEvidenceSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  const properties = isRecord(schema.properties) ? schema.properties : {}
+  const required = Array.isArray(schema.required) ? schema.required : []
+  return {
+    ...schema,
+    properties: {
+      ...properties,
+      _evidence: {
+        type: ['object', 'null'],
+        additionalProperties: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            quote: { type: 'string' },
+          },
+          required: ['quote'],
+        },
+      },
+    },
+    required,
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export async function extractStructuredData(input: {
@@ -82,6 +116,7 @@ export async function extractStructuredData(input: {
   const useFileContent = !!file
   const fileMime = useFileContent ? await detectMimeType(file!) : ''
   const isImageFile = fileMime.startsWith('image/')
+  const canLocateEvidence = !useFileContent && text.trim().length > 0
 
   const inputTokens = text ? Math.ceil(text.length / 2) : undefined
 
@@ -147,14 +182,17 @@ export async function extractStructuredData(input: {
       user = generated.user
     }
 
+    const extractionSchema = schemaToExtractionOutputSchema(schema)
     const outputSchema = jsonSchema<Record<string, unknown>>(
-      schemaToExtractionOutputSchema(schema),
+      canLocateEvidence ? withEvidenceSchema(extractionSchema) : extractionSchema,
     )
 
     const timeoutMs = (config.provider.timeout ?? 300) * 1000
 
     let systemPrompt = system
     let userPrompt = user
+    if (canLocateEvidence)
+      userPrompt = `${userPrompt}\n\n${EVIDENCE_INSTRUCTIONS}`
     const maxAttempts = 3
     let lastError = ''
     let totalPromptTokens = 0
@@ -228,9 +266,19 @@ export async function extractStructuredData(input: {
       }
 
       if (!parseError && data !== undefined) {
-        const validation = validateExtractedData(schema, data)
+        const stripped = canLocateEvidence ? stripEvidence(data) : { data }
+        const businessData = stripped.data
+        const validation = validateExtractedData(schema, businessData)
         if (validation.success) {
-          const missing = calculateMissingFields(schema, data)
+          const missing = calculateMissingFields(schema, businessData)
+          const evidence = canLocateEvidence
+            ? verifyFieldEvidence({
+                schema,
+                text,
+                data: businessData,
+                rawEvidence: stripped.rawEvidence,
+              })
+            : undefined
           const outputDir = path.resolve(aiexDir, config.extraction.outputDir.replace('.aiex/', ''))
           await fs.mkdir(outputDir, { recursive: true })
 
@@ -238,12 +286,13 @@ export async function extractStructuredData(input: {
           const outputFileName = `${schema.table.name}-${timestamp}.json`
           const outputPath = path.join(outputDir, outputFileName)
 
-          await writeJsonFile(outputPath, data, { spaces: 2, EOL: '\n' })
+          await writeJsonFile(outputPath, businessData, { spaces: 2, EOL: '\n' })
 
           return {
             success: true,
             outputPath,
-            data,
+            data: businessData,
+            evidence,
             tokensUsed: {
               prompt: totalPromptTokens,
               completion: totalCompletionTokens,
@@ -270,7 +319,7 @@ export async function extractStructuredData(input: {
       lastError = errorMsg
 
       if (attempt < maxAttempts) {
-        const invalidJson = data !== undefined ? JSON.stringify(data, null, 2) : (result ? result.text : '')
+        const invalidJson = data !== undefined ? JSON.stringify(canLocateEvidence ? stripEvidence(data).data : data, null, 2) : (result ? result.text : '')
 
         systemPrompt = `You are a precise data correction assistant. Your task is to correct validation errors in a previously generated JSON object to make it comply with the provided JSON Schema.
         
@@ -292,6 +341,8 @@ ${invalidJson}
 
 [Validation Error Details]
 ${errorMsg}
+
+${canLocateEvidence ? EVIDENCE_INSTRUCTIONS : ''}
 
 Please output the corrected JSON object now:`
       }
