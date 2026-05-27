@@ -37,10 +37,19 @@ export interface DoctorDiagnostics {
     aiApiKeySet: boolean
     aiModelCount: number
     aiModels: string[]
+    aiVisionModelCount: number
+    aiStructuredOutputModelCount: number
     aiProvider: string | null
     aiConnectionOk: boolean | null
+    pdfConverter: string | null
+    pdfConverterOk: boolean | null
+    pdfConverterError?: string
     hasDatabase: boolean
+    databaseTablesOk: boolean | null
+    missingDatabaseTables: string[]
     migrationCount: number
+    schemaValidCount: number
+    invalidSchemas: Array<{ file: string, error: string }>
     errors: string[]
   }
 }
@@ -113,8 +122,14 @@ export function doctorDiagnosticsTableRows(
   rows.push(['aiConfig', String(p.aiConfig)])
   rows.push(['aiApiKeySet', String(p.aiApiKeySet)])
   rows.push(['aiModels', p.aiModelCount ? p.aiModels.join(', ') : 'none'])
+  rows.push(['aiVisionModels', String(p.aiVisionModelCount)])
+  rows.push(['aiStructuredOutputModels', String(p.aiStructuredOutputModelCount)])
   rows.push(['aiProvider', p.aiProvider ?? 'none'])
   rows.push(['aiConnectionOk', p.aiConnectionOk === null ? 'not tested' : String(p.aiConnectionOk)])
+  rows.push(['pdfConverter', p.pdfConverter ?? 'none'])
+  rows.push(['pdfConverterOk', p.pdfConverterOk === null ? 'not tested' : String(p.pdfConverterOk)])
+  if (p.pdfConverterError)
+    rows.push(['pdfConverterError', p.pdfConverterError])
   rows.push(['imageOcrPlatform', String(d.imageOcr.platformSupported)])
   rows.push(['imageOcrDependency', String(d.imageOcr.dependencyLoaded)])
   rows.push(['imageOcrOk', d.imageOcr.ocrOk === null ? 'not tested' : String(d.imageOcr.ocrOk)])
@@ -127,7 +142,14 @@ export function doctorDiagnosticsTableRows(
   if (d.imageOcr.error)
     rows.push(['imageOcrError', d.imageOcr.error])
   rows.push(['hasDatabase', String(p.hasDatabase)])
+  rows.push(['databaseTablesOk', p.databaseTablesOk === null ? 'not tested' : String(p.databaseTablesOk)])
+  if (p.missingDatabaseTables.length)
+    rows.push(['missingDatabaseTables', p.missingDatabaseTables.join(', ')])
   rows.push(['migrations', String(p.migrationCount)])
+  rows.push(['schemaValid', `${p.schemaValidCount}/${p.schemaCount}`])
+  for (const invalid of p.invalidSchemas) {
+    rows.push(['invalidSchema', `${invalid.file}: ${invalid.error}`])
+  }
 
   for (const err of p.errors) {
     rows.push(['error', err])

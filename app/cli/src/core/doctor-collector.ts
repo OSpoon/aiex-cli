@@ -4,11 +4,16 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import Database from 'better-sqlite3'
+import { execa } from 'execa'
+import { readFile as readJsonFile } from 'jsonfile'
 import { createConfig } from '@/config'
 import { readAIConfig } from '@/core/ai-extraction/config'
+import { DEFAULT_MINERU_CONFIG } from '@/core/ai-extraction/types'
 import { buildDoctorDiagnostics } from '@/core/doctor'
 import { checkImageOcrAvailability } from '@/core/image-ocr'
-import { createMigrationConfig } from '@/core/schema-sqlite'
+import { createMigrationConfig, parseJsonSchema } from '@/core/schema-sqlite'
+import { JsonSchemaDefinitionSchema } from '@/core/schema-sqlite/schemas'
 import pkg from '~/package.json'
 
 const V1_SUFFIX_RE = /\/v1\/?$/
@@ -25,6 +30,16 @@ async function checkConnection(baseURL: string): Promise<boolean | null> {
       signal: AbortSignal.timeout(5000),
     })
     return res.ok
+  }
+  catch {
+    return false
+  }
+}
+
+async function commandAvailable(command: string): Promise<boolean> {
+  try {
+    await execa('command', ['-v', command], { shell: true })
+    return true
   }
   catch {
     return false
@@ -82,8 +97,13 @@ export async function collectDoctorDiagnostics(
   let aiApiKeySet = false
   let aiModelCount = 0
   let aiModels: string[] = []
+  let aiVisionModelCount = 0
+  let aiStructuredOutputModelCount = 0
   let aiProvider: string | null = null
   let aiConnectionOk: boolean | null = null
+  let pdfConverter: string | null = null
+  let pdfConverterOk: boolean | null = null
+  let pdfConverterError: string | undefined
 
   if (dirExists) {
     const cfg = await readAIConfig(aiexDir)
@@ -92,8 +112,60 @@ export async function collectDoctorDiagnostics(
       aiApiKeySet = Boolean(cfg.provider.apiKey)
       aiModelCount = cfg.provider.models?.length ?? 0
       aiModels = cfg.provider.models?.map(m => m.name) ?? []
+      aiVisionModelCount = cfg.provider.models?.filter(m => m.capabilities.vision).length ?? 0
+      aiStructuredOutputModelCount = cfg.provider.models?.filter(m => m.capabilities.structuredOutput).length ?? 0
       aiProvider = cfg.provider.baseURL
       aiConnectionOk = await checkConnection(cfg.provider.baseURL)
+      pdfConverter = cfg.pdf?.converter ?? 'unpdf'
+
+      if (pdfConverter === 'unpdf') {
+        pdfConverterOk = true
+      }
+      else if (pdfConverter === 'mineru') {
+        const command = cfg.pdf?.mineru?.command ?? DEFAULT_MINERU_CONFIG.command
+        pdfConverterOk = await commandAvailable(command)
+        if (!pdfConverterOk)
+          pdfConverterError = `Command not found: ${command}`
+      }
+      else if (pdfConverter === 'external') {
+        const command = cfg.pdf?.external?.command
+        if (!command) {
+          pdfConverterOk = false
+          pdfConverterError = 'External converter command is not configured'
+        }
+        else {
+          pdfConverterOk = await commandAvailable(command)
+          if (!pdfConverterOk)
+            pdfConverterError = `Command not found: ${command}`
+        }
+      }
+      else if (pdfConverter === 'mineru_api') {
+        pdfConverterOk = Boolean(cfg.pdf?.mineruApi?.token)
+        if (!pdfConverterOk)
+          pdfConverterError = 'MinerU API token is not configured'
+      }
+    }
+  }
+
+  let schemaValidCount = 0
+  const invalidSchemas: Array<{ file: string, error: string }> = []
+  const expectedTables = new Set<string>()
+  if (dirExists && schemaFiles.length > 0) {
+    for (const file of schemaFiles) {
+      try {
+        const schemaPath = path.join(migConfig.schemaPath, file)
+        const parsed = JsonSchemaDefinitionSchema.parse(await readJsonFile(schemaPath))
+        schemaValidCount += 1
+        for (const table of parseJsonSchema(parsed).tables) {
+          expectedTables.add(table.name)
+        }
+      }
+      catch (error) {
+        invalidSchemas.push({
+          file,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
     }
   }
 
@@ -106,6 +178,31 @@ export async function collectDoctorDiagnostics(
     catch {
       dbExists = false
     }
+  }
+
+  let databaseTablesOk: boolean | null = null
+  let missingDatabaseTables: string[] = []
+  if (dbExists && expectedTables.size > 0) {
+    const db = new Database(migConfig.databasePath, { readonly: true })
+    try {
+      missingDatabaseTables = [...expectedTables].filter((table) => {
+        const row = db.prepare(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
+        ).get(table)
+        return !row
+      })
+      databaseTablesOk = missingDatabaseTables.length === 0
+    }
+    catch (error) {
+      databaseTablesOk = false
+      errors.push(`Could not inspect database tables: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    finally {
+      db.close()
+    }
+  }
+  else if (dbExists) {
+    databaseTablesOk = true
   }
 
   let migrationCount = 0
@@ -142,10 +239,19 @@ export async function collectDoctorDiagnostics(
       aiApiKeySet,
       aiModelCount,
       aiModels,
+      aiVisionModelCount,
+      aiStructuredOutputModelCount,
       aiProvider,
       aiConnectionOk,
+      pdfConverter,
+      pdfConverterOk,
+      pdfConverterError,
       hasDatabase: dbExists,
+      databaseTablesOk,
+      missingDatabaseTables,
       migrationCount,
+      schemaValidCount,
+      invalidSchemas,
       errors,
     },
   })

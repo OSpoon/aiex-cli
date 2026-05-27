@@ -14,10 +14,19 @@ const defaultProject = {
   aiApiKeySet: false,
   aiModelCount: 0,
   aiModels: [] as string[],
+  aiVisionModelCount: 0,
+  aiStructuredOutputModelCount: 0,
   aiProvider: null,
   aiConnectionOk: null,
+  pdfConverter: null,
+  pdfConverterOk: null,
+  pdfConverterError: undefined as string | undefined,
   hasDatabase: false,
+  databaseTablesOk: null,
+  missingDatabaseTables: [] as string[],
   migrationCount: 0,
+  schemaValidCount: 0,
+  invalidSchemas: [] as Array<{ file: string, error: string }>,
   errors: [] as string[],
 }
 
@@ -84,10 +93,18 @@ describe('core logic', () => {
         aiApiKeySet: true,
         aiModelCount: 2,
         aiModels: ['gpt-4o', 'gpt-4o-vision'],
+        aiVisionModelCount: 1,
+        aiStructuredOutputModelCount: 2,
         aiProvider: 'https://api.openai.com/v1',
         aiConnectionOk: true,
+        pdfConverter: 'unpdf',
+        pdfConverterOk: true,
         hasDatabase: true,
+        databaseTablesOk: false,
+        missingDatabaseTables: ['posts'],
         migrationCount: 3,
+        schemaValidCount: 1,
+        invalidSchemas: [{ file: 'posts.json', error: 'Invalid schema' }],
         errors: ['Could not read schema directory'],
       },
     })
@@ -99,15 +116,23 @@ describe('core logic', () => {
     expect(rows).toContainEqual(['aiConfig', 'true'])
     expect(rows).toContainEqual(['aiApiKeySet', 'true'])
     expect(rows).toContainEqual(['aiModels', 'gpt-4o, gpt-4o-vision'])
+    expect(rows).toContainEqual(['aiVisionModels', '1'])
+    expect(rows).toContainEqual(['aiStructuredOutputModels', '2'])
     expect(rows).toContainEqual(['aiProvider', 'https://api.openai.com/v1'])
     expect(rows).toContainEqual(['aiConnectionOk', 'true'])
+    expect(rows).toContainEqual(['pdfConverter', 'unpdf'])
+    expect(rows).toContainEqual(['pdfConverterOk', 'true'])
     expect(rows).toContainEqual(['imageOcrPlatform', 'true'])
     expect(rows).toContainEqual(['imageOcrDependency', 'true'])
     expect(rows).toContainEqual(['imageOcrOk', 'false'])
     expect(rows).toContainEqual(['imageOcrImage', '/project/app/web/public/logo.png'])
     expect(rows).toContainEqual(['imageOcrError', 'OCR failed'])
     expect(rows).toContainEqual(['hasDatabase', 'true'])
+    expect(rows).toContainEqual(['databaseTablesOk', 'false'])
+    expect(rows).toContainEqual(['missingDatabaseTables', 'posts'])
     expect(rows).toContainEqual(['migrations', '3'])
+    expect(rows).toContainEqual(['schemaValid', '1/2'])
+    expect(rows).toContainEqual(['invalidSchema', 'posts.json: Invalid schema'])
     expect(rows).toContainEqual(['error', 'Could not read schema directory'])
   })
 })
