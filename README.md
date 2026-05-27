@@ -2,6 +2,7 @@
   <a href="https://www.npmjs.com/package/aiex-cli"><img src="https://img.shields.io/npm/v/aiex-cli?style=flat&colorA=18181B&colorB=green" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/aiex-cli"><img src="https://img.shields.io/npm/dm/aiex-cli?style=flat&colorA=18181B&colorB=green" alt="npm downloads"></a>
   <a href="https://github.com/OSpoon/aiex-cli/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-green?style=flat&colorA=18181B&colorB=green" alt="license"></a>
+  <a href="https://codecov.io/gh/OSpoon/aiex-cli"><img src="https://img.shields.io/codecov/c/github/OSpoon/aiex-cli?style=flat&colorA=18181B&colorB=green" alt="coverage"></a>
 </p>
 
 <h1 align="center">AIEX</h1>

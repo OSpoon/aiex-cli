@@ -48,3 +48,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:cli
       - run: pnpm run test
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter aiex-cli exec vitest run --coverage
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: app/cli/coverage/lcov.info
+          flags: cli
