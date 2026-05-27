@@ -14,11 +14,10 @@ import {
 } from '@/core/extraction-audit'
 import {
   FileValidationError,
-  getExtensionFromMime,
+  getExtensionForDetectedFile,
   isMissingUploadFileError,
   MISSING_UPLOAD_FILE_TEXT,
-  unsupportedFileTypeMessage,
-  validateFileUpload,
+  validateFileUploadContent,
 } from '@/core/file-constants'
 import { createMigrationConfig } from '@/core/schema-sqlite'
 import { t } from '@/locales'
@@ -57,11 +56,9 @@ function safeUploadName(name: string): string {
   return base || 'upload.txt'
 }
 
-function safeUploadNameForMime(file: File): string {
+function safeUploadNameForMime(file: File, mimeType: string): string {
   const safeName = safeUploadName(file.name)
-  const ext = getExtensionFromMime(file.type)
-  if (!ext)
-    throw new FileValidationError(unsupportedFileTypeMessage(file.type))
+  const ext = getExtensionForDetectedFile(mimeType)
 
   const parsed = path.parse(safeName)
   const stem = parsed.name || 'upload'
@@ -76,10 +73,10 @@ function jsonResponse(body: ExtractResponse, status: number): Response {
 }
 
 async function saveUploadToFile(file: File, uploadsDir: string, id: string): Promise<string> {
-  validateFileUpload(file)
-  await fs.mkdir(uploadsDir, { recursive: true })
-  const filePath = path.join(uploadsDir, `${id}-${safeUploadNameForMime(file)}`)
   const buffer = Buffer.from(await file.arrayBuffer())
+  const mimeType = await validateFileUploadContent(file, buffer)
+  await fs.mkdir(uploadsDir, { recursive: true })
+  const filePath = path.join(uploadsDir, `${id}-${safeUploadNameForMime(file, mimeType)}`)
   await fs.writeFile(filePath, buffer)
   return filePath
 }

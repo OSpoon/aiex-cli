@@ -1,4 +1,5 @@
 import { t } from '@/locales'
+import { detectInputBufferKind } from './input-file-kind'
 
 export const MAX_UPLOAD_SIZE = 30 * 1024 * 1024
 
@@ -11,10 +12,7 @@ export const MISSING_UPLOAD_FILE_TEXT = t('errors.file.missingUpload')
 export const SUPPORTED_MIME_TYPES = new Set([
   'image/png',
   'image/jpeg',
-  'image/gif',
   'image/webp',
-  'image/bmp',
-  'image/svg+xml',
   'application/pdf',
   'text/plain',
   'text/markdown',
@@ -29,19 +27,13 @@ export const SUPPORTED_MIME_TYPES = new Set([
 export const IMAGE_MIME_TYPES = new Set([
   'image/png',
   'image/jpeg',
-  'image/gif',
   'image/webp',
-  'image/bmp',
-  'image/svg+xml',
 ])
 
 const MIME_TO_EXT: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
-  'image/gif': 'gif',
   'image/webp': 'webp',
-  'image/bmp': 'bmp',
-  'image/svg+xml': 'svg',
   'application/pdf': 'pdf',
   'text/plain': 'txt',
   'text/markdown': 'md',
@@ -59,6 +51,10 @@ export function bytesToMB(bytes: number): number {
 
 export function getExtensionFromMime(mimeType: string): string | undefined {
   return MIME_TO_EXT[mimeType]
+}
+
+export function getExtensionForDetectedFile(mimeType: string | undefined): string {
+  return mimeType ? (getExtensionFromMime(mimeType) ?? 'txt') : 'txt'
 }
 
 export function isAllowedMimeType(mimeType: string): boolean {
@@ -94,4 +90,23 @@ export function validateFileUpload(file: File): void {
       unsupportedFileTypeMessage(file.type),
     )
   }
+}
+
+export async function validateFileUploadContent(file: File, buffer: Uint8Array): Promise<string> {
+  if (file.size === 0) {
+    throw new FileValidationError(t('errors.file.empty'))
+  }
+  if (file.size > MAX_UPLOAD_SIZE) {
+    throw new FileValidationError(
+      t('errors.file.sizeExceeded', { size: bytesToMB(file.size).toFixed(1), limit: MAX_UPLOAD_SIZE_TEXT, file: file.name }),
+    )
+  }
+
+  const detected = await detectInputBufferKind(buffer)
+  if (detected.kind === 'unsupported') {
+    throw new FileValidationError(
+      unsupportedFileTypeMessage(detected.mime ?? (file.type || 'application/octet-stream')),
+    )
+  }
+  return detected.mime ?? 'text/plain'
 }

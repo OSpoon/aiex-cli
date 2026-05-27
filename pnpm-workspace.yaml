@@ -41,6 +41,7 @@ catalog:
   esbuild: ^0.19.12
   eslint-plugin-format: ^2.0.1
   execa: ^9.6.1
+  file-type: ^22.0.1
   hono: ^4.0.0
   i18next: ^26.2.0
   i18next-fs-backend: ^2.6.6

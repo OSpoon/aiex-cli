@@ -8,8 +8,10 @@ import {
   bytesToMB,
   MAX_UPLOAD_SIZE,
   MAX_UPLOAD_SIZE_TEXT,
+  unsupportedFileTypeMessage,
 } from '@/core/file-constants'
 import { recognizeImageText, shouldUseImageOcrFallback } from '@/core/image-ocr'
+import { detectInputFileKind } from '@/core/input-file-kind'
 import { createPdfConverter } from '@/core/pdf-converter'
 import { t } from '@/locales'
 
@@ -17,10 +19,7 @@ export const FILE_PART_EXTENSIONS = new Set([
   'png',
   'jpg',
   'jpeg',
-  'gif',
   'webp',
-  'bmp',
-  'svg',
 ])
 
 const PDF_EXT_RE = /\.pdf$/i
@@ -48,8 +47,8 @@ export async function readExtractFileInput(
       file: filePath,
     }))
   }
-  const ext = path.extname(filePath).toLowerCase().replace('.', '')
-  if (FILE_PART_EXTENSIONS.has(ext)) {
+  const detected = await detectInputFileKind(filePath)
+  if (detected.kind === 'image') {
     if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
       const result = await recognizeImageText(filePath)
       consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
@@ -57,7 +56,7 @@ export async function readExtractFileInput(
     }
     return { text: '', filePath }
   }
-  if (ext === 'pdf') {
+  if (detected.kind === 'pdf') {
     const buffer = await fsp.readFile(filePath)
     const converter = createPdfConverter(aiConfig?.pdf)
     const result = await converter.convert(buffer, filePath)
@@ -81,5 +80,8 @@ export async function readExtractFileInput(
     }
     return { text: result.text }
   }
-  return { text: await fsp.readFile(filePath, 'utf-8') }
+  if (detected.kind === 'text')
+    return { text: await fsp.readFile(filePath, 'utf-8') }
+
+  throw new Error(unsupportedFileTypeMessage(detected.mime ?? 'application/octet-stream'))
 }

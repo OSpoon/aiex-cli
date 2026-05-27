@@ -30,7 +30,7 @@ flowchart TD
   P7 --> P9
   P9 --> T1
 
-  F2 -->|"png / jpg / jpeg / gif / webp / bmp / svg"| I0["图片输入"]
+  F2 -->|"png / jpg / jpeg / webp"| I0["图片输入"]
   I0 --> I1{"选定模型/配置中是否有 vision model?"}
   I1 -->|"是"| I2["保留 filePath，作为图片附件输入"]
   I1 -->|"否"| IPLAT{"当前平台支持本地 OCR?"}

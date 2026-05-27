@@ -144,11 +144,11 @@ describe('extract routes', () => {
     expect(body.auditId).toBeUndefined()
   })
 
-  it('rejects unsupported upload MIME types', async () => {
+  it('rejects unsupported upload content', async () => {
     const app = extractRoutes(config)
     const form = new FormData()
     form.set('schema', 'person')
-    form.set('file', new File(['Alice is 30'], 'source.bin', { type: 'application/octet-stream' }))
+    form.set('file', new File([new Uint8Array([0xFF, 0x00, 0x01])], 'source.bin', { type: 'application/octet-stream' }))
 
     const response = await app.request('/extract', {
       method: 'POST',

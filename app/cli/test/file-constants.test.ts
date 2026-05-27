@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
 import {
   bytesToMB,
@@ -10,6 +11,7 @@ import {
   SUPPORTED_FILE_TYPES_TEXT,
   unsupportedFileTypeMessage,
   validateFileUpload,
+  validateFileUploadContent,
 } from '@/core/file-constants'
 
 describe('file-constants', () => {
@@ -88,6 +90,27 @@ describe('file-constants', () => {
 
       expect(() => validateFileUpload(file)).toThrow(FileValidationError)
       expect(() => validateFileUpload(file)).toThrow(unsupportedFileTypeMessage('application/octet-stream'))
+    })
+  })
+
+  describe('validateFileUploadContent', () => {
+    it('accepts supported content even when browser MIME is generic', async () => {
+      const file = new File(['%PDF-1.4\n'], 'document.bin', { type: 'application/octet-stream' })
+
+      await expect(validateFileUploadContent(file, Buffer.from('%PDF-1.4\n'))).resolves.toBe('application/pdf')
+    })
+
+    it('rejects unsupported binary content', async () => {
+      const file = new File([new Uint8Array([0xFF, 0x00, 0x01])], 'file.bin', { type: 'application/octet-stream' })
+
+      await expect(validateFileUploadContent(file, new Uint8Array([0xFF, 0x00, 0x01]))).rejects.toThrow(FileValidationError)
+    })
+
+    it('rejects SVG content as unsupported image input', async () => {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+      const file = new File([svg], 'icon.svg', { type: 'image/svg+xml' })
+
+      await expect(validateFileUploadContent(file, Buffer.from(svg))).rejects.toThrow(FileValidationError)
     })
   })
 })

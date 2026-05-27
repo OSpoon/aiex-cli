@@ -1,9 +1,11 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import mime from 'mime'
+import { detectInputFileKind } from '@/core/input-file-kind'
 
-export function detectMimeType(filePath: string): string {
-  return mime.getType(filePath) ?? 'application/octet-stream'
+export async function detectMimeType(filePath: string): Promise<string> {
+  const detected = await detectInputFileKind(filePath)
+  return detected.mime ?? mime.getType(filePath) ?? 'application/octet-stream'
 }
 
 export interface ImageContentPart { type: 'image', image: Uint8Array, mimeType?: string }
@@ -11,7 +13,7 @@ export interface FileContentPart { type: 'file', data: Uint8Array, mediaType: st
 export type ReadFilePartResult = ImageContentPart | FileContentPart
 
 export async function readFilePart(filePath: string): Promise<ReadFilePartResult> {
-  const mimeStr = detectMimeType(filePath)
+  const mimeStr = await detectMimeType(filePath)
   const buffer = await fs.readFile(filePath)
   const name = path.basename(filePath)
 

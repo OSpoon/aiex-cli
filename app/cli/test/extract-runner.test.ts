@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -135,10 +136,10 @@ describe('isImageFile', () => {
     expect(isImageFile('photo.png')).toBe(true)
     expect(isImageFile('photo.jpg')).toBe(true)
     expect(isImageFile('photo.jpeg')).toBe(true)
-    expect(isImageFile('photo.gif')).toBe(true)
     expect(isImageFile('photo.webp')).toBe(true)
-    expect(isImageFile('photo.bmp')).toBe(true)
-    expect(isImageFile('photo.svg')).toBe(true)
+    expect(isImageFile('photo.gif')).toBe(false)
+    expect(isImageFile('photo.bmp')).toBe(false)
+    expect(isImageFile('photo.svg')).toBe(false)
     expect(isImageFile('document.pdf')).toBe(false)
     expect(isImageFile('notes.txt')).toBe(false)
     expect(isImageFile('data.json')).toBe(false)
@@ -149,8 +150,8 @@ describe('readExtractFileInput', () => {
   it('keeps image files as file input when OCR fallback is not selected', async () => {
     const dir = `/tmp/test-read-image-file-${Date.now()}`
     fs.mkdirSync(dir, { recursive: true })
-    const filePath = path.join(dir, 'receipt.png')
-    fs.writeFileSync(filePath, 'png')
+    const filePath = path.join(dir, 'receipt.dat')
+    fs.writeFileSync(filePath, Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'))
 
     const input = await readExtractFileInput(filePath)
 
@@ -163,8 +164,8 @@ describe('readExtractFileInput', () => {
   it('returns OCR text instead of file input when image OCR fallback is selected', async () => {
     const dir = `/tmp/test-read-image-ocr-${Date.now()}`
     fs.mkdirSync(dir, { recursive: true })
-    const filePath = path.join(dir, 'receipt.png')
-    fs.writeFileSync(filePath, 'png')
+    const filePath = path.join(dir, 'receipt.dat')
+    fs.writeFileSync(filePath, Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'))
 
     const aiConfig = {
       provider: {
@@ -196,6 +197,19 @@ describe('readExtractFileInput', () => {
     expect(input).toEqual({ text: 'total 12.50' })
     expect(imageOcrMock.shouldUseImageOcrFallback).toHaveBeenCalledWith(aiConfig, undefined)
     expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath)
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('converts PDF files by content even when the extension is wrong', async () => {
+    const dir = `/tmp/test-read-pdf-kind-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'document.bin')
+    fs.copyFileSync(path.resolve(import.meta.dirname, 'demo.pdf'), filePath)
+
+    const input = await readExtractFileInput(filePath)
+
+    expect(input.text).toContain('flow duration curves')
 
     fs.rmSync(dir, { recursive: true })
   })

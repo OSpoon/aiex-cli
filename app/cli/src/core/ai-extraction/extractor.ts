@@ -42,7 +42,8 @@ export async function extractStructuredData(input: {
   }
 
   const useFileContent = !!file
-  const isImageFile = useFileContent && detectMimeType(file!).startsWith('image/')
+  const fileMime = useFileContent ? await detectMimeType(file!) : ''
+  const isImageFile = fileMime.startsWith('image/')
 
   const inputTokens = text ? Math.ceil(text.length / 2) : undefined
 
