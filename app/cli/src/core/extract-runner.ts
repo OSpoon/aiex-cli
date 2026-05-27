@@ -1,5 +1,6 @@
 import type { InputProcessingInfo } from './pdf-converter/orchestrator'
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
+import type { ExtractionFailureStage, ExtractionQualityMetrics } from '@/core/extraction-audit'
 import type { createMigrationConfig } from '@/core/schema-sqlite'
 import type { RetryInfo } from '@/utils/retry'
 import fsp from 'node:fs/promises'
@@ -36,6 +37,7 @@ export interface ExtractFileInput {
   text: string
   filePath?: string
   inputProcessing?: InputProcessingInfo
+  quality?: ExtractionQualityMetrics
 }
 
 export interface ExtractResult {
@@ -50,6 +52,8 @@ export interface ExtractResult {
     completion: number
     total: number
   }
+  quality?: ExtractionQualityMetrics
+  failureStage?: ExtractionFailureStage
 }
 
 export interface BatchExtractionResult {
@@ -168,7 +172,7 @@ export async function extractSingle(
       s.stop(t('command.extract.file.extractFail'))
       consola.error(result.error || t('common.unknownError'))
     }
-    return { success: false, error: result.error || t('common.unknownError') }
+    return { success: false, error: result.error || t('common.unknownError'), quality: result.quality, failureStage: 'ai_extraction' }
   }
 
   if (!options?.quiet) {
@@ -199,7 +203,7 @@ export async function extractSingle(
       if (!options?.quiet)
         s2.stop(t('command.extract.file.dbNotReady'))
       consola.error(dbError)
-      return { success: false, error: dbError }
+      return { success: false, error: dbError, quality: result.quality, failureStage: 'db_insert' }
     }
 
     try {
@@ -216,13 +220,14 @@ export async function extractSingle(
             data: result.data,
             tablesInserted: insertResult.tablesInserted,
             tokensUsed: result.tokensUsed,
+            quality: result.quality,
           }
         }
         else {
           if (!options?.quiet)
             s2.stop(t('command.extract.file.dbInsertFail'))
           consola.error(insertResult.error || t('common.unknownError'))
-          return { success: false, error: insertResult.error }
+          return { success: false, error: insertResult.error, quality: result.quality, failureStage: 'db_insert' }
         }
       }
       finally {
@@ -233,7 +238,7 @@ export async function extractSingle(
       if (!options?.quiet)
         s2.stop(t('command.extract.file.dbInsertFail'))
       consola.error(e instanceof Error ? e.message : String(e))
-      return { success: false, error: String(e) }
+      return { success: false, error: String(e), quality: result.quality, failureStage: 'db_insert' }
     }
   }
 
@@ -242,6 +247,7 @@ export async function extractSingle(
     outputPath: result.outputPath,
     data: result.data,
     tokensUsed: result.tokensUsed,
+    quality: result.quality,
   }
 }
 
@@ -276,11 +282,39 @@ export interface RunAuditedExtractionResult {
   auditId?: string
   fileHash?: string
   inputProcessing?: InputProcessingInfo
+  quality?: ExtractionQualityMetrics
+  failureStage?: ExtractionFailureStage
 }
 
 function formatInputProcessing(input: InputProcessingInfo): string {
   const handler = input.converter ? `${input.handler}(${input.converter})` : input.handler
   return `${input.mime ?? input.kind} -> ${handler}`
+}
+
+function mergeQuality(
+  inputQuality: ExtractionQualityMetrics | undefined,
+  aiQuality: ExtractionQualityMetrics | undefined,
+): ExtractionQualityMetrics | undefined {
+  if (!inputQuality && !aiQuality)
+    return undefined
+  return {
+    input: inputQuality?.input,
+    ai: aiQuality?.ai,
+  }
+}
+
+function classifyInputError(error: unknown, inputProcessing?: InputProcessingInfo): ExtractionFailureStage {
+  if (inputProcessing?.handler === 'pdf_converter')
+    return 'file_conversion'
+  if (inputProcessing?.handler === 'image_local_ocr')
+    return 'ocr'
+
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase()
+  if (message.includes('ocr'))
+    return 'ocr'
+  if (message.includes('pdf') || message.includes('converter'))
+    return 'file_conversion'
+  return 'input_detection'
 }
 
 export async function runAuditedExtraction(
@@ -338,6 +372,8 @@ export async function runAuditedExtraction(
           notionPages: existing.notionPages,
           tokensUsed: existing.tokensUsed,
           inputProcessing: existing.inputProcessing,
+          quality: existing.quality,
+          failureStage: existing.failureStage,
         }
       }
     }
@@ -352,20 +388,24 @@ export async function runAuditedExtraction(
     retryOf,
   })
 
+  let inputProcessing: InputProcessingInfo | undefined
+  let inputQuality: ExtractionQualityMetrics | undefined
+
   try {
     let text = ''
     let filePath: string | undefined
-    let inputProcessing: InputProcessingInfo | undefined
 
     if (source.type === 'file') {
       const input = await readExtractFileInput(source.filePath, aiConfig, modelOverride)
       text = input.text
       filePath = input.filePath
       inputProcessing = input.inputProcessing
+      inputQuality = input.quality
       if (!quiet)
         consola.info(`Input: ${formatInputProcessing(inputProcessing)}`)
       await updateExtractionAuditRecord(aiexDir, audit.id, {
         inputProcessing,
+        quality: inputQuality,
       })
     }
     else {
@@ -399,6 +439,8 @@ export async function runAuditedExtraction(
             outputName: r.outputPath ? path.basename(r.outputPath) : undefined,
             tablesInserted: r.tablesInserted,
             tokensUsed: r.tokensUsed,
+            quality: mergeQuality(inputQuality, r.quality),
+            failureStage: 'integration',
             error: error instanceof Error ? error.message : String(error),
           })
           if (!quiet) {
@@ -421,6 +463,8 @@ export async function runAuditedExtraction(
             auditId: audit.id,
             fileHash,
             inputProcessing,
+            quality: mergeQuality(inputQuality, r.quality),
+            failureStage: 'integration',
           }
         }
       }
@@ -432,6 +476,7 @@ export async function runAuditedExtraction(
         tablesInserted: r.tablesInserted,
         notionPages,
         tokensUsed: r.tokensUsed,
+        quality: mergeQuality(inputQuality, r.quality),
       })
 
       await triggerWebhook(
@@ -456,12 +501,16 @@ export async function runAuditedExtraction(
         auditId: updated.id,
         fileHash,
         inputProcessing: updated.inputProcessing,
+        quality: updated.quality,
+        failureStage: updated.failureStage,
       }
     }
     else {
       await updateExtractionAuditRecord(aiexDir, audit.id, {
         status: 'failed',
         error: r.error || 'Extraction failed',
+        quality: mergeQuality(inputQuality, r.quality),
+        failureStage: r.failureStage ?? 'ai_extraction',
       })
       if (!quiet) {
         consola.error(t('command.extract.file.extractionFailed', { error: r.error }))
@@ -483,13 +532,18 @@ export async function runAuditedExtraction(
         auditId: audit.id,
         fileHash,
         inputProcessing,
+        quality: mergeQuality(inputQuality, r.quality),
+        failureStage: r.failureStage ?? 'ai_extraction',
       }
     }
   }
   catch (e) {
+    const failureStage = classifyInputError(e, inputProcessing)
     await updateExtractionAuditRecord(aiexDir, audit.id, {
       status: 'failed',
       error: e instanceof Error ? e.message : String(e),
+      quality: inputQuality,
+      failureStage,
     })
     if (!quiet) {
       const name = source.type === 'file' ? path.basename(source.filePath) : 'text input'
@@ -511,6 +565,9 @@ export async function runAuditedExtraction(
       error: e instanceof Error ? e.message : String(e),
       auditId: audit.id,
       fileHash,
+      inputProcessing,
+      quality: inputQuality,
+      failureStage,
     }
   }
 }

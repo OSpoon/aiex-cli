@@ -26,6 +26,27 @@ export type { RetryInfo } from '@/utils/retry'
 
 const OPENAI_COMPATIBLE_PROVIDER_NAME = 'openai-compatible'
 
+function expectedExtractionFields(schema: JsonSchemaDefinition): string[] {
+  return Object.entries(schema.properties)
+    .filter(([, prop]) => !(prop.primary && prop.autoIncrement))
+    .map(([name]) => name)
+}
+
+function calculateMissingFields(schema: JsonSchemaDefinition, data: unknown): { fields: string[], rate: number } {
+  const expected = expectedExtractionFields(schema)
+  if (expected.length === 0)
+    return { fields: [], rate: 0 }
+  if (!data || typeof data !== 'object' || Array.isArray(data))
+    return { fields: expected, rate: 1 }
+
+  const record = data as Record<string, unknown>
+  const fields = expected.filter((field) => {
+    const value = record[field]
+    return value === undefined || value === null || value === ''
+  })
+  return { fields, rate: fields.length / expected.length }
+}
+
 export async function extractStructuredData(input: {
   config: AIConfig
   schema: JsonSchemaDefinition
@@ -36,9 +57,26 @@ export async function extractStructuredData(input: {
   onRetry?: (info: RetryInfo) => void
 }): Promise<ExtractionResult> {
   const { config, schema, text, aiexDir, file, modelOverride } = input
+  let apiRetryCount = 0
+
+  const onApiRetry = (info: RetryInfo): void => {
+    apiRetryCount += 1
+    input.onRetry?.(info)
+  }
 
   if (!config.provider.apiKey) {
-    return { success: false, error: t('errors.ai.apiKeyMissing') }
+    return {
+      success: false,
+      error: t('errors.ai.apiKeyMissing'),
+      quality: {
+        ai: {
+          validationPassed: false,
+          attempts: 0,
+          selfCorrectionCount: 0,
+          apiRetryCount,
+        },
+      },
+    }
   }
 
   const useFileContent = !!file
@@ -61,7 +99,18 @@ export async function extractStructuredData(input: {
     })
   }
   catch (e) {
-    return { success: false, error: (e as Error).message }
+    return {
+      success: false,
+      error: (e as Error).message,
+      quality: {
+        ai: {
+          validationPassed: false,
+          attempts: 0,
+          selfCorrectionCount: 0,
+          apiRetryCount,
+        },
+      },
+    }
   }
 
   const useStructuredOutput = selected.capabilities.structuredOutput
@@ -140,7 +189,7 @@ export async function extractStructuredData(input: {
           if (useStructuredOutput) {
             fileOpts.output = Output.object({ schema: outputSchema })
           }
-          result = await withRetry(() => generateText(fileOpts), input.onRetry)
+          result = await withRetry(() => generateText(fileOpts), onApiRetry)
         }
         else {
           const textOpts: any = {
@@ -154,7 +203,7 @@ export async function extractStructuredData(input: {
           if (useStructuredOutput) {
             textOpts.output = Output.object({ schema: outputSchema })
           }
-          result = await withRetry(() => generateText(textOpts), input.onRetry)
+          result = await withRetry(() => generateText(textOpts), onApiRetry)
         }
 
         if (result.usage) {
@@ -181,6 +230,7 @@ export async function extractStructuredData(input: {
       if (!parseError && data !== undefined) {
         const validation = validateExtractedData(schema, data)
         if (validation.success) {
+          const missing = calculateMissingFields(schema, data)
           const outputDir = path.resolve(aiexDir, config.extraction.outputDir.replace('.aiex/', ''))
           await fs.mkdir(outputDir, { recursive: true })
 
@@ -198,6 +248,16 @@ export async function extractStructuredData(input: {
               prompt: totalPromptTokens,
               completion: totalCompletionTokens,
               total: totalPromptTokens + totalCompletionTokens,
+            },
+            quality: {
+              ai: {
+                validationPassed: true,
+                attempts: attempt,
+                selfCorrectionCount: attempt - 1,
+                apiRetryCount,
+                missingFields: missing.fields,
+                missingFieldRate: missing.rate,
+              },
             },
           }
         }
@@ -237,9 +297,33 @@ Please output the corrected JSON object now:`
       }
     }
 
-    return { success: false, error: lastError || 'Extraction failed after self-reflection retries' }
+    return {
+      success: false,
+      error: lastError || 'Extraction failed after self-reflection retries',
+      quality: {
+        ai: {
+          validationPassed: false,
+          attempts: maxAttempts,
+          selfCorrectionCount: maxAttempts - 1,
+          apiRetryCount,
+          validationError: lastError,
+        },
+      },
+    }
   }
   catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error) }
+    return {
+      success: false,
+      error: getErrorMessage(error),
+      quality: {
+        ai: {
+          validationPassed: false,
+          attempts: 0,
+          selfCorrectionCount: 0,
+          apiRetryCount,
+          validationError: getErrorMessage(error),
+        },
+      },
+    }
   }
 }

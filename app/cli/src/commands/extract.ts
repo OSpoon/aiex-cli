@@ -48,6 +48,18 @@ function formatInputProcessing(input?: ExtractionAuditRecord['inputProcessing'])
   return ` [${input.mime ?? input.kind} -> ${handler}]`
 }
 
+function formatQuality(quality?: ExtractionAuditRecord['quality'], failureStage?: ExtractionAuditRecord['failureStage']): string {
+  if (failureStage)
+    return ` [failed:${failureStage}]`
+  if (quality?.input?.pdf)
+    return ` [pdf:${quality.input.pdf.pageCount}p/${quality.input.pdf.textLength}chars${quality.input.pdf.fallbackUsed ? '/fallback' : ''}]`
+  if (quality?.input?.ocr)
+    return ` [ocr:${Math.round(quality.input.ocr.confidence * 100)}%/${quality.input.ocr.textLength}chars]`
+  if (quality?.ai?.missingFieldRate !== undefined)
+    return ` [missing:${Math.round(quality.ai.missingFieldRate * 100)}%]`
+  return ''
+}
+
 export async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
   const aiConfig = await readAIConfig(aiexDir)
   if (!aiConfig) {
@@ -97,7 +109,7 @@ const historyCommand = defineCommand({
 
     for (const record of records) {
       const suffix = record.error ? ` — ${record.error}` : record.outputName ? ` — ${record.outputName}` : ''
-      consola.info(`${record.status.padEnd(9)} ${record.id}  ${record.schemaName}  ${formatSource(record.source)}${formatInputProcessing(record.inputProcessing)}${suffix}`)
+      consola.info(`${record.status.padEnd(9)} ${record.id}  ${record.schemaName}  ${formatSource(record.source)}${formatInputProcessing(record.inputProcessing)}${formatQuality(record.quality, record.failureStage)}${suffix}`)
     }
   },
 })

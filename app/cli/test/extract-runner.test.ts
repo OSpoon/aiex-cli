@@ -180,6 +180,11 @@ describe('readExtractFileInput', () => {
         mime: 'image/png',
         handler: 'image_vision',
       },
+      quality: {
+        input: {
+          kind: 'image',
+        },
+      },
     })
     expect(imageOcrMock.recognizeImageText).not.toHaveBeenCalled()
 
@@ -225,6 +230,18 @@ describe('readExtractFileInput', () => {
         kind: 'image',
         mime: 'image/png',
         handler: 'image_local_ocr',
+      },
+      quality: {
+        input: {
+          kind: 'image',
+          textLength: 11,
+          emptyText: false,
+          ocr: {
+            confidence: 0.91,
+            textLength: 11,
+            platform: expect.any(String),
+          },
+        },
       },
     })
     expect(imageOcrMock.shouldUseImageOcrFallback).toHaveBeenCalledWith(aiConfig, undefined)

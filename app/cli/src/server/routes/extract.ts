@@ -41,6 +41,8 @@ interface ExtractResponse {
     handler: 'text' | 'image_vision' | 'image_local_ocr' | 'pdf_converter'
     converter?: string
   }
+  quality?: import('@/core/extraction-audit').ExtractionQualityMetrics
+  failureStage?: import('@/core/extraction-audit').ExtractionFailureStage
 }
 
 type BodyValue = string | File
@@ -167,7 +169,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
       })
 
       if (!result.success) {
-        return jsonResponse({ success: false, error: result.error, auditId: result.auditId }, 500)
+        return jsonResponse({ success: false, error: result.error, auditId: result.auditId, inputProcessing: result.inputProcessing, quality: result.quality, failureStage: result.failureStage }, 500)
       }
 
       return jsonResponse({
@@ -179,6 +181,8 @@ export function extractRoutes(config: MigrationConfig): Hono {
         tokensUsed: result.tokensUsed,
         auditId: result.auditId,
         inputProcessing: result.inputProcessing,
+        quality: result.quality,
+        failureStage: result.failureStage,
       }, 200)
     }
     catch (error: unknown) {
@@ -234,7 +238,7 @@ export function extractRoutes(config: MigrationConfig): Hono {
     })
 
     if (!result.success) {
-      return jsonResponse({ success: false, error: result.error, auditId: result.auditId }, 500)
+      return jsonResponse({ success: false, error: result.error, auditId: result.auditId, inputProcessing: result.inputProcessing, quality: result.quality, failureStage: result.failureStage }, 500)
     }
 
     return jsonResponse({
@@ -246,6 +250,8 @@ export function extractRoutes(config: MigrationConfig): Hono {
       tokensUsed: result.tokensUsed,
       auditId: result.auditId,
       inputProcessing: result.inputProcessing,
+      quality: result.quality,
+      failureStage: result.failureStage,
     }, 200)
   })
 

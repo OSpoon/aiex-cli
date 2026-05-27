@@ -25,6 +25,7 @@ const notionActionLabel = computed(() => {
   return t("app.syncNotion")
 })
 const inputProcessingLabel = computed(() => formatInputProcessing(props.record?.inputProcessing))
+const qualitySummary = computed(() => formatQualitySummary(props.record))
 
 async function loadContent() {
   if (!props.extractionName) return
@@ -87,6 +88,34 @@ function formatInputProcessing(input?: InputProcessingInfo): string {
   return `${input.mime ?? input.kind} -> ${handlerLabel(input)}`
 }
 
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`
+}
+
+function formatQualitySummary(record?: ExtractionRecord | null): string {
+  const parts: string[] = []
+  const quality = record?.quality
+  if (quality?.input?.pdf) {
+    const pdf = quality.input.pdf
+    parts.push(`PDF ${pdf.pageCount}p/${pdf.textLength} chars${pdf.fallbackUsed ? "/fallback" : ""}`)
+  } else if (quality?.input?.ocr) {
+    parts.push(`OCR ${formatPercent(quality.input.ocr.confidence)}/${quality.input.ocr.textLength} chars`)
+  } else if (quality?.input?.textLength !== undefined) {
+    parts.push(`Text ${quality.input.textLength} chars`)
+  }
+
+  if (quality?.ai) {
+    parts.push(`AI ${quality.ai.attempts} attempt${quality.ai.attempts === 1 ? "" : "s"}`)
+    if (quality.ai.missingFieldRate !== undefined)
+      parts.push(`missing ${formatPercent(quality.ai.missingFieldRate)}`)
+  }
+
+  if (record?.failureStage)
+    parts.push(`failed at ${record.failureStage}`)
+
+  return parts.join(" · ")
+}
+
 function tryParseAndFormat(json: string): string {
   try {
     return JSON.stringify(JSON.parse(json), null, 2)
@@ -123,6 +152,12 @@ onMounted(loadContent)
             class="rounded bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground"
           >
             {{ inputProcessingLabel }}
+          </span>
+          <span
+            v-if="qualitySummary"
+            class="rounded bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground"
+          >
+            {{ qualitySummary }}
           </span>
           <span
             v-if="record"

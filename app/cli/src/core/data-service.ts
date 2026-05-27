@@ -30,6 +30,8 @@ export interface ExtractionRecord {
   notionPages?: Array<{ databaseId: string, pageId: string }>
   notionError?: string
   inputProcessing?: ExtractionAuditRecord['inputProcessing']
+  quality?: ExtractionAuditRecord['quality']
+  failureStage?: ExtractionAuditRecord['failureStage']
 }
 
 export interface RowExtractionAction {
@@ -148,6 +150,8 @@ export async function listExtractions(config: MigrationConfig): Promise<Extracti
         notionPages,
         notionError: !notionPages && audit?.status === 'failed' ? audit.error : undefined,
         inputProcessing: audit?.inputProcessing,
+        quality: audit?.quality,
+        failureStage: audit?.failureStage,
       })
     }
     catch {

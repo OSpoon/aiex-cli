@@ -224,6 +224,35 @@ export interface InputProcessingInfo {
   converter?: string
 }
 
+export interface ExtractionQualityMetrics {
+  input?: {
+    kind: "pdf" | "image" | "text"
+    textLength?: number
+    emptyText?: boolean
+    pdf?: {
+      pageCount: number
+      textLength: number
+      emptyText: boolean
+      fallbackUsed: boolean
+      converter: string
+    }
+    ocr?: {
+      confidence: number
+      textLength: number
+      platform: string
+    }
+  }
+  ai?: {
+    validationPassed: boolean
+    attempts: number
+    selfCorrectionCount: number
+    apiRetryCount: number
+    missingFields?: string[]
+    missingFieldRate?: number
+    validationError?: string
+  }
+}
+
 export interface ExtractionRecord {
   name: string
   schemaName: string
@@ -234,6 +263,8 @@ export interface ExtractionRecord {
   notionPages?: Array<{ databaseId: string, pageId: string }>
   notionError?: string
   inputProcessing?: InputProcessingInfo
+  quality?: ExtractionQualityMetrics
+  failureStage?: "input_detection" | "file_conversion" | "ocr" | "ai_extraction" | "db_insert" | "integration"
 }
 
 export interface RetryNotionSyncResult {

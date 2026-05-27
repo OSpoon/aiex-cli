@@ -106,6 +106,7 @@ export interface ExtractionResult {
     completion: number
     total: number
   }
+  quality?: import('@/core/extraction-audit').ExtractionQualityMetrics
 }
 
 export const DEFAULT_MODELS: AIModelConfig[] = [

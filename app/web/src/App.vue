@@ -152,6 +152,19 @@ function extractionInputLabel(record: ExtractionRecord): string {
   return `${input.mime ?? input.kind} -> ${handler}`
 }
 
+function extractionQualityLabel(record: ExtractionRecord): string {
+  const quality = record.quality
+  if (quality?.input?.pdf)
+    return `PDF ${quality.input.pdf.pageCount}p · ${quality.input.pdf.textLength} chars${quality.input.pdf.fallbackUsed ? " · fallback" : ""}`
+  if (quality?.input?.ocr)
+    return `OCR ${Math.round(quality.input.ocr.confidence * 100)}% · ${quality.input.ocr.textLength} chars`
+  if (quality?.ai?.missingFieldRate !== undefined)
+    return `Missing ${Math.round(quality.ai.missingFieldRate * 100)}%`
+  if (record.failureStage)
+    return `Failed at ${record.failureStage}`
+  return ""
+}
+
 // ── Schema editor state ──
 
 const ECOMMERCE_EXAMPLE: JSONSchema = {
@@ -615,6 +628,13 @@ onMounted(() => {
                   :class="selectedExtraction === record.name ? 'text-primary-foreground/70' : 'text-muted-foreground'"
                 >
                   {{ extractionInputLabel(record) }}
+                </span>
+                <span
+                  v-if="extractionQualityLabel(record)"
+                  class="mt-0.5 block truncate text-[11px]"
+                  :class="selectedExtraction === record.name ? 'text-primary-foreground/70' : 'text-muted-foreground'"
+                >
+                  {{ extractionQualityLabel(record) }}
                 </span>
               </button>
             </div>

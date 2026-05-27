@@ -15,6 +15,42 @@ interface CacheEntry {
 const recordCache = new Map<string, CacheEntry>()
 
 export type ExtractionAuditStatus = 'running' | 'succeeded' | 'failed' | 'stale'
+export type ExtractionFailureStage
+  = | 'input_detection'
+    | 'file_conversion'
+    | 'ocr'
+    | 'ai_extraction'
+    | 'db_insert'
+    | 'integration'
+
+export interface ExtractionQualityMetrics {
+  input?: {
+    kind: 'pdf' | 'image' | 'text'
+    textLength?: number
+    emptyText?: boolean
+    pdf?: {
+      pageCount: number
+      textLength: number
+      emptyText: boolean
+      fallbackUsed: boolean
+      converter: string
+    }
+    ocr?: {
+      confidence: number
+      textLength: number
+      platform: string
+    }
+  }
+  ai?: {
+    validationPassed: boolean
+    attempts: number
+    selfCorrectionCount: number
+    apiRetryCount: number
+    missingFields?: string[]
+    missingFieldRate?: number
+    validationError?: string
+  }
+}
 
 export interface ExtractionAuditRecord {
   id: string
@@ -44,6 +80,8 @@ export interface ExtractionAuditRecord {
     handler: 'text' | 'image_vision' | 'image_local_ocr' | 'pdf_converter'
     converter?: string
   }
+  quality?: ExtractionQualityMetrics
+  failureStage?: ExtractionFailureStage
   error?: string
   createdAt: string
   updatedAt: string

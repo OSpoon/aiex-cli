@@ -41,7 +41,7 @@ flowchart TD
   I4 -->|"是"| T1
   I4 -->|"否"| ERR2["返回 OCR 不可用/识别失败"]
 
-  T1 --> META["记录 inputProcessing\nkind / mime / handler / converter"]
+  T1 --> META["记录 inputProcessing 与 input quality\nkind / mime / handler / converter\nPDF 页数/文本长度/fallback\nOCR confidence/文本长度"]
   I2 --> META
   META --> E1["extractSingle / extractStructuredData"]
 
@@ -56,7 +56,7 @@ flowchart TD
   A2 -->|"是"| A3["AI SDK Output.object(JSON Schema)"]
   A2 -->|"否"| A4["普通文本生成 + safeParseJSON"]
 
-  A3 --> V1["validateExtractedData 校验 schema"]
+  A3 --> V1["validateExtractedData 校验 schema\n记录 AI quality\nattempts / selfCorrectionCount / apiRetryCount / missingFieldRate"]
   A4 --> V1
 
   V1 -->|"失败"| ERR3["返回结构校验错误"]
@@ -67,7 +67,7 @@ flowchart TD
   DB1 -->|"是"| DB2["ensureDatabaseReady"]
   DB2 --> DB3["insertExtractedData 写入 SQLite"]
   DB3 --> N1{"Notion sync enabled?"}
-  N1 -->|"否"| AUDIT["更新 extraction audit\n含输入处理路径"]
+  N1 -->|"否"| AUDIT["更新 extraction audit\n含处理路径、质量指标、失败阶段"]
   N1 -->|"是"| N2["writeNotionPage 同步 Notion"]
   N2 --> AUDIT
   AUDIT --> DONE

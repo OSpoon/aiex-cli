@@ -1,8 +1,10 @@
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
+import type { ExtractionQualityMetrics } from '@/core/extraction-audit'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import process from 'node:process'
 import { consola } from 'consola'
 import {
   bytesToMB,
@@ -35,6 +37,7 @@ export interface ExtractFileInput {
   text: string
   filePath?: string
   inputProcessing: InputProcessingInfo
+  quality: ExtractionQualityMetrics
 }
 
 export function isImageFile(filePath: string): boolean {
@@ -96,9 +99,31 @@ export async function readExtractFileInput(
     if (inputProcessing.handler === 'image_local_ocr') {
       const result = await recognizeImageText(filePath)
       consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
-      return { text: result.text, inputProcessing }
+      return {
+        text: result.text,
+        inputProcessing,
+        quality: {
+          input: {
+            kind: 'image',
+            textLength: result.text.length,
+            emptyText: result.text.trim().length === 0,
+            ocr: {
+              confidence: result.confidence,
+              textLength: result.text.length,
+              platform: process.platform,
+            },
+          },
+        },
+      }
     }
-    return { text: '', filePath, inputProcessing }
+    return {
+      text: '',
+      filePath,
+      inputProcessing,
+      quality: {
+        input: { kind: 'image' },
+      },
+    }
   }
   if (inputProcessing.kind === 'pdf') {
     const buffer = await fsp.readFile(filePath)
@@ -122,10 +147,40 @@ export async function readExtractFileInput(
       await fsp.writeFile(fallbackMd, result.text)
       consola.info(t('command.extract.file.markdownSaved', { path: fallbackMd }))
     }
-    return { text: result.text, inputProcessing }
+    const textLength = result.text.length
+    return {
+      text: result.text,
+      inputProcessing,
+      quality: {
+        input: {
+          kind: 'pdf',
+          textLength,
+          emptyText: result.text.trim().length === 0,
+          pdf: {
+            pageCount: result.pageCount,
+            textLength,
+            emptyText: result.text.trim().length === 0,
+            fallbackUsed: result.metadata?.fallback === 'true',
+            converter: result.metadata?.converter ?? converter.name,
+          },
+        },
+      },
+    }
   }
-  if (inputProcessing.kind === 'text')
-    return { text: await fsp.readFile(filePath, 'utf-8'), inputProcessing }
+  if (inputProcessing.kind === 'text') {
+    const text = await fsp.readFile(filePath, 'utf-8')
+    return {
+      text,
+      inputProcessing,
+      quality: {
+        input: {
+          kind: 'text',
+          textLength: text.length,
+          emptyText: text.trim().length === 0,
+        },
+      },
+    }
+  }
 
   throw new Error(unsupportedFileTypeMessage(inputProcessing.mime ?? 'application/octet-stream'))
 }
