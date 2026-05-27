@@ -9,8 +9,8 @@ import {
   writeAIConfig,
 } from '@/core/ai-extraction'
 import { AIConfigSchema } from '@/core/ai-extraction/schemas'
-import { inspectNotionDatabase, parseNotionDatabaseId } from '@/core/notion-sink'
 import { getErrorMessage } from '@/core/schema-sqlite'
+import { inspectNotionDatabase, parseNotionDatabaseId } from '@/infrastructure/integrations/notion-sink'
 import { t } from '@/locales'
 
 const JSON_EXT_RE = /\.json$/i

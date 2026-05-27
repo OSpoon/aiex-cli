@@ -1,27 +1,27 @@
 import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { ExtractionAuditRecord } from '@/core/extraction-audit'
+import type { ExtractionAuditRecord } from '@/domain/audit/types'
 import path from 'node:path'
 import process from 'node:process'
 import { confirm, intro, isCancel, outro, select, text } from '@clack/prompts'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
+import {
+  runAuditedExtraction,
+  runBatchExtraction,
+} from '@/application/extraction'
+import { isMissingUploadFileError, MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPES_TEXT } from '@/application/input/file-policy'
+import { listSchemas } from '@/application/schema/load-schema'
 import { failCommand } from '@/commands/utils'
 import { readAIConfig } from '@/core/ai-extraction'
 import {
-  listSchemas,
-  runAuditedExtraction,
-  runBatchExtraction,
-} from '@/core/extract-runner'
+  createMigrationConfig,
+} from '@/core/schema-sqlite'
 import {
   deleteExtractionAuditRecord,
   listExtractionAuditRecords,
   readExtractionAuditRecord,
-} from '@/core/extraction-audit'
-import { isMissingUploadFileError, MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
-import {
-  createMigrationConfig,
-} from '@/core/schema-sqlite'
+} from '@/infrastructure/audit/file-audit-store'
 import { initI18n, t } from '@/locales'
 
 function getIdArg(args: Record<string, unknown>): string {

@@ -1,5 +1,5 @@
-import type { ExtractionAuditRecord } from '@/core/extraction-audit'
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { ExtractionAuditRecord } from '@/domain/audit/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import Database from 'better-sqlite3'
@@ -10,8 +10,8 @@ import {
   createExtractionAuditRecord,
   listExtractionAuditRecords,
   updateExtractionAuditRecord,
-} from '@/core/extraction-audit'
-import { writeNotionPage } from '@/core/notion-sink'
+} from '@/infrastructure/audit/file-audit-store'
+import { writeNotionPage } from '@/infrastructure/integrations/notion-sink'
 import { t } from '@/locales'
 
 const FILE_REGEX = /\.json$/

@@ -32,7 +32,7 @@ describe('extractStructuredData provider setup', () => {
   })
 
   it('enables OpenAI-compatible structured outputs when the selected model supports them', async () => {
-    const { extractStructuredData } = await import('@/core/ai-extraction/extractor')
+    const { extractStructuredData } = await import('@/application/ai-extraction/extract-structured-data')
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aiex-provider-test-'))
 
     createOpenAICompatibleMock.mockReturnValue({
@@ -70,7 +70,7 @@ describe('extractStructuredData provider setup', () => {
   })
 
   it('does not enable OpenAI-compatible structured outputs for text-only models', async () => {
-    const { extractStructuredData } = await import('@/core/ai-extraction/extractor')
+    const { extractStructuredData } = await import('@/application/ai-extraction/extract-structured-data')
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aiex-provider-test-'))
 
     createOpenAICompatibleMock.mockReturnValue({

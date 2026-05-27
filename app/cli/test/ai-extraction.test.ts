@@ -2,7 +2,6 @@ import type { AIModelConfig } from '@/core/ai-extraction/types'
 import { describe, expect, it } from 'vitest'
 import { lookupModelCapabilities } from '@/core/ai-extraction/capabilities'
 import { stripEvidence, verifyFieldEvidence } from '@/core/ai-extraction/evidence'
-import { schemaToExtractionOutputSchema, validateExtractedData } from '@/core/ai-extraction/extractor'
 import { safeParseJSON } from '@/core/ai-extraction/json-utils'
 import { selectModel } from '@/core/ai-extraction/model-selector'
 import {
@@ -12,6 +11,7 @@ import {
 } from '@/core/ai-extraction/prompt-generator'
 import { AIConfigSchema } from '@/core/ai-extraction/schemas'
 import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_SCHEMA, PLACEHOLDER_TEXT } from '@/core/ai-extraction/types'
+import { schemaToExtractionOutputSchema, validateExtractedData } from '@/core/ai-extraction/validator'
 import {
   annotatedSchema,
   emptySchema,

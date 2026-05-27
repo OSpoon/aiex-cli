@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { extractStructuredData } from '@/core/ai-extraction/extractor'
+import { extractStructuredData } from '@/application/ai-extraction/extract-structured-data'
 import {
   paperSchema,
   personSchema,

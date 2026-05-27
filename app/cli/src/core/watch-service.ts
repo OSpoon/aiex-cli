@@ -9,9 +9,9 @@ import * as chokidar from 'chokidar'
 import { consola } from 'consola'
 import { execa } from 'execa'
 import pc from 'picocolors'
+import { processOneFile } from '@/application/extraction'
 import { t } from '@/locales'
 import { getFileHash } from '@/utils/hash'
-import { processOneFile } from './extract-runner'
 
 const PDF_EXT_REGEXP = /\.pdf$/i
 

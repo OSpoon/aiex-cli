@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import mime from 'mime'
-import { detectInputFileKind } from '@/core/input-file-kind'
+import { detectInputFileKind } from '@/infrastructure/input/detect-file-kind'
 
 export async function detectMimeType(filePath: string): Promise<string> {
   const detected = await detectInputFileKind(filePath)

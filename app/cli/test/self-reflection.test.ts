@@ -39,7 +39,7 @@ describe('self-Reflection Loop in extractStructuredData', () => {
   })
 
   it('triggers self-reflection loop and succeeds on second attempt when first returns invalid JSON', async () => {
-    const { extractStructuredData } = await import('@/core/ai-extraction/extractor')
+    const { extractStructuredData } = await import('@/application/ai-extraction/extract-structured-data')
 
     // 1st attempt: returns invalid JSON syntax
     // 2nd attempt: returns valid JSON syntax and correct schema types
@@ -86,7 +86,7 @@ describe('self-Reflection Loop in extractStructuredData', () => {
   })
 
   it('triggers self-reflection loop and succeeds on second attempt when first fails Zod-like type validation', async () => {
-    const { extractStructuredData } = await import('@/core/ai-extraction/extractor')
+    const { extractStructuredData } = await import('@/application/ai-extraction/extract-structured-data')
 
     // 1st attempt: returns age as string "twenty-eight" instead of integer
     // 2nd attempt: corrects age to number 28
@@ -134,7 +134,7 @@ describe('self-Reflection Loop in extractStructuredData', () => {
   })
 
   it('fails after max 3 attempts if the output remains invalid', async () => {
-    const { extractStructuredData } = await import('@/core/ai-extraction/extractor')
+    const { extractStructuredData } = await import('@/application/ai-extraction/extract-structured-data')
 
     generateTextMock.mockResolvedValue({
       text: '{"name": "Alice", "age": "twenty-eight", "city": null}',

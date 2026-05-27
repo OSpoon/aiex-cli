@@ -40,10 +40,22 @@ export interface DoctorDiagnostics {
     aiApiKeySet: boolean;
     aiModelCount: number;
     aiModels: string[];
+    aiVisionModelCount: number;
+    aiStructuredOutputModelCount: number;
     aiProvider: string | null;
     aiConnectionOk: boolean | null;
+    pdfConverter: string | null;
+    pdfConverterOk: boolean | null;
+    pdfConverterError?: string;
     hasDatabase: boolean;
+    databaseTablesOk: boolean | null;
+    missingDatabaseTables: string[];
     migrationCount: number;
+    schemaValidCount: number;
+    invalidSchemas: Array<{
+      file: string;
+      error: string;
+    }>;
     errors: string[];
   };
 }

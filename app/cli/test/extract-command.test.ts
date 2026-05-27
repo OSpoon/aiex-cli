@@ -4,16 +4,20 @@ import path from 'node:path'
 import { intro, outro } from '@clack/prompts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { extractStructuredData } from '@/application/ai-extraction/extract-structured-data'
 import { extractCommand } from '@/commands/extract'
-import { extractStructuredData, insertExtractedData, readAIConfig } from '@/core/ai-extraction'
+import { insertExtractedData, readAIConfig } from '@/core/ai-extraction'
 import { SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
 
 // Force English locale for deterministic test output
 vi.stubEnv('LANG', 'en_US.UTF-8')
 
 // —— vitest mocks ——
-vi.mock('@/core/ai-extraction', () => ({
+vi.mock('@/application/ai-extraction/extract-structured-data', () => ({
   extractStructuredData: vi.fn(),
+}))
+
+vi.mock('@/core/ai-extraction', () => ({
   insertExtractedData: vi.fn(),
   readAIConfig: vi.fn(),
 }))

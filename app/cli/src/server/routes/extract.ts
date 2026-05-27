@@ -1,25 +1,27 @@
 import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { ExtractionFailureStage } from '@/domain/audit/types'
+import type { ExtractionQualityMetrics } from '@/domain/extraction/quality'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { Hono } from 'hono'
-import { readAIConfig } from '@/core/ai-extraction'
 import {
   runAuditedExtraction,
-} from '@/core/extract-runner'
-import {
-  deleteExtractionAuditRecord,
-  listExtractionAuditRecords,
-  readExtractionAuditRecord,
-} from '@/core/extraction-audit'
+} from '@/application/extraction'
 import {
   FileValidationError,
   getExtensionForDetectedFile,
   isMissingUploadFileError,
   MISSING_UPLOAD_FILE_TEXT,
   validateFileUploadContent,
-} from '@/core/file-constants'
+} from '@/application/input/file-policy'
+import { readAIConfig } from '@/core/ai-extraction'
 import { createMigrationConfig } from '@/core/schema-sqlite'
+import {
+  deleteExtractionAuditRecord,
+  listExtractionAuditRecords,
+  readExtractionAuditRecord,
+} from '@/infrastructure/audit/file-audit-store'
 import { t } from '@/locales'
 
 interface ExtractResponse {
@@ -41,8 +43,8 @@ interface ExtractResponse {
     handler: 'text' | 'image_vision' | 'image_local_ocr' | 'pdf_converter'
     converter?: string
   }
-  quality?: import('@/core/extraction-audit').ExtractionQualityMetrics
-  failureStage?: import('@/core/extraction-audit').ExtractionFailureStage
+  quality?: ExtractionQualityMetrics
+  failureStage?: ExtractionFailureStage
 }
 
 type BodyValue = string | File

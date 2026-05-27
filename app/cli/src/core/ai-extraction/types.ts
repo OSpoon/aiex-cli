@@ -106,8 +106,8 @@ export interface ExtractionResult {
     completion: number
     total: number
   }
-  quality?: import('@/core/extraction-audit').ExtractionQualityMetrics
-  evidence?: Record<string, import('@/core/extraction-audit').FieldEvidence>
+  quality?: import('@/domain/extraction/quality').ExtractionQualityMetrics
+  evidence?: Record<string, import('@/domain/audit/types').FieldEvidence>
 }
 
 export const DEFAULT_MODELS: AIModelConfig[] = [
