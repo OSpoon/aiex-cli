@@ -51,7 +51,7 @@ export async function readExtractFileInput(
   const ext = path.extname(filePath).toLowerCase().replace('.', '')
   if (FILE_PART_EXTENSIONS.has(ext)) {
     if (shouldUseImageOcrFallback(aiConfig, modelOverride)) {
-      const result = await recognizeImageText(filePath, aiConfig?.image)
+      const result = await recognizeImageText(filePath)
       consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
       return { text: result.text }
     }

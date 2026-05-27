@@ -24,7 +24,7 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
-export type ImageOcrFallbackMode = 'auto' | 'off' | 'local'
+export type ImageOcrFallbackMode = 'localAuto'
 
 export interface ImageOcrConfig {
   ocrFallback?: ImageOcrFallbackMode
@@ -32,7 +32,7 @@ export interface ImageOcrConfig {
   ocrMinConfidence?: number
 }
 
-export type PdfConverterKind = 'unpdf' | 'mineru' | 'mineru_api' | 'markitdown' | 'marker' | 'external'
+export type PdfConverterKind = 'unpdf' | 'mineru' | 'mineru_api' | 'external'
 
 export interface MineruApiPdfConverterConfig {
   token: string
@@ -55,8 +55,6 @@ export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
   mineruApi?: MineruApiPdfConverterConfig
-  markitdown?: ExternalPdfConverterConfig
-  marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 
@@ -141,7 +139,7 @@ export const DEFAULT_EXTRACTION_CONFIG: ExtractionConfig = {
 }
 
 export const DEFAULT_IMAGE_OCR_CONFIG: ImageOcrConfig = {
-  ocrFallback: 'auto',
+  ocrFallback: 'localAuto',
   ocrLanguages: 'en-US, zh-Hans',
   ocrMinConfidence: 0,
 }
@@ -149,20 +147,6 @@ export const DEFAULT_IMAGE_OCR_CONFIG: ImageOcrConfig = {
 export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
   command: 'mineru',
   args: ['-p', '{input}', '-o', '{outputDir}'],
-  timeout: 600,
-  fallbackToUnpdf: true,
-}
-
-export const DEFAULT_MARKITDOWN_CONFIG: ExternalPdfConverterConfig = {
-  command: 'markitdown',
-  args: ['{input}', '-o', '{outputDir}/{basename}.md'],
-  timeout: 600,
-  fallbackToUnpdf: true,
-}
-
-export const DEFAULT_MARKER_CONFIG: ExternalPdfConverterConfig = {
-  command: 'marker_single',
-  args: ['{input}', '--output_dir', '{outputDir}'],
   timeout: 600,
   fallbackToUnpdf: true,
 }
@@ -180,15 +164,12 @@ export const DEFAULT_PDF_CONFIG: PdfConfig = {
   converter: 'unpdf',
   mineru: DEFAULT_MINERU_CONFIG,
   mineruApi: DEFAULT_MINERU_API_CONFIG,
-  markitdown: DEFAULT_MARKITDOWN_CONFIG,
-  marker: DEFAULT_MARKER_CONFIG,
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {
   provider: DEFAULT_PROVIDER_CONFIG,
   prompt: DEFAULT_PROMPT_CONFIG,
   extraction: DEFAULT_EXTRACTION_CONFIG,
-  image: DEFAULT_IMAGE_OCR_CONFIG,
   pdf: DEFAULT_PDF_CONFIG,
   webhook: {
     enabled: false,

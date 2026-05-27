@@ -105,15 +105,7 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
-export type ImageOcrFallbackMode = "auto" | "off" | "local"
-
-export interface ImageOcrConfig {
-  ocrFallback?: ImageOcrFallbackMode
-  ocrLanguages?: string
-  ocrMinConfidence?: number
-}
-
-export type PdfConverterKind = "unpdf" | "mineru" | "mineru_api" | "markitdown" | "marker" | "external"
+export type PdfConverterKind = "unpdf" | "mineru" | "mineru_api" | "external"
 
 export interface MineruApiPdfConverterConfig {
   token: string
@@ -136,8 +128,6 @@ export interface PdfConfig {
   converter: PdfConverterKind
   mineru?: ExternalPdfConverterConfig
   mineruApi?: MineruApiPdfConverterConfig
-  markitdown?: ExternalPdfConverterConfig
-  marker?: ExternalPdfConverterConfig
   external?: ExternalPdfConverterConfig
 }
 
@@ -184,7 +174,6 @@ export interface AIConfig {
   provider: AIProviderConfig
   prompt: PromptConfig
   extraction: ExtractionConfig
-  image?: ImageOcrConfig
   pdf?: PdfConfig
   langfuse?: LangfuseConfig
   notion?: NotionConfig

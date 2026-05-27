@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/attribute-hyphenation -->
 <script setup lang="ts">
-import type { AIConfig, AIModelConfig, ImageOcrFallbackMode, NotionDatabaseProperty, NotionSchemaConfig, PdfConverterKind } from "@/api-client"
+import type { AIConfig, AIModelConfig, NotionDatabaseProperty, NotionSchemaConfig, PdfConverterKind } from "@/api-client"
 import Button from "primevue/button"
 import Dialog from "primevue/dialog"
 import { computed, onMounted, ref } from "vue"
@@ -62,24 +62,9 @@ const mineruApiIsOcr = ref(true)
 const mineruApiEnableFormula = ref(true)
 const mineruApiEnableTable = ref(true)
 
-const markitdownCommand = ref("markitdown")
-const markitdownArgs = ref("{input}\n-o\n{outputDir}/{basename}.md")
-const markitdownTimeout = ref(600)
-const markitdownFallbackToUnpdf = ref(true)
-
-const markerCommand = ref("marker_single")
-const markerArgs = ref("{input}\n--output_dir\n{outputDir}")
-const markerTimeout = ref(600)
-const markerFallbackToUnpdf = ref(true)
-
 const externalCommand = ref("")
 const externalArgs = ref("")
 const externalTimeout = ref(600)
-
-const imageOcrFallback = ref<ImageOcrFallbackMode>("auto")
-const imageOcrLanguages = ref("en-US, zh-Hans")
-const imageOcrMinConfidence = ref(0)
-const imageOcrAdvancedOpen = ref(false)
 
 const langfuseEnabled = ref(false)
 const langfusePublicKey = ref("")
@@ -105,8 +90,6 @@ const notionAdvancedOpen = ref(false)
 const promptSettingsRef = ref<InstanceType<typeof PromptSettings> | null>(null)
 const integrationSettingsRef = ref<InstanceType<typeof IntegrationSettings> | null>(null)
 
-const hasVisionModel = computed(() => models.value.some(model => model.capabilities.vision))
-
 const canSave = computed(() => {
   const systemSchemaError = promptSettingsRef.value?.systemSchemaError || ""
   const userSchemaError = promptSettingsRef.value?.userSchemaError || ""
@@ -120,8 +103,6 @@ const canSave = computed(() => {
     && (!notionEnabled.value || !!notionToken.value.trim())
     && (pdfConverter.value !== "mineru" || !!mineruCommand.value.trim())
     && (pdfConverter.value !== "mineru_api" || !!mineruApiToken.value.trim())
-    && (pdfConverter.value !== "markitdown" || !!markitdownCommand.value.trim())
-    && (pdfConverter.value !== "marker" || !!markerCommand.value.trim())
     && (pdfConverter.value !== "external" || !!externalCommand.value.trim())
 })
 
@@ -148,7 +129,9 @@ async function loadConfig() {
     models.value = config.provider?.models ?? []
     systemTemplate.value = config.prompt?.systemTemplate ?? defaultSystemTemplate
     userTemplate.value = config.prompt?.userTemplate ?? defaultUserTemplate
-    pdfConverter.value = config.pdf?.converter ?? "unpdf"
+    pdfConverter.value = ["unpdf", "mineru", "mineru_api", "external"].includes(config.pdf?.converter ?? "")
+      ? (config.pdf?.converter as PdfConverterKind)
+      : "unpdf"
     mineruApiToken.value = config.pdf?.mineruApi?.token ?? ""
     mineruApiBaseUrl.value = config.pdf?.mineruApi?.baseURL ?? "https://mineru.net/api/v4"
     mineruApiModel.value = config.pdf?.mineruApi?.modelVersion ?? "vlm"
@@ -159,20 +142,9 @@ async function loadConfig() {
     mineruArgs.value = (config.pdf?.mineru?.args ?? ["-p", "{input}", "-o", "{outputDir}"]).join("\n")
     mineruTimeout.value = config.pdf?.mineru?.timeout ?? 600
     mineruFallbackToUnpdf.value = config.pdf?.mineru?.fallbackToUnpdf ?? true
-    markitdownCommand.value = config.pdf?.markitdown?.command ?? "markitdown"
-    markitdownArgs.value = (config.pdf?.markitdown?.args ?? ["{input}", "-o", "{outputDir}/{basename}.md"]).join("\n")
-    markitdownTimeout.value = config.pdf?.markitdown?.timeout ?? 600
-    markitdownFallbackToUnpdf.value = config.pdf?.markitdown?.fallbackToUnpdf ?? true
-    markerCommand.value = config.pdf?.marker?.command ?? "marker_single"
-    markerArgs.value = (config.pdf?.marker?.args ?? ["{input}", "--output_dir", "{outputDir}"]).join("\n")
-    markerTimeout.value = config.pdf?.marker?.timeout ?? 600
-    markerFallbackToUnpdf.value = config.pdf?.marker?.fallbackToUnpdf ?? true
     externalCommand.value = config.pdf?.external?.command ?? ""
     externalArgs.value = (config.pdf?.external?.args ?? []).join("\n")
     externalTimeout.value = config.pdf?.external?.timeout ?? 600
-    imageOcrFallback.value = config.image?.ocrFallback ?? "auto"
-    imageOcrLanguages.value = config.image?.ocrLanguages ?? "en-US, zh-Hans"
-    imageOcrMinConfidence.value = config.image?.ocrMinConfidence ?? 0
     langfuseEnabled.value = !!config.langfuse
     langfusePublicKey.value = config.langfuse?.publicKey ?? ""
     langfuseSecretKey.value = config.langfuse?.secretKey ?? ""
@@ -213,11 +185,6 @@ async function handleSave() {
       extraction: {
         outputDir: ".aiex/extracted"
       },
-      image: {
-        ocrFallback: imageOcrFallback.value,
-        ocrLanguages: imageOcrLanguages.value.trim() || undefined,
-        ocrMinConfidence: imageOcrMinConfidence.value
-      },
       pdf: {
         converter: pdfConverter.value,
         mineru: mineruCommand.value.trim()
@@ -236,22 +203,6 @@ async function handleSave() {
           enableFormula: mineruApiEnableFormula.value,
           enableTable: mineruApiEnableTable.value
         },
-        markitdown: markitdownCommand.value.trim()
-          ? {
-              command: markitdownCommand.value,
-              args: markitdownArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-              timeout: markitdownTimeout.value,
-              fallbackToUnpdf: markitdownFallbackToUnpdf.value
-            }
-          : undefined,
-        marker: markerCommand.value.trim()
-          ? {
-              command: markerCommand.value,
-              args: markerArgs.value.split("\n").map(arg => arg.trim()).filter(Boolean),
-              timeout: markerTimeout.value,
-              fallbackToUnpdf: markerFallbackToUnpdf.value
-            }
-          : undefined,
         external: externalCommand.value.trim()
           ? {
               command: externalCommand.value,
@@ -339,7 +290,6 @@ onMounted(() => {
 
       <section data-anchor-section="documents">
         <PdfSettings
-          :has-vision-model="hasVisionModel"
           v-model:pdf-converter="pdfConverter"
           v-model:mineru-command="mineruCommand"
           v-model:mineru-args="mineruArgs"
@@ -351,21 +301,9 @@ onMounted(() => {
           v-model:mineru-api-is-ocr="mineruApiIsOcr"
           v-model:mineru-api-enable-formula="mineruApiEnableFormula"
           v-model:mineru-api-enable-table="mineruApiEnableTable"
-          v-model:markitdown-command="markitdownCommand"
-          v-model:markitdown-args="markitdownArgs"
-          v-model:markitdown-timeout="markitdownTimeout"
-          v-model:markitdown-fallback-to-unpdf="markitdownFallbackToUnpdf"
-          v-model:marker-command="markerCommand"
-          v-model:marker-args="markerArgs"
-          v-model:marker-timeout="markerTimeout"
-          v-model:marker-fallback-to-unpdf="markerFallbackToUnpdf"
           v-model:external-command="externalCommand"
           v-model:external-args="externalArgs"
           v-model:external-timeout="externalTimeout"
-          v-model:image-ocr-fallback="imageOcrFallback"
-          v-model:image-ocr-languages="imageOcrLanguages"
-          v-model:image-ocr-min-confidence="imageOcrMinConfidence"
-          v-model:image-ocr-advanced-open="imageOcrAdvancedOpen"
         />
       </section>
 
@@ -411,7 +349,6 @@ onMounted(() => {
       />
 
       <PdfSettings
-        :has-vision-model="hasVisionModel"
         v-model:pdf-converter="pdfConverter"
         v-model:mineru-command="mineruCommand"
         v-model:mineru-args="mineruArgs"
@@ -423,21 +360,9 @@ onMounted(() => {
         v-model:mineru-api-is-ocr="mineruApiIsOcr"
         v-model:mineru-api-enable-formula="mineruApiEnableFormula"
         v-model:mineru-api-enable-table="mineruApiEnableTable"
-        v-model:markitdown-command="markitdownCommand"
-        v-model:markitdown-args="markitdownArgs"
-        v-model:markitdown-timeout="markitdownTimeout"
-        v-model:markitdown-fallback-to-unpdf="markitdownFallbackToUnpdf"
-        v-model:marker-command="markerCommand"
-        v-model:marker-args="markerArgs"
-        v-model:marker-timeout="markerTimeout"
-        v-model:marker-fallback-to-unpdf="markerFallbackToUnpdf"
         v-model:external-command="externalCommand"
         v-model:external-args="externalArgs"
         v-model:external-timeout="externalTimeout"
-        v-model:image-ocr-fallback="imageOcrFallback"
-        v-model:image-ocr-languages="imageOcrLanguages"
-        v-model:image-ocr-min-confidence="imageOcrMinConfidence"
-        v-model:image-ocr-advanced-open="imageOcrAdvancedOpen"
       />
 
       <IntegrationSettings

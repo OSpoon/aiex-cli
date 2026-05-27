@@ -18,10 +18,9 @@ flowchart TD
   P2 --> P3{"PDF converter"}
   P3 -->|"unpdf"| P4["内置 unpdf 提取文本"]
   P3 -->|"mineru"| P5["外部 mineru 命令转 Markdown"]
-  P3 -->|"markitdown"| P6["外部 markitdown 命令转 Markdown"]
+  P3 -->|"mineru_api"| P6["MinerU API 转 Markdown"]
   P3 -->|"external"| P7["用户自定义外部命令"]
   P5 --> P8{"失败且 fallbackToUnpdf?"}
-  P6 --> P8
   P7 --> P8
   P8 -->|"是"| P4
   P8 -->|"否"| ERR1["返回 PDF 转换失败"]
@@ -34,14 +33,11 @@ flowchart TD
   F2 -->|"png / jpg / jpeg / gif / webp / bmp / svg"| I0["图片输入"]
   I0 --> I1{"选定模型/配置中是否有 vision model?"}
   I1 -->|"是"| I2["保留 filePath，作为图片附件输入"]
-  I1 -->|"否"| ICFG{"image.ocrFallback"}
-  ICFG -->|"off"| ERR2A["返回错误：没有 vision model 且 OCR 关闭"]
-  ICFG -->|"auto"| IPLAT{"当前平台"}
-  ICFG -->|"local"| I3["强制本机 OCR: @napi-rs/system-ocr"]
+  I1 -->|"否"| IPLAT{"当前平台支持本地 OCR?"}
   IPLAT -->|"macOS / Windows"| I3
-  IPLAT -->|"其他平台"| ERR2B["返回错误：auto OCR 不支持当前平台"]
+  IPLAT -->|"其他平台"| ERR2B["返回错误：没有 vision model 且本地 OCR 不支持当前平台"]
   I3 --> I3A["调用系统 OCR\nmacOS: VisionKit\nWindows: Media OCR"]
-  I3A --> I4{"OCR 成功且满足 minConfidence?"}
+  I3A --> I4{"OCR 成功且满足内置质量要求?"}
   I4 -->|"是"| T1
   I4 -->|"否"| ERR2["返回 OCR 不可用/识别失败"]
 

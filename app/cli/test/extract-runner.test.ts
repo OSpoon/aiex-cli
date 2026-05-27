@@ -180,7 +180,7 @@ describe('readExtractFileInput', () => {
         outputDir: '.aiex/extracted',
       },
       image: {
-        ocrFallback: 'local' as const,
+        ocrFallback: 'localAuto' as const,
         ocrLanguages: 'en-US',
       },
     }
@@ -195,7 +195,7 @@ describe('readExtractFileInput', () => {
 
     expect(input).toEqual({ text: 'total 12.50' })
     expect(imageOcrMock.shouldUseImageOcrFallback).toHaveBeenCalledWith(aiConfig, undefined)
-    expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath, aiConfig.image)
+    expect(imageOcrMock.recognizeImageText).toHaveBeenCalledWith(filePath)
 
     fs.rmSync(dir, { recursive: true })
   })

@@ -287,7 +287,7 @@ describe('ai config schema', () => {
     expect(result.pdf?.mineru?.timeout).toBe(600)
   })
 
-  it('accepts markitdown pdf converter config', () => {
+  it('migrates removed markitdown pdf converter config to external', () => {
     const result = AIConfigSchema.parse({
       ...validConfig,
       pdf: {
@@ -302,23 +302,23 @@ describe('ai config schema', () => {
       },
     })
 
-    expect(result.pdf?.converter).toBe('markitdown')
-    expect(result.pdf?.markitdown?.args).toEqual(['{input}', '-o', '{outputDir}/{basename}.md'])
-    expect(result.pdf?.markitdown?.outputFile).toBe('{outputDir}/{basename}.md')
-    expect(result.pdf?.markitdown?.timeout).toBe(600)
+    expect(result.pdf?.converter).toBe('external')
+    expect(result.pdf?.external?.args).toEqual(['{input}', '-o', '{outputDir}/{basename}.md'])
+    expect(result.pdf?.external?.outputFile).toBe('{outputDir}/{basename}.md')
+    expect(result.pdf?.external?.timeout).toBe(600)
   })
 
   it('accepts image OCR fallback config', () => {
     const result = AIConfigSchema.parse({
       ...validConfig,
       image: {
-        ocrFallback: 'local',
+        ocrFallback: 'localAuto',
         ocrLanguages: 'en-US, zh-Hans',
         ocrMinConfidence: 0.4,
       },
     })
 
-    expect(result.image?.ocrFallback).toBe('local')
+    expect(result.image?.ocrFallback).toBe('localAuto')
     expect(result.image?.ocrLanguages).toBe('en-US, zh-Hans')
     expect(result.image?.ocrMinConfidence).toBe(0.4)
   })
@@ -333,7 +333,7 @@ describe('ai config schema', () => {
     })).toThrow()
   })
 
-  it('rejects empty markitdown command', () => {
+  it('rejects empty external command after removed converter migration', () => {
     expect(() => AIConfigSchema.parse({
       ...validConfig,
       pdf: {

@@ -28,8 +28,13 @@ export const ExtractionConfigSchema = z.object({
   outputDir: z.string().min(1),
 })
 
+const ImageOcrFallbackSchema = z.preprocess(
+  value => ['auto', 'off', 'local'].includes(String(value)) ? 'localAuto' : value,
+  z.literal('localAuto').default('localAuto').optional(),
+)
+
 export const ImageOcrConfigSchema = z.object({
-  ocrFallback: z.enum(['auto', 'off', 'local']).default('auto').optional(),
+  ocrFallback: ImageOcrFallbackSchema,
   ocrLanguages: z.string().min(1).optional(),
   ocrMinConfidence: z.number().min(0).max(1).optional(),
 })
@@ -54,14 +59,31 @@ export const MineruApiPdfConverterConfigSchema = z.object({
   enableTable: z.boolean().optional(),
 })
 
-export const PdfConfigSchema = z.object({
-  converter: z.enum(['unpdf', 'mineru', 'mineru_api', 'markitdown', 'marker', 'external']),
+export const PdfConfigSchema = z.preprocess((value) => {
+  if (!value || typeof value !== 'object')
+    return value
+
+  const config = { ...(value as Record<string, unknown>) }
+  if (config.converter === 'markitdown' && config.markitdown) {
+    config.converter = 'external'
+    config.external = config.markitdown
+  }
+  else if (config.converter === 'marker' && config.marker) {
+    config.converter = 'external'
+    config.external = config.marker
+  }
+  else if (config.converter === 'markitdown' || config.converter === 'marker') {
+    config.converter = 'unpdf'
+  }
+  delete config.markitdown
+  delete config.marker
+  return config
+}, z.object({
+  converter: z.enum(['unpdf', 'mineru', 'mineru_api', 'external']),
   mineru: ExternalPdfConverterConfigSchema.optional(),
   mineruApi: MineruApiPdfConverterConfigSchema.optional(),
-  markitdown: ExternalPdfConverterConfigSchema.optional(),
-  marker: ExternalPdfConverterConfigSchema.optional(),
   external: ExternalPdfConverterConfigSchema.optional(),
-})
+}))
 
 export const LangfuseConfigSchema = z.object({
   publicKey: z.string(),

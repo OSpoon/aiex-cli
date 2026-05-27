@@ -36,15 +36,15 @@ describe('image OCR fallback', () => {
     }, undefined, { platform: 'darwin' })).toBe(false)
   })
 
-  it('does not use auto OCR fallback on unsupported platforms', () => {
+  it('does not use local OCR fallback on unsupported platforms', () => {
     expect(shouldUseImageOcrFallback(configWithoutVision, undefined, { platform: 'linux' })).toBe(false)
   })
 
-  it('allows local OCR to be required explicitly', () => {
+  it('uses the merged localAuto mode on supported platforms', () => {
     expect(shouldUseImageOcrFallback({
       ...configWithoutVision,
-      image: { ocrFallback: 'local' },
-    }, undefined, { platform: 'linux' })).toBe(true)
+      image: { ocrFallback: 'localAuto' },
+    }, undefined, { platform: 'darwin' })).toBe(true)
   })
 
   it('recognizes text with the local OCR runtime', async () => {

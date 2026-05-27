@@ -36,7 +36,7 @@ const defaultRuntime: ImageOcrRuntime = {
 }
 
 function imageOcrMode(config?: ImageOcrConfig): NonNullable<ImageOcrConfig['ocrFallback']> {
-  return config?.ocrFallback ?? 'auto'
+  return config?.ocrFallback ?? 'localAuto'
 }
 
 function hasVisionModel(aiConfig?: AIConfig, modelOverride?: AIModelConfig): boolean {
@@ -54,10 +54,8 @@ export function shouldUseImageOcrFallback(
     return false
 
   const mode = imageOcrMode(aiConfig?.image)
-  if (mode === 'off')
-    return false
-  if (mode === 'local')
-    return true
+  if (mode === 'localAuto')
+    return isLocalOcrPlatform(runtime.platform)
   return isLocalOcrPlatform(runtime.platform)
 }
 
@@ -77,12 +75,8 @@ export async function recognizeImageText(
   config?: ImageOcrConfig,
   runtime: ImageOcrRuntime = defaultRuntime,
 ): Promise<ImageOcrTextResult> {
-  const mode = imageOcrMode(config)
   if (!isLocalOcrPlatform(runtime.platform)) {
     throw new Error(t('errors.ocr.platformUnsupported', { platform: runtime.platform }))
-  }
-  if (mode === 'off') {
-    throw new Error(t('errors.ocr.disabled'))
   }
 
   let localOcr: LocalOcr

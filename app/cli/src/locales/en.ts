@@ -361,7 +361,7 @@ export const en = {
     imageInput: 'Image Input',
     imageInputSummary: {
       visionModel: 'Image files will use your configured vision model first.',
-      ocrFallback: 'No vision model is configured, and local OCR fallback is disabled.',
+      ocrFallback: 'No vision model is configured, and local OCR is unavailable.',
       ocrLocal: 'No vision model is configured. Image text will require local OCR on macOS or Windows.',
       ocrAuto: 'No vision model is configured. On macOS or Windows, local OCR will be tried automatically for text-heavy images.',
     },
@@ -369,7 +369,7 @@ export const en = {
     noVisionModel: 'No vision model',
     advancedImageSettings: 'Advanced image settings',
     hideAdvancedImageSettings: 'Hide advanced image settings',
-    ocrFallback: 'OCR fallback',
+    ocrFallback: 'Local OCR fallback',
     ocrLanguages: 'Languages',
     ocrMinConfidence: 'Minimum confidence',
     ocrHint: 'Image extraction always prefers a vision model. OCR fallback is only used when no vision model is available.',
@@ -449,14 +449,10 @@ export const en = {
     converterOptions: {
       unpdf: 'Built-in text extraction (unpdf)',
       mineru: 'MinerU (mineru)',
-      markitdown: 'MarkItDown (markitdown)',
-      marker: 'Marker (marker_single)',
       external: 'Custom External Command',
     },
     ocrFallbackOptions: {
-      auto: 'Auto on macOS or Windows when no vision model exists',
-      off: 'Off',
-      local: 'Require local OCR',
+      localAuto: 'Vision model or local OCR',
     },
   },
   prompt: {

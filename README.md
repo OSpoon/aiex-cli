@@ -208,6 +208,7 @@ aiex works with any OpenAI-compatible API provider. Configure in the Web UI (AI 
 
 - **Provider** — Set your base URL and API key
 - **Models** — Add models with vision and/or structured output capabilities
+- **Documents** — Choose a PDF converter (`unpdf`, `mineru`, `mineru_api`, or `external`); image input automatically uses a vision model when available, otherwise system OCR on supported platforms
 - **Prompts** — Customize system and user prompt templates with `{schema}` and `{text}` placeholders
 - **Integrations** — Optionally connect Notion from AI Settings; use Connect & Map to bind a schema to an existing Notion data source
 

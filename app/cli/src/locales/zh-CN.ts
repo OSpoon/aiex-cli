@@ -363,7 +363,7 @@ export const zhCN: Translations = {
     imageInput: '图片输入',
     imageInputSummary: {
       visionModel: '图片文件将使用您配置的视觉模型。',
-      ocrFallback: '未配置视觉模型，且本地 OCR 回退已禁用。',
+      ocrFallback: '未配置视觉模型，且本地 OCR 不可用。',
       ocrLocal: '未配置视觉模型。图片文本将在 macOS 或 Windows 上使用本地 OCR。',
       ocrAuto: '未配置视觉模型。在 macOS 或 Windows 上，将自动尝试本地 OCR 处理文本密集型图片。',
     },
@@ -371,7 +371,7 @@ export const zhCN: Translations = {
     noVisionModel: '无视觉模型',
     advancedImageSettings: '高级图片设置',
     hideAdvancedImageSettings: '隐藏高级图片设置',
-    ocrFallback: 'OCR 回退',
+    ocrFallback: '本地 OCR 回退',
     ocrLanguages: '语言',
     ocrMinConfidence: '最低置信度',
     ocrHint: '图片抽取总是优先使用视觉模型。仅当没有可用视觉模型时才使用 OCR 回退。',
@@ -451,14 +451,10 @@ export const zhCN: Translations = {
     converterOptions: {
       unpdf: '内置文本抽取（unpdf）',
       mineru: 'MinerU（mineru）',
-      markitdown: 'MarkItDown（markitdown）',
-      marker: 'Marker（marker_single）',
       external: '自定义外部命令',
     },
     ocrFallbackOptions: {
-      auto: '在 macOS 或 Windows 上自动启用（当没有视觉模型时）',
-      off: '关闭',
-      local: '强制使用本地 OCR',
+      localAuto: '视觉模型或本地 OCR',
     },
   },
   prompt: {
