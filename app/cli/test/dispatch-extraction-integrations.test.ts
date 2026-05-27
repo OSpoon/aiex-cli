@@ -84,7 +84,7 @@ describe('dispatch-extraction-integrations', () => {
     it('should not send webhook when webhook is not enabled', async () => {
       const { sendWebhook } = await import('@/infrastructure/integrations/webhook-sink')
 
-      await triggerWebhook({} as any, 'audit-1', 'people', 'started', { type: 'file' })
+      await triggerWebhook({} as any, 'audit-1', 'people', 'extraction.success', { type: 'file' })
       expect(sendWebhook).not.toHaveBeenCalled()
     })
 
@@ -99,12 +99,12 @@ describe('dispatch-extraction-integrations', () => {
         },
       }
 
-      await triggerWebhook(config, 'audit-1', 'people', 'started', { type: 'file', filePath: '/tmp/test.txt' }, { name: 'Alice' }, undefined, { input: 100, output: 50 }, true)
+      await triggerWebhook(config, 'audit-1', 'people', 'extraction.success', { type: 'file', filePath: '/tmp/test.txt' }, { name: 'Alice' }, undefined, { prompt: 100, completion: 50, total: 150 }, true)
 
       expect(sendWebhook).toHaveBeenCalledWith(
         config.webhook,
         expect.objectContaining({
-          event: 'started',
+          event: 'extraction.success',
           schemaName: 'people',
           auditId: 'audit-1',
           source: expect.objectContaining({ fileName: 'test.txt' }),
@@ -124,7 +124,7 @@ describe('dispatch-extraction-integrations', () => {
         },
       }
 
-      await expect(triggerWebhook(config, 'audit-1', 'people', 'started', { type: 'file' }, undefined, undefined, undefined, true)).resolves.not.toThrow()
+      await expect(triggerWebhook(config, 'audit-1', 'people', 'extraction.success', { type: 'file' }, undefined, undefined, undefined, true)).resolves.not.toThrow()
     })
   })
 })

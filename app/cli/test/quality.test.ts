@@ -4,17 +4,17 @@ import { classifyInputError, formatInputProcessing, mergeQuality } from '@/appli
 describe('quality', () => {
   describe('formatInputProcessing', () => {
     it('should format input processing with converter info', () => {
-      const input = { handler: 'pdf_converter', converter: 'unpdf', mime: 'application/pdf', kind: 'pdf' }
+      const input = { handler: 'pdf_converter' as const, converter: 'unpdf', mime: 'application/pdf', kind: 'pdf' as const }
       expect(formatInputProcessing(input)).toBe('application/pdf -> pdf_converter(unpdf)')
     })
 
     it('should format input processing without converter', () => {
-      const input = { handler: 'text_handler', mime: 'text/plain', kind: 'text' }
+      const input = { handler: 'text_handler', mime: 'text/plain', kind: 'text' } as any
       expect(formatInputProcessing(input)).toBe('text/plain -> text_handler')
     })
 
     it('should fall back to kind when mime is not available', () => {
-      const input = { handler: 'image_local_ocr', kind: 'image' }
+      const input = { handler: 'image_local_ocr' as const, kind: 'image' as const }
       expect(formatInputProcessing(input)).toBe('image -> image_local_ocr')
     })
   })
@@ -46,13 +46,13 @@ describe('quality', () => {
   describe('classifyInputError', () => {
     it('should classify PDF converter error', () => {
       const error = new Error('PDF conversion failed')
-      const inputProcessing = { handler: 'pdf_converter', mime: 'application/pdf', kind: 'pdf' }
+      const inputProcessing = { handler: 'pdf_converter' as const, mime: 'application/pdf', kind: 'pdf' as const }
       expect(classifyInputError(error, inputProcessing)).toBe('file_conversion')
     })
 
     it('should classify OCR error', () => {
       const error = new Error('OCR failed')
-      const inputProcessing = { handler: 'image_local_ocr', mime: 'image/png', kind: 'image' }
+      const inputProcessing = { handler: 'image_local_ocr' as const, mime: 'image/png', kind: 'image' as const }
       expect(classifyInputError(error, inputProcessing)).toBe('ocr')
     })
 

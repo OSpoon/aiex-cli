@@ -46,7 +46,7 @@ describe('file-utils', () => {
 
     it('should return application/octet-stream as last resort', async () => {
       const { detectInputFileKind } = await import('@/infrastructure/input/detect-file-kind')
-      vi.mocked(detectInputFileKind).mockResolvedValue({ kind: 'unknown' })
+      vi.mocked(detectInputFileKind).mockResolvedValue({ kind: 'unsupported' })
 
       const filePath = path.join(tempDir, 'test.unknown_ext_xyz')
       fs.writeFileSync(filePath, 'data')

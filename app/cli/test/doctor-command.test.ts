@@ -7,11 +7,34 @@ vi.mock('@/core/doctor-collector', () => ({
 }))
 
 const diagnosticsMock = vi.hoisted(() => ({
-  cli: { name: 'aiex', version: '0.0.0' },
-  system: { platform: 'darwin', nodeVersion: 'v22.0.0' },
-  config: { exists: true, path: '/mock/.aiex' },
-  aiProvider: { configured: true, modelCount: 1 },
-  database: { exists: true, path: '/mock/.aiex/database.db', tableCount: 2 },
+  cli: { name: 'aiex', version: '0.0.0', executable: '/usr/local/bin/aiex' },
+  runtime: { node: 'v22.0.0', platform: 'darwin', arch: 'arm64', shell: '/bin/zsh', packageManager: 'pnpm' },
+  system: { os: 'darwin', cwd: '/mock' },
+  imageOcr: { platformSupported: true, dependencyLoaded: true, ocrOk: false },
+  config: { path: '/mock/.aiex', keys: ['api-key'] },
+  project: {
+    aiexDir: '/mock/.aiex',
+    dirExists: true,
+    schemaCount: 2,
+    schemaFiles: ['schema1.json', 'schema2.json'],
+    aiConfig: true,
+    aiApiKeySet: true,
+    aiModelCount: 1,
+    aiModels: ['gpt-4'],
+    aiVisionModelCount: 1,
+    aiStructuredOutputModelCount: 1,
+    aiProvider: 'openai',
+    aiConnectionOk: null,
+    pdfConverter: 'unpdf',
+    pdfConverterOk: true,
+    hasDatabase: true,
+    databaseTablesOk: true,
+    missingDatabaseTables: [],
+    migrationCount: 1,
+    schemaValidCount: 2,
+    invalidSchemas: [],
+    errors: [],
+  },
 }))
 
 const cmd = doctorCommand as any

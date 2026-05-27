@@ -11,13 +11,7 @@ describe('withRetry', () => {
   })
 
   it('should retry on retryable API errors and eventually succeed', async () => {
-    const retryableError = APICallError.fromJSON?.({
-      message: 'Rate limited',
-      statusCode: 429,
-      responseBody: '{}',
-      url: 'https://test.com/v1/chat',
-      requestBodyValues: {},
-    }) ?? new APICallError({
+    const retryableError = new APICallError({
       message: 'Rate limited',
       statusCode: 429,
       responseBody: '{}',
