@@ -1,4 +1,4 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
+import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
 import type { ExtractFileInput, InputProcessingInfo } from '@/domain/input/types'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { inspectNotionDatabase, parseNotionDatabaseId, writeNotionPage } from '@/core/notion-sink'
+import { inspectNotionDatabase, parseNotionDatabaseId, writeNotionPage } from '@/infrastructure/integrations/notion-sink'
 
 const notionMock = vi.hoisted(() => ({
   databasesRetrieve: vi.fn(),

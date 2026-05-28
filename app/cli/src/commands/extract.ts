@@ -1,5 +1,6 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
+import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
 import type { ExtractionAuditRecord } from '@/domain/audit/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 import path from 'node:path'
 import process from 'node:process'
 import { confirm, intro, isCancel, outro, select, text } from '@clack/prompts'
@@ -13,15 +14,13 @@ import {
 import { isMissingUploadFileError, MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPES_TEXT } from '@/application/input/file-policy'
 import { listSchemas } from '@/application/schema/load-schema'
 import { failCommand } from '@/commands/utils'
-import { readAIConfig } from '@/core/ai-extraction'
-import {
-  createMigrationConfig,
-} from '@/core/schema-sqlite'
+import { readAIConfig } from '@/infrastructure/ai/ai-config-store'
 import {
   deleteExtractionAuditRecord,
   listExtractionAuditRecords,
   readExtractionAuditRecord,
 } from '@/infrastructure/audit/file-audit-store'
+import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 import { initI18n, t } from '@/locales'
 
 function getIdArg(args: Record<string, unknown>): string {
@@ -384,7 +383,7 @@ export const extractCommand = defineCommand({
 
 async function runInteractive(
   aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
+  config: MigrationConfig,
   aiConfig: AIConfig,
   modelOverride: AIModelConfig | undefined,
 ): Promise<boolean> {

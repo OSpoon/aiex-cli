@@ -1,6 +1,6 @@
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
 import { describe, expect, it } from 'vitest'
-import { generateExtractionPrompt, generatePromptSnapshot, schemaToDescription } from '@/core/ai-extraction/prompt-generator'
+import { generateExtractionPrompt, generatePromptSnapshot, schemaToDescription } from '@/domain/ai-extraction/prompt-generator'
 import { annotatedSchema, emptySchema, flatSchema, nestedSchema } from './ai-extraction.test-utils'
 
 describe('prompt-generator', () => {

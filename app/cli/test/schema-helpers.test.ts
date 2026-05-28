@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { parseAllSchemas } from '@/core/schema-sqlite/helpers'
+import { parseAllSchemas } from '@/application/schema/parse-all-schemas'
 
-vi.mock('@/core/schema-sqlite/generator', () => ({
+vi.mock('@/infrastructure/schema/generate-drizzle-schema', () => ({
   generateDrizzleSchema: vi.fn(() => '-- mock drizzle schema code'),
 }))
 
@@ -118,12 +118,12 @@ describe('schema helpers', () => {
 
   describe('getErrorMessage', () => {
     it('should extract message from Error objects', async () => {
-      const { getErrorMessage } = await import('@/core/schema-sqlite/helpers')
+      const { getErrorMessage } = await import('@/utils/error')
       expect(getErrorMessage(new Error('test error'))).toBe('test error')
     })
 
     it('should stringify non-Error values', async () => {
-      const { getErrorMessage } = await import('@/core/schema-sqlite/helpers')
+      const { getErrorMessage } = await import('@/utils/error')
       expect(getErrorMessage('string error')).toBe('string error')
       expect(getErrorMessage(42)).toBe('42')
     })
@@ -131,7 +131,7 @@ describe('schema helpers', () => {
 
   describe('resolveTsxPath', () => {
     it('should resolve tsx path', async () => {
-      const { resolveTsxPath } = await import('@/core/schema-sqlite/helpers')
+      const { resolveTsxPath } = await import('@/infrastructure/runtime/package-paths')
       const resolved = resolveTsxPath()
       expect(resolved).toBeTruthy()
       expect(resolved.endsWith('.mjs') || resolved.endsWith('.cjs') || resolved.endsWith('.js') || resolved.endsWith('.ts')).toBe(true)
@@ -140,7 +140,7 @@ describe('schema helpers', () => {
 
   describe('resolveHelperPath', () => {
     it('should resolve helper path', async () => {
-      const { resolveHelperPath } = await import('@/core/schema-sqlite/helpers')
+      const { resolveHelperPath } = await import('@/infrastructure/runtime/package-paths')
       const resolved = resolveHelperPath()
       expect(resolved).toBeTruthy()
       expect(resolved).toContain('migrate-helper.ts')

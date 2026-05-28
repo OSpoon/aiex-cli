@@ -5,9 +5,10 @@ import { intro, outro } from '@clack/prompts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { extractStructuredData } from '@/application/ai-extraction/extract-structured-data'
+import { SUPPORTED_FILE_TYPES_TEXT } from '@/application/input/file-policy'
 import { extractCommand } from '@/commands/extract'
-import { insertExtractedData, readAIConfig } from '@/core/ai-extraction'
-import { SUPPORTED_FILE_TYPES_TEXT } from '@/core/file-constants'
+import { readAIConfig } from '@/infrastructure/ai/ai-config-store'
+import { insertExtractedData } from '@/infrastructure/extraction/insert-extracted-data'
 
 // Force English locale for deterministic test output
 vi.stubEnv('LANG', 'en_US.UTF-8')
@@ -17,8 +18,11 @@ vi.mock('@/application/ai-extraction/extract-structured-data', () => ({
   extractStructuredData: vi.fn(),
 }))
 
-vi.mock('@/core/ai-extraction', () => ({
+vi.mock('@/infrastructure/extraction/insert-extracted-data', () => ({
   insertExtractedData: vi.fn(),
+}))
+
+vi.mock('@/infrastructure/ai/ai-config-store', () => ({
   readAIConfig: vi.fn(),
 }))
 
@@ -32,7 +36,7 @@ vi.mock('@clack/prompts', () => ({
   text: vi.fn(),
 }))
 
-vi.mock('@/core/pdf-converter', () => ({
+vi.mock('@/infrastructure/pdf', () => ({
   createPdfConverter: vi.fn(() => ({
     convert: vi.fn(async () => ({ text: 'pdf text content', pageCount: 2 })),
   })),

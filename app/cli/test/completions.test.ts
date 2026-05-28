@@ -1,7 +1,7 @@
 import type { CommandDef } from 'citty'
 import { describe, expect, it } from 'vitest'
-import { bashScript, fishScript, zshScript } from '@/core/completion-scripts'
-import { getCompletions } from '@/core/completions'
+import { bashScript, fishScript, zshScript } from '@/infrastructure/completion/completion-scripts'
+import { getCompletions } from '@/infrastructure/completion/completions'
 
 // ──────────── Fixtures ────────────
 

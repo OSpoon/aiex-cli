@@ -1,21 +1,27 @@
+export { collectDoctorDiagnostics } from '@/application/doctor/collect-diagnostics'
 export {
   buildDoctorDiagnostics,
   type DoctorDiagnostics,
   doctorDiagnosticsTableRows,
   formatDoctorDiagnosticsJson,
-} from '@/core/doctor'
-export { collectDoctorDiagnostics } from '@/core/doctor-collector'
+} from '@/domain/doctor/diagnostics'
 export {
-  createMigrationConfig,
-  generateDrizzleConfig,
-  generateDrizzleSchema,
+  parseJsonSchema,
+} from '@/domain/schema/parser'
+export {
   type JsonSchemaDefinition,
   JsonSchemaDefinitionSchema,
   type JsonSchemaProperty,
+} from '@/domain/schema/schemas'
+export {
   type MigrationConfig,
   type ParsedColumn,
   type ParsedRelation,
   type ParsedTable,
-  parseJsonSchema,
   type ParseResult,
-} from '@/core/schema-sqlite'
+} from '@/domain/schema/types'
+export { generateDrizzleSchema } from '@/infrastructure/schema/generate-drizzle-schema'
+export {
+  createMigrationConfig,
+  generateDrizzleConfig,
+} from '@/infrastructure/schema/migration-config'

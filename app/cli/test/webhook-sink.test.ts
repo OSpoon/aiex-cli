@@ -1,7 +1,7 @@
-import type { WebhookPayload } from '@/core/webhook-sink'
+import type { WebhookPayload } from '@/infrastructure/integrations/webhook-sink'
 import crypto from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
-import { sendWebhook } from '@/core/webhook-sink'
+import { sendWebhook } from '@/infrastructure/integrations/webhook-sink'
 
 describe('webhook-sink', () => {
   it('does not send webhook if disabled or config is missing', async () => {

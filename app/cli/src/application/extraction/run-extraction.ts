@@ -1,6 +1,6 @@
 import type { ExtractResult } from './types'
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { createMigrationConfig } from '@/core/schema-sqlite'
+import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 import type { RetryInfo } from '@/utils/retry'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -10,10 +10,8 @@ import { consola } from 'consola'
 import pc from 'picocolors'
 import { extractStructuredData } from '@/application/ai-extraction/extract-structured-data'
 import { loadSchema } from '@/application/schema/load-schema'
-import { insertExtractedData } from '@/core/ai-extraction'
-import {
-  parseJsonSchema,
-} from '@/core/schema-sqlite'
+import { parseJsonSchema } from '@/domain/schema/parser'
+import { insertExtractedData } from '@/infrastructure/extraction/insert-extracted-data'
 import { t } from '@/locales'
 
 async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
@@ -50,7 +48,7 @@ async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string 
 
 export async function extractSingle(
   aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
+  config: MigrationConfig,
   aiConfig: AIConfig,
   schemaName: string,
   text: string | undefined,

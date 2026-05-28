@@ -12,7 +12,7 @@ import {
   unsupportedFileTypeMessage,
   validateFileUpload,
   validateFileUploadContent,
-} from '@/core/file-constants'
+} from '@/application/input/file-policy'
 
 describe('file-constants', () => {
   describe('bytesToMB', () => {

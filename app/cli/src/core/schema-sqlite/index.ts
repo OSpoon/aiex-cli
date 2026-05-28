@@ -1,7 +1,6 @@
 export { generateDrizzleSchema } from './generator'
 export { getErrorMessage, parseAllSchemas, resolveHelperPath, resolvePackageRoot, resolveTsxPath } from './helpers'
 export { createMigrationConfig, generateDrizzleConfig } from './migrator'
-export { parseJsonSchema, toSnakeCase } from './parser'
-
-export { type ForeignKeyRef, type JsonSchemaDefinition, JsonSchemaDefinitionSchema, type JsonSchemaProperty } from './schemas'
-export type { MigrationConfig, ParsedColumn, ParsedRelation, ParsedTable, ParseResult } from './types'
+export { parseJsonSchema, toSnakeCase } from '@/domain/schema/parser'
+export { type ForeignKeyRef, type JsonSchemaDefinition, JsonSchemaDefinitionSchema, type JsonSchemaProperty } from '@/domain/schema/schemas'
+export type { MigrationConfig, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from '@/domain/schema/types'

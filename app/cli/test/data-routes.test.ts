@@ -1,4 +1,4 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -9,7 +9,7 @@ import { dataRoutes } from '@/server/routes/data'
 
 const writeNotionPageMock = vi.hoisted(() => vi.fn())
 
-vi.mock('@/core/notion-sink', () => ({
+vi.mock('@/infrastructure/integrations/notion-sink', () => ({
   writeNotionPage: writeNotionPageMock,
 }))
 

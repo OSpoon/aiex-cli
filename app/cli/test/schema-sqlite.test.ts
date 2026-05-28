@@ -1,13 +1,12 @@
-import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from '@/core/schema-sqlite/types'
+import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from '@/domain/schema/types'
 import { describe, expect, it } from 'vitest'
+import { parseJsonSchema } from '@/domain/schema/parser'
+import { JsonSchemaDefinitionSchema } from '@/domain/schema/schemas'
+import { generateDrizzleSchema } from '@/infrastructure/schema/generate-drizzle-schema'
+import { createMigrationConfig, generateDrizzleConfig } from '@/infrastructure/schema/migration-config'
 import {
-  createMigrationConfig,
-  generateDrizzleConfig,
-  generateDrizzleSchema,
-  JsonSchemaDefinitionSchema,
-  parseJsonSchema,
-} from '@/core/schema-sqlite'
-import { sanitizeMigrationName } from '@/core/schema-sqlite/migration-name'
+  sanitizeMigrationName,
+} from '@/infrastructure/schema/migration-name'
 
 // ============================================
 // Test helper: deep complex schema generator

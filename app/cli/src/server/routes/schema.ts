@@ -1,17 +1,15 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { readFile as readJsonFile, writeFile as writeJsonFile } from 'jsonfile'
 import { z } from 'zod'
-import { savePromptSnapshot } from '@/core/ai-extraction'
-import { runSchemaSync } from '@/core/schema-runner'
-import {
-  getErrorMessage,
-  JsonSchemaDefinitionSchema,
-} from '@/core/schema-sqlite'
+import { runSchemaSync } from '@/application/schema/schema-sync'
+import { JsonSchemaDefinitionSchema } from '@/domain/schema/schemas'
+import { savePromptSnapshot } from '@/infrastructure/extraction/prompt-snapshot'
 import { t } from '@/locales'
+import { getErrorMessage } from '@/utils/error'
 
 const schemaFileNameSchema = z
   .string()

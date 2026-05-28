@@ -1,6 +1,6 @@
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
 import { describe, expect, it } from 'vitest'
-import { stripEvidence, verifyFieldEvidence } from '@/core/ai-extraction/evidence'
+import { stripEvidence, verifyFieldEvidence } from '@/domain/ai-extraction/evidence'
 
 describe('stripEvidence', () => {
   it('should return data as-is when no _evidence key', () => {

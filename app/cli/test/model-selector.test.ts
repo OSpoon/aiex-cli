@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { selectModel } from '@/core/ai-extraction/model-selector'
+import { selectModel } from '@/domain/ai-extraction/model-selector'
 
 const visionModel = {
   name: 'gpt-4o',

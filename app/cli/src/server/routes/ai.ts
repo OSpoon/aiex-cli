@@ -1,17 +1,13 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 import path from 'node:path'
 import { Hono } from 'hono'
 import { readFile as readJsonFile } from 'jsonfile'
-import {
-  getDefaultAIConfig,
-  lookupModelCapabilities,
-  readAIConfig,
-  writeAIConfig,
-} from '@/core/ai-extraction'
-import { AIConfigSchema } from '@/core/ai-extraction/schemas'
-import { getErrorMessage } from '@/core/schema-sqlite'
+import { lookupModelCapabilities } from '@/domain/ai-extraction/capabilities'
+import { AIConfigSchema } from '@/domain/ai/schemas'
+import { getDefaultAIConfig, readAIConfig, writeAIConfig } from '@/infrastructure/ai/ai-config-store'
 import { inspectNotionDatabase, parseNotionDatabaseId } from '@/infrastructure/integrations/notion-sink'
 import { t } from '@/locales'
+import { getErrorMessage } from '@/utils/error'
 
 const JSON_EXT_RE = /\.json$/i
 

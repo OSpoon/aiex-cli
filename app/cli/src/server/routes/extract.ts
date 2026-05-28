@@ -1,6 +1,6 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
 import type { ExtractionFailureStage } from '@/domain/audit/types'
 import type { ExtractionQualityMetrics } from '@/domain/extraction/quality'
+import type { MigrationConfig } from '@/domain/schema/types'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -15,13 +15,13 @@ import {
   MISSING_UPLOAD_FILE_TEXT,
   validateFileUploadContent,
 } from '@/application/input/file-policy'
-import { readAIConfig } from '@/core/ai-extraction'
-import { createMigrationConfig } from '@/core/schema-sqlite'
+import { readAIConfig } from '@/infrastructure/ai/ai-config-store'
 import {
   deleteExtractionAuditRecord,
   listExtractionAuditRecords,
   readExtractionAuditRecord,
 } from '@/infrastructure/audit/file-audit-store'
+import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 import { t } from '@/locales'
 
 interface ExtractResponse {

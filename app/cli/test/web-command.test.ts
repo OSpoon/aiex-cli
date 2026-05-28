@@ -8,7 +8,7 @@ vi.mock('@clack/prompts', () => ({
   spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
 }))
 
-vi.mock('@/core/web-runner', () => ({
+vi.mock('@/infrastructure/web/web-server', () => ({
   startWebServer: vi.fn(),
 }))
 
@@ -47,7 +47,7 @@ describe('webCommand.run', () => {
 
   it('should start web server with default port', async () => {
     process.chdir(projectDir)
-    const { startWebServer } = await import('@/core/web-runner')
+    const { startWebServer } = await import('@/infrastructure/web/web-server')
 
     await cmd.run({ args: {} })
 
@@ -58,7 +58,7 @@ describe('webCommand.run', () => {
 
   it('should start web server with custom port', async () => {
     process.chdir(projectDir)
-    const { startWebServer } = await import('@/core/web-runner')
+    const { startWebServer } = await import('@/infrastructure/web/web-server')
 
     await cmd.run({ args: { port: '14000' } })
 
@@ -69,7 +69,7 @@ describe('webCommand.run', () => {
 
   it('should fallback to default port when port is NaN', async () => {
     process.chdir(projectDir)
-    const { startWebServer } = await import('@/core/web-runner')
+    const { startWebServer } = await import('@/infrastructure/web/web-server')
 
     await cmd.run({ args: { port: 'not-a-number' } })
 

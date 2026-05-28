@@ -1,17 +1,17 @@
-import type { AIModelConfig } from '@/core/ai-extraction/types'
+import type { AIModelConfig } from '@/domain/ai/types'
 import { describe, expect, it } from 'vitest'
-import { lookupModelCapabilities } from '@/core/ai-extraction/capabilities'
-import { stripEvidence, verifyFieldEvidence } from '@/core/ai-extraction/evidence'
-import { safeParseJSON } from '@/core/ai-extraction/json-utils'
-import { selectModel } from '@/core/ai-extraction/model-selector'
+import { lookupModelCapabilities } from '@/domain/ai-extraction/capabilities'
+import { stripEvidence, verifyFieldEvidence } from '@/domain/ai-extraction/evidence'
+import { safeParseJSON } from '@/domain/ai-extraction/json-utils'
+import { selectModel } from '@/domain/ai-extraction/model-selector'
 import {
   generateExtractionPrompt,
   generatePromptSnapshot,
   schemaToDescription,
-} from '@/core/ai-extraction/prompt-generator'
-import { AIConfigSchema } from '@/core/ai-extraction/schemas'
-import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_SCHEMA, PLACEHOLDER_TEXT } from '@/core/ai-extraction/types'
-import { schemaToExtractionOutputSchema, validateExtractedData } from '@/core/ai-extraction/validator'
+} from '@/domain/ai-extraction/prompt-generator'
+import { schemaToExtractionOutputSchema, validateExtractedData } from '@/domain/ai-extraction/validator'
+import { AIConfigSchema } from '@/domain/ai/schemas'
+import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_SCHEMA, PLACEHOLDER_TEXT } from '@/domain/ai/types'
 import {
   annotatedSchema,
   emptySchema,

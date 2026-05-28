@@ -2,14 +2,16 @@ import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { describeExtractFileInput, isImageFile, listSchemas, listSupportedFiles, loadSchema, readExtractFileInput } from '@/core/extract-runner'
+import { listSupportedFiles } from '@/application/extraction'
+import { describeExtractFileInput, isImageFile, readExtractFileInput } from '@/application/input/prepare-extraction-input'
+import { listSchemas, loadSchema } from '@/application/schema/load-schema'
 
 const imageOcrMock = vi.hoisted(() => ({
   recognizeImageText: vi.fn(),
   shouldUseImageOcrFallback: vi.fn(() => false),
 }))
 
-vi.mock('@/core/image-ocr', () => imageOcrMock)
+vi.mock('@/infrastructure/ocr/system-ocr', () => imageOcrMock)
 
 afterEach(() => {
   imageOcrMock.recognizeImageText.mockReset()

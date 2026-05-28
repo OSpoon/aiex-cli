@@ -9,7 +9,7 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn(),
 }))
 
-vi.mock('@/core/watch-service', () => ({
+vi.mock('@/application/watch/watch-service', () => ({
   startWatcher: vi.fn(() => ({ close: vi.fn() })),
 }))
 

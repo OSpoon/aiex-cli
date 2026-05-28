@@ -1,6 +1,6 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
-import { DEFAULT_EXTRACTION_CONFIG, DEFAULT_PROMPT_CONFIG } from '@/core/ai-extraction/types'
+import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
+import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
+import { DEFAULT_EXTRACTION_CONFIG, DEFAULT_PROMPT_CONFIG } from '@/domain/ai/types'
 
 // ─── Provider ───
 

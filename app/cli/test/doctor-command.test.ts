@@ -2,7 +2,7 @@ import process from 'node:process'
 import { describe, expect, it, vi } from 'vitest'
 import { doctorCommand } from '@/commands/doctor'
 
-vi.mock('@/core/doctor-collector', () => ({
+vi.mock('@/application/doctor/collect-diagnostics', () => ({
   collectDoctorDiagnostics: vi.fn(),
 }))
 
@@ -53,7 +53,7 @@ describe('doctorCommand definition', () => {
 
 describe('doctorCommand.run', () => {
   it('should output JSON when --json flag is set', async () => {
-    const { collectDoctorDiagnostics } = await import('@/core/doctor-collector')
+    const { collectDoctorDiagnostics } = await import('@/application/doctor/collect-diagnostics')
     vi.mocked(collectDoctorDiagnostics).mockResolvedValueOnce(diagnosticsMock)
     const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 

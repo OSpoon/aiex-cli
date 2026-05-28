@@ -1,6 +1,6 @@
 import process from 'node:process'
 import { defineCommand } from 'citty'
-import { generateCompletionScript } from '@/core/completion-scripts'
+import { generateCompletionScript } from '@/infrastructure/completion/completion-scripts'
 import { t } from '@/locales'
 
 export const completionCommand = defineCommand({

@@ -1,8 +1,8 @@
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { openBrowser, resolveWebStaticDir } from '@/core/web-runner'
+import { openBrowser, resolveWebStaticDir } from '@/infrastructure/web/web-server'
 
-vi.mock('@/core/schema-sqlite', async (importOriginal) => {
+vi.mock('@/infrastructure/runtime/package-paths', async (importOriginal) => {
   const original = await importOriginal()
   return {
     ...original as any,

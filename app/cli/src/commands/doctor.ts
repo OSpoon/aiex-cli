@@ -2,11 +2,11 @@ import process from 'node:process'
 import { defineCommand } from 'citty'
 import CliTable3 from 'cli-table3'
 import { consola } from 'consola'
+import { collectDoctorDiagnostics } from '@/application/doctor/collect-diagnostics'
 import {
   doctorDiagnosticsTableRows,
   formatDoctorDiagnosticsJson,
-} from '@/core/doctor'
-import { collectDoctorDiagnostics } from '@/core/doctor-collector'
+} from '@/domain/doctor/diagnostics'
 import { t } from '@/locales'
 
 export const doctorCommand = defineCommand({

@@ -1,6 +1,6 @@
 import type { BatchExtractionResult } from './types'
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { createMigrationConfig } from '@/core/schema-sqlite'
+import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import { consola } from 'consola'
@@ -43,7 +43,7 @@ export function listSupportedFiles(dir: string, pattern?: string): string[] {
 
 export async function processOneFile(
   aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
+  config: MigrationConfig,
   aiConfig: AIConfig,
   schemaName: string,
   filePath: string,
@@ -74,7 +74,7 @@ export async function processOneFile(
 
 export async function runBatchExtraction(
   aiexDir: string,
-  config: ReturnType<typeof createMigrationConfig>,
+  config: MigrationConfig,
   aiConfig: AIConfig,
   schemaName: string,
   dir: string,

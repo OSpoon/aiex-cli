@@ -1,4 +1,4 @@
-import type { WebhookConfig } from '@/core/ai-extraction'
+import type { WebhookConfig } from '@/domain/ai/types'
 import crypto from 'node:crypto'
 
 export interface WebhookPayload {

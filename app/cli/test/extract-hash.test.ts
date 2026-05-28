@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { extractStructuredData } from '@/application/ai-extraction/extract-structured-data'
 import { extractCommand } from '@/commands/extract'
-import { insertExtractedData, readAIConfig } from '@/core/ai-extraction'
+import { readAIConfig } from '@/infrastructure/ai/ai-config-store'
+import { insertExtractedData } from '@/infrastructure/extraction/insert-extracted-data'
 import { getFileHash } from '@/utils/hash'
 
 // —— vitest mocks ——
@@ -13,8 +14,11 @@ vi.mock('@/application/ai-extraction/extract-structured-data', () => ({
   extractStructuredData: vi.fn(),
 }))
 
-vi.mock('@/core/ai-extraction', () => ({
+vi.mock('@/infrastructure/extraction/insert-extracted-data', () => ({
   insertExtractedData: vi.fn(),
+}))
+
+vi.mock('@/infrastructure/ai/ai-config-store', () => ({
   readAIConfig: vi.fn(),
 }))
 
@@ -27,7 +31,7 @@ vi.mock('@clack/prompts', () => ({
   text: vi.fn(),
 }))
 
-vi.mock('@/core/pdf-converter', () => ({
+vi.mock('@/infrastructure/pdf', () => ({
   createPdfConverter: vi.fn(() => ({
     name: 'mock-converter',
     convert: vi.fn(async () => ({ text: 'pdf text content', pageCount: 2 })),

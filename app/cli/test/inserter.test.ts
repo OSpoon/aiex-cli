@@ -1,7 +1,7 @@
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { insertExtractedData } from '@/core/ai-extraction/inserter'
+import { insertExtractedData } from '@/infrastructure/extraction/insert-extracted-data'
 import { createTablesFromSchema } from './sqlite-test-utils'
 
 function makeDb(): Database.Database {

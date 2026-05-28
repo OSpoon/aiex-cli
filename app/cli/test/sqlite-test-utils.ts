@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3'
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
-import type { ParsedColumn, ParsedTable } from '@/core/schema-sqlite/types'
-import { parseJsonSchema } from '@/core/schema-sqlite'
+import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
+import type { ParsedColumn, ParsedTable } from '@/domain/schema/types'
+import { parseJsonSchema } from '@/domain/schema/parser'
 
 function drizzleTypeToSql(type: string): string {
   if (type.startsWith('text'))

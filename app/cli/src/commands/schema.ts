@@ -3,13 +3,13 @@ import { intro, outro, spinner } from '@clack/prompts'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
-import { failCommand } from '@/commands/utils'
 import {
   generateSchemaFromFiles,
   listSchemaFiles,
   runSchemaMigration,
-} from '@/core/schema-runner'
-import { createMigrationConfig } from '@/core/schema-sqlite'
+} from '@/application/schema/schema-sync'
+import { failCommand } from '@/commands/utils'
+import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 import { initI18n, t } from '@/locales'
 
 export const schemaCommand = defineCommand({

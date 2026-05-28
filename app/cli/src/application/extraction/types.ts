@@ -1,8 +1,8 @@
-import type { AIConfig, AIModelConfig } from '@/core/ai-extraction/types'
-import type { createMigrationConfig } from '@/core/schema-sqlite'
+import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
 import type { ExtractionFailureStage, FieldEvidence } from '@/domain/audit/types'
 import type { ExtractionQualityMetrics } from '@/domain/extraction/quality'
 import type { InputProcessingInfo } from '@/domain/input/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 
 export interface ExtractFileInput {
   text: string
@@ -37,7 +37,7 @@ export interface BatchExtractionResult {
 
 export interface RunAuditedExtractionOptions {
   aiexDir: string
-  config: ReturnType<typeof createMigrationConfig>
+  config: MigrationConfig
   aiConfig: AIConfig
   schemaName: string
   source:

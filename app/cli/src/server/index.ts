@@ -1,4 +1,4 @@
-import type { MigrationConfig } from '@/core/schema-sqlite'
+import type { MigrationConfig } from '@/domain/schema/types'
 import fs from 'node:fs/promises'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'

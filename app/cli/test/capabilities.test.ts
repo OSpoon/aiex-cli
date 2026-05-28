@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lookupModelCapabilities } from '@/core/ai-extraction/capabilities'
+import { lookupModelCapabilities } from '@/domain/ai-extraction/capabilities'
 
 describe('lookupModelCapabilities', () => {
   it('returns capabilities for known OpenAI model', () => {

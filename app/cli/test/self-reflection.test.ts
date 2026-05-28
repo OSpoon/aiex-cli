@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_EXTRACTION_CONFIG } from '@/core/ai-extraction/types'
+import { DEFAULT_EXTRACTION_CONFIG } from '@/domain/ai/types'
 import { personSchema } from './ai-extraction.test-utils'
 
 const createOpenAICompatibleMock = vi.hoisted(() => vi.fn())

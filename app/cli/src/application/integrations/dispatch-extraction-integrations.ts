@@ -1,4 +1,4 @@
-import type { AIConfig } from '@/core/ai-extraction/types'
+import type { AIConfig } from '@/domain/ai/types'
 import type { ExtractionTokensUsed, ExtractionWebhookEvent, ExtractionWebhookSource, NotionSyncPage } from '@/domain/integrations/types'
 import path from 'node:path'
 import { consola } from 'consola'

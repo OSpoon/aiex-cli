@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkImageOcrAvailability, recognizeImageText, shouldUseImageOcrFallback } from '@/core/image-ocr'
+import { checkImageOcrAvailability, recognizeImageText, shouldUseImageOcrFallback } from '@/infrastructure/ocr/system-ocr'
 
 const textModel = {
   name: 'text-model',

@@ -3,8 +3,8 @@ import { intro, spinner } from '@clack/prompts'
 import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
-import { createMigrationConfig } from '@/core/schema-sqlite'
-import { startWebServer } from '@/core/web-runner'
+import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
+import { startWebServer } from '@/infrastructure/web/web-server'
 import { initI18n, t } from '@/locales'
 
 export const webCommand = defineCommand({

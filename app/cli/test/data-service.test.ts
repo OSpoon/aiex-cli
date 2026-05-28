@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { listExtractions, listTables, schemaNameFromExtractionFile } from '@/core/data-service'
+import { listExtractions, listTables, schemaNameFromExtractionFile } from '@/application/data/data-service'
 
 vi.mock('@/infrastructure/audit/file-audit-store', () => ({
   listExtractionAuditRecords: vi.fn(),

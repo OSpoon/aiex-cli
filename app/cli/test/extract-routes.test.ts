@@ -1,10 +1,10 @@
-import type { MigrationConfig } from '@/core/schema-sqlite/types'
+import type { MigrationConfig } from '@/domain/schema/types'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { writeFile as writeJsonFile } from 'jsonfile'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_EXTRACTION_CONFIG, DEFAULT_PROMPT_CONFIG } from '@/core/ai-extraction/types'
+import { DEFAULT_EXTRACTION_CONFIG, DEFAULT_PROMPT_CONFIG } from '@/domain/ai/types'
 import { extractRoutes } from '@/server/routes/extract'
 
 interface ErrorResponse {

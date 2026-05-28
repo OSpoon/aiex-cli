@@ -3,8 +3,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { writeFile as writeJsonFile } from 'jsonfile'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { getDefaultAIConfig, readAIConfig, writeAIConfig } from '@/core/ai-extraction/config'
-import { DEFAULT_AI_CONFIG } from '@/core/ai-extraction/types'
+import { DEFAULT_AI_CONFIG } from '@/domain/ai/types'
+import { getDefaultAIConfig, readAIConfig, writeAIConfig } from '@/infrastructure/ai/ai-config-store'
 
 describe('ai config', () => {
   let tempDir: string

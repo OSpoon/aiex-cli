@@ -6,10 +6,10 @@ import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import pc from 'picocolors'
 import { loadSchema } from '@/application/schema/load-schema'
+import { startWatcher } from '@/application/watch/watch-service'
 import { loadConfiguredAI, resolveModelOverride } from '@/commands/extract'
 import { failCommand } from '@/commands/utils'
-import { createMigrationConfig } from '@/core/schema-sqlite'
-import { startWatcher } from '@/core/watch-service'
+import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 import { initI18n, t } from '@/locales'
 
 export const watchCommand = defineCommand({

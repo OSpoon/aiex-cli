@@ -2,7 +2,7 @@ import process from 'node:process'
 import { describe, expect, it, vi } from 'vitest'
 import { completionCommand } from '@/commands/completion'
 
-vi.mock('@/core/completion-scripts', () => ({
+vi.mock('@/infrastructure/completion/completion-scripts', () => ({
   generateCompletionScript: vi.fn((name, shell) => {
     if (shell !== 'bash' && shell !== 'zsh' && shell !== 'fish')
       throw new Error(`Unsupported shell: ${shell}. Use bash, zsh, or fish.`)

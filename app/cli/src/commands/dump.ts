@@ -7,10 +7,10 @@ import { defineCommand } from 'citty'
 import { consola } from 'consola'
 import { readFile as readJsonFile } from 'jsonfile'
 import pc from 'picocolors'
+import { formatRowsConformingToSchema, generateExportBuffer } from '@/application/export/export-manager'
 import { loadSchema } from '@/application/schema/load-schema'
 import { failCommand } from '@/commands/utils'
-import { formatRowsConformingToSchema, generateExportBuffer } from '@/core/export-manager'
-import { createMigrationConfig } from '@/core/schema-sqlite'
+import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 import { initI18n, t } from '@/locales'
 
 export const dumpCommand = defineCommand({

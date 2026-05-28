@@ -1,4 +1,4 @@
-import type { PdfConversionResult, PdfConverter } from '@/core/pdf-converter'
+import type { PdfConversionResult, PdfConverter } from '@/infrastructure/pdf'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -6,8 +6,8 @@ import AdmZip from 'adm-zip'
 import { execa } from 'execa'
 import { getDocumentProxy } from 'unpdf'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPdfConverter, ExternalCommandPdfConverter, registerPdfConverter, UnpdfConverter } from '@/core/pdf-converter'
-import { MineruApiPdfConverter } from '@/core/pdf-converter/mineru-api'
+import { createPdfConverter, ExternalCommandPdfConverter, registerPdfConverter, UnpdfConverter } from '@/infrastructure/pdf'
+import { MineruApiPdfConverter } from '@/infrastructure/pdf/mineru-api-converter'
 
 vi.mock('execa', () => ({
   execa: vi.fn(),

@@ -1,16 +1,14 @@
-import type { createMigrationConfig } from '@/core/schema-sqlite'
+import type { MigrationConfig } from '@/domain/schema/types'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { readFile as readJsonFile } from 'jsonfile'
 import { ZodError } from 'zod'
-import {
-  JsonSchemaDefinitionSchema,
-} from '@/core/schema-sqlite'
+import { JsonSchemaDefinitionSchema } from '@/domain/schema/schemas'
 import { t } from '@/locales'
 
 const JSON_EXT_RE = /\.json$/
 
-export async function loadSchema(config: ReturnType<typeof createMigrationConfig>, schemaName: string): Promise<{ schema: any, error?: string }> {
+export async function loadSchema(config: MigrationConfig, schemaName: string): Promise<{ schema: any, error?: string }> {
   const schemaPath = path.join(config.schemaPath, `${schemaName}.json`)
   try {
     const parsed = await readJsonFile(schemaPath)

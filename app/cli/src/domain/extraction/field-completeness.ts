@@ -1,4 +1,4 @@
-import type { JsonSchemaDefinition } from '@/core/schema-sqlite/schemas'
+import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
 
 export function expectedExtractionFields(schema: JsonSchemaDefinition): string[] {
   return Object.entries(schema.properties)

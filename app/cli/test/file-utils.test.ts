@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { detectMimeType, readFilePart } from '@/core/ai-extraction/file-utils'
+import { detectMimeType, readFilePart } from '@/infrastructure/input/file-parts'
 
 vi.mock('@/infrastructure/input/detect-file-kind', () => ({
   detectInputFileKind: vi.fn(),

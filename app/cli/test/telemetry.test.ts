@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { initLangfuse } from '@/core/ai-extraction/telemetry'
+import { initLangfuse } from '@/infrastructure/ai/langfuse-telemetry'
 
 const providerInstances = vi.hoisted(() => {
   const instances: Array<{ register: ReturnType<typeof vi.fn> }> = []

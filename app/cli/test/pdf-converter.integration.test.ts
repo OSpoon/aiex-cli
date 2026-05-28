@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ExternalCommandPdfConverter } from '@/core/pdf-converter'
+import { ExternalCommandPdfConverter } from '@/infrastructure/pdf'
 
 const DEMO_PDF = path.resolve(import.meta.dirname, 'demo.pdf')
 

@@ -1,4 +1,4 @@
-import type { AIProviderConfig } from '@/core/ai-extraction/types'
+import type { AIProviderConfig } from '@/domain/ai/types'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 
 export const OPENAI_COMPATIBLE_PROVIDER_NAME = 'openai-compatible'

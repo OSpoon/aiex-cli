@@ -7,8 +7,8 @@ import {
   listSchemaFiles,
   parseMigrationOutput,
   runSchemaSync,
-} from '@/core/schema-runner'
-import { createMigrationConfig } from '@/core/schema-sqlite'
+} from '@/application/schema/schema-sync'
+import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 
 const originalCwd = process.cwd()
 const cleanupDirs = new Set<string>()
