@@ -1,5 +1,5 @@
 import type { JsonSchemaDefinition, JsonSchemaProperty } from './schemas'
-import type { ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from './types'
+import type { CheckConstraint, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from './types'
 
 export function toSnakeCase(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
@@ -71,12 +71,37 @@ function mapPropertyToColumn(name: string, property: JsonSchemaProperty, isRequi
   }
 }
 
+function getColumnChecks(prop: JsonSchemaProperty, colName: string): CheckConstraint[] {
+  const checks: CheckConstraint[] = []
+
+  if (prop.type === 'string') {
+    if (prop.minLength !== undefined && prop.minLength > 0) {
+      checks.push({ name: `${colName}_min_length`, columns: [colName], template: `length(%s) >= ${prop.minLength}` })
+    }
+    if (prop.maxLength !== undefined) {
+      checks.push({ name: `${colName}_max_length`, columns: [colName], template: `length(%s) <= ${prop.maxLength}` })
+    }
+  }
+
+  if (prop.type === 'integer' || prop.type === 'number') {
+    if (prop.minimum !== undefined) {
+      checks.push({ name: `${colName}_min`, columns: [colName], template: `%s >= ${prop.minimum}` })
+    }
+    if (prop.maximum !== undefined) {
+      checks.push({ name: `${colName}_max`, columns: [colName], template: `%s <= ${prop.maximum}` })
+    }
+  }
+
+  return checks
+}
+
 function parseObjectToTable(
   schema: JsonSchemaDefinition,
   _warnings: string[],
 ): ParsedTable {
   const tableName = schema.table.name
   const columns: ParsedColumn[] = []
+  const checks: CheckConstraint[] = []
   const requiredFields = new Set(schema.required ?? [])
   const autoColumns = new Set<string>()
 
@@ -102,6 +127,7 @@ function parseObjectToTable(
     const isRequired = requiredFields.has(propName)
     const column = mapPropertyToColumn(propName, prop, isRequired)
     columns.push(column)
+    checks.push(...getColumnChecks(prop, column.name))
   }
 
   if (schema.table.timestamps) {
@@ -137,7 +163,7 @@ function parseObjectToTable(
     })
   }
 
-  return { name: tableName, columns }
+  return checks.length > 0 ? { name: tableName, columns, checks } : { name: tableName, columns }
 }
 
 function parseNestedObject(
@@ -148,6 +174,7 @@ function parseNestedObject(
 ): { table: ParsedTable, relation: ParsedRelation, reverseRelation: ParsedReverseRelation } {
   const nestedTableName = `${parentTableName}_${toSnakeCase(propName)}`
   const columns: ParsedColumn[] = []
+  const checks: CheckConstraint[] = []
   const relationType = property.nested?.relation === 'has-many' ? 'has-many' : 'has-one'
 
   columns.push({
@@ -182,6 +209,7 @@ function parseNestedObject(
       }
       const column = mapPropertyToColumn(childName, childProp, false)
       columns.push(column)
+      checks.push(...getColumnChecks(childProp, column.name))
     }
   }
 
@@ -200,7 +228,8 @@ function parseNestedObject(
     name: toSnakeCase(propName),
   }
 
-  return { table: { name: nestedTableName, columns }, relation, reverseRelation }
+  const table: ParsedTable = checks.length > 0 ? { name: nestedTableName, columns, checks } : { name: nestedTableName, columns }
+  return { table, relation, reverseRelation }
 }
 
 export function parseJsonSchema(schema: JsonSchemaDefinition): ParseResult {

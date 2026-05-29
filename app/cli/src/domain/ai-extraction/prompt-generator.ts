@@ -9,10 +9,30 @@ function propertyToDescription(name: string, prop: JsonSchemaProperty, indent: s
   if (prop.type === 'array' && prop.items) {
     typeStr = `array of ${prop.items.type}`
   }
-  lines.push(`${indent}- ${name}: ${typeStr}`)
+  const tags: string[] = []
+  if (prop.primary)
+    tags.push('primary key')
+  const tagStr = tags.length > 0 ? ` (${tags.join(', ')})` : ''
+  lines.push(`${indent}- ${name}: ${typeStr}${tagStr}`)
+
+  if (prop.description) {
+    lines.push(`${indent}  description: ${prop.description}`)
+  }
+
+  if (prop.enum && prop.enum.length > 0) {
+    lines.push(`${indent}  allowed values: ${prop.enum.map(v => JSON.stringify(v)).join(', ')}`)
+  }
+
+  if (prop.pattern) {
+    lines.push(`${indent}  pattern: ${prop.pattern}`)
+  }
 
   if (prop.minLength !== undefined || prop.maxLength !== undefined) {
     lines.push(`${indent}  length: ${prop.minLength ?? 0} - ${prop.maxLength ?? 'unlimited'}`)
+  }
+
+  if (prop.minimum !== undefined || prop.maximum !== undefined) {
+    lines.push(`${indent}  range: ${prop.minimum ?? '-∞'} - ${prop.maximum ?? '∞'}`)
   }
 
   if (prop.format) {
@@ -25,6 +45,15 @@ function propertyToDescription(name: string, prop: JsonSchemaProperty, indent: s
 
   if (prop.default !== undefined) {
     lines.push(`${indent}  default: ${JSON.stringify(prop.default)}`)
+  }
+
+  if (prop.examples && prop.examples.length > 0) {
+    const rendered = prop.examples.map(v => JSON.stringify(v)).join(', ')
+    lines.push(`${indent}  examples: ${rendered}`)
+  }
+
+  if (prop.xPrompt) {
+    lines.push(`${indent}  extraction hint: ${prop.xPrompt}`)
   }
 
   return lines.join('\n')

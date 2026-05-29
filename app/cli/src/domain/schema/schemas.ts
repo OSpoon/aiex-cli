@@ -21,6 +21,8 @@ export const JsonSchemaPropertySchema: z.ZodType<JsonSchemaProperty> = z.lazy(()
   description: z.string().optional(),
   type: z.enum(['string', 'integer', 'number', 'boolean', 'object', 'array', 'null']),
   format: z.string().optional(),
+  pattern: z.string().optional(),
+  enum: z.array(z.union([z.string(), z.number()])).optional(),
   primary: z.boolean().optional(),
   autoIncrement: z.boolean().optional(),
   unique: z.boolean().optional(),
@@ -29,6 +31,8 @@ export const JsonSchemaPropertySchema: z.ZodType<JsonSchemaProperty> = z.lazy(()
   minLength: z.number().int().nonnegative().optional(),
   minimum: z.number().optional(),
   maximum: z.number().optional(),
+  examples: z.array(z.unknown()).optional(),
+  xPrompt: z.string().optional(),
   drizzle: DrizzleExtensionSchema,
   nested: NestedConfigSchema.optional(),
   foreignKey: ForeignKeyRefSchema.optional(),
@@ -80,6 +84,8 @@ export interface JsonSchemaProperty {
   description?: string
   type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array' | 'null'
   format?: string
+  pattern?: string
+  enum?: (string | number)[]
   primary?: boolean
   autoIncrement?: boolean
   unique?: boolean
@@ -88,6 +94,8 @@ export interface JsonSchemaProperty {
   minLength?: number
   minimum?: number
   maximum?: number
+  examples?: unknown[]
+  xPrompt?: string
   drizzle?: { mode?: 'json' | 'timestamp' | 'timestamp_ms' | 'boolean' | 'bigint', customType?: string }
   nested?: { enabled: true, relation: 'has-one' | 'has-many' }
   foreignKey?: ForeignKeyRef

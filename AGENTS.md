@@ -17,7 +17,7 @@ Node 22.14 / pnpm 10.33.
 | `pnpm test -- -t "pattern"` | Run single test |
 | `pnpm run lint` | ESLint (`@antfu/eslint-config`) across both packages |
 | `pnpm typecheck` | `tsc` (CLI) + `vue-tsc --noEmit` (web) |
-| `pnpm lint && pnpm typecheck && pnpm test` | CI order |
+| `pnpm lint && pnpm typecheck && pnpm test` | CI order — must pass before every commit |
 | `pnpm release` | `bumpp --push --tag` from `app/cli` |
 
 ## Architecture

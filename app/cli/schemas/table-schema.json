@@ -111,6 +111,24 @@
         "default": {
           "description": "Default value for the column. Type should match the column type."
         },
+        "pattern": {
+          "type": "string",
+          "description": "Regular expression constraint for string values."
+        },
+        "enum": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Enumeration of allowed values for this field."
+        },
+        "examples": {
+          "type": "array",
+          "description": "Example values for this field (injected into AI prompt).",
+          "items": {}
+        },
+        "xPrompt": {
+          "type": "string",
+          "description": "Custom extraction instruction for this field, overrides the default AI prompt (prefixed with 'x-' to stay valid JSON Schema)."
+        },
         "minLength": {
           "type": "integer",
           "minimum": 0,

@@ -73,6 +73,124 @@ describe('prompt-generator', () => {
       expect(desc).toContain('Alice is here')
       expect(desc).toContain('"name": "Alice"')
     })
+
+    it('renders description on field', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object',
+        properties: {
+          email: { type: 'string', description: '用户邮箱地址' },
+        },
+        table: { name: 'test' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('description: 用户邮箱地址')
+    })
+
+    it('renders enum values', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object',
+        properties: {
+          size: { type: 'string', enum: ['small', 'medium', 'large'] },
+        },
+        table: { name: 'test' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('allowed values: "small", "medium", "large"')
+    })
+
+    it('renders pattern', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object',
+        properties: {
+          code: { type: 'string', pattern: '^INV-\\d{6}$' },
+        },
+        table: { name: 'test' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('pattern: ^INV-\\d{6}$')
+    })
+
+    it('renders numeric range from minimum/maximum', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object',
+        properties: {
+          age: { type: 'integer', minimum: 0, maximum: 150 },
+        },
+        table: { name: 'test' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('range: 0 - 150')
+    })
+
+    it('renders field-level examples', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object',
+        properties: {
+          name: { type: 'string', examples: ['Alice', 'Bob'] },
+        },
+        table: { name: 'test' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('examples: "Alice", "Bob"')
+    })
+
+    it('renders xPrompt as extraction hint', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object',
+        properties: {
+          invoiceNo: { type: 'string', xPrompt: '查找以 INV- 开头的编号' },
+        },
+        table: { name: 'test' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('extraction hint: 查找以 INV- 开头的编号')
+    })
+
+    it('renders primary key tag inline', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Test',
+        type: 'object',
+        properties: {
+          id: { type: 'integer', primary: true },
+        },
+        table: { name: 'test' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('id: integer (primary key)')
+    })
+
+    it('renders all annotations together on one field', () => {
+      const schema: JsonSchemaDefinition = {
+        title: 'Invoice',
+        type: 'object',
+        properties: {
+          invoiceNo: {
+            type: 'string',
+            primary: true,
+            description: '发票号码，格式 INV-xxxxxx',
+            pattern: '^INV-\\d{6}$',
+            minLength: 6,
+            maxLength: 10,
+            examples: ['INV-202401'],
+            xPrompt: '查找以 INV- 开头的 6 位数字编号',
+          },
+        },
+        table: { name: 'invoices' },
+      }
+      const desc = schemaToDescription(schema)
+      expect(desc).toContain('invoiceNo: string (primary key)')
+      expect(desc).toContain('description: 发票号码，格式 INV-xxxxxx')
+      expect(desc).toContain('pattern: ^INV-\\d{6}$')
+      expect(desc).toContain('length: 6 - 10')
+      expect(desc).toContain('examples: "INV-202401"')
+      expect(desc).toContain('extraction hint: 查找以 INV- 开头的 6 位数字编号')
+    })
   })
 
   describe('generateExtractionPrompt', () => {

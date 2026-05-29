@@ -1731,4 +1731,255 @@ describe('schema-sqlite', () => {
       expect(code).toContain(`deleted_at: integer({ mode: 'timestamp' })`)
     })
   })
+
+  describe('parser - check constraint generation', () => {
+    it('generates length checks for string minLength/maxLength', () => {
+      const schema = {
+        title: 'Test',
+        type: 'object' as const,
+        properties: {
+          name: { type: 'string' as const, minLength: 2, maxLength: 100 },
+        },
+        table: { name: 'test' },
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const table = result.tables[0]
+      expect(table.checks).toBeDefined()
+      expect(table.checks).toHaveLength(2)
+      expect(table.checks![0]).toEqual({ name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' })
+      expect(table.checks![1]).toEqual({ name: 'name_max_length', columns: ['name'], template: 'length(%s) <= 100' })
+    })
+
+    it('generates range checks for integer minimum/maximum', () => {
+      const schema = {
+        title: 'Test',
+        type: 'object' as const,
+        properties: {
+          age: { type: 'integer' as const, minimum: 0, maximum: 150 },
+        },
+        table: { name: 'test' },
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const table = result.tables[0]
+      expect(table.checks).toHaveLength(2)
+      expect(table.checks![0]).toEqual({ name: 'age_min', columns: ['age'], template: '%s >= 0' })
+      expect(table.checks![1]).toEqual({ name: 'age_max', columns: ['age'], template: '%s <= 150' })
+    })
+
+    it('generates range checks for number minimum/maximum', () => {
+      const schema = {
+        title: 'Test',
+        type: 'object' as const,
+        properties: {
+          price: { type: 'number' as const, minimum: 0.01, maximum: 9999.99 },
+        },
+        table: { name: 'test' },
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const table = result.tables[0]
+      expect(table.checks).toHaveLength(2)
+    })
+
+    it('skips minLength: 0 (always true, no constraint generated)', () => {
+      const schema = {
+        title: 'Test',
+        type: 'object' as const,
+        properties: {
+          name: { type: 'string' as const, minLength: 0 },
+        },
+        table: { name: 'test' },
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const table = result.tables[0]
+      expect(table.checks).toBeUndefined()
+    })
+
+    it('skips checks for boolean, object, array, null types', () => {
+      const schema = {
+        title: 'Test',
+        type: 'object' as const,
+        properties: {
+          flag: { type: 'boolean' as const },
+          meta: { type: 'object' as const, properties: { key: { type: 'string' as const } } },
+          tags: { type: 'array' as const, items: { type: 'string' as const } },
+          nothing: { type: 'null' as const },
+        },
+        table: { name: 'test' },
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const table = result.tables[0]
+      expect(table.checks).toBeUndefined()
+    })
+
+    it('generates checks for nested table columns', () => {
+      const schema = {
+        title: 'Parent',
+        type: 'object' as const,
+        properties: {
+          child: {
+            type: 'object' as const,
+            nested: { enabled: true, relation: 'has-one' },
+            properties: {
+              note: { type: 'string' as const, minLength: 1, maxLength: 500 },
+              score: { type: 'integer' as const, minimum: 0 },
+            },
+          },
+        },
+        table: { name: 'parent' },
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const childTable = result.tables.find(t => t.name === 'parent_child')
+      expect(childTable).toBeDefined()
+      expect(childTable!.checks).toBeDefined()
+      expect(childTable!.checks).toHaveLength(3)
+      expect(childTable!.checks!.some(c => c.name === 'note_min_length')).toBe(true)
+      expect(childTable!.checks!.some(c => c.name === 'score_min')).toBe(true)
+    })
+
+    it('does not add checks when no constraints are set', () => {
+      const schema = {
+        title: 'Simple',
+        type: 'object' as const,
+        properties: {
+          name: { type: 'string' as const },
+        },
+        table: { name: 'simple' },
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const table = result.tables[0]
+      expect(table.checks).toBeUndefined()
+    })
+  })
+
+  describe('generateDrizzleSchema - check constraint emission', () => {
+    it('imports check and sql when any table has checks', () => {
+      const result = {
+        tables: [{
+          name: 'users',
+          columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }],
+          checks: [{ name: 'id_min', columns: ['id'], template: '%s >= 0' }],
+        }],
+        relations: [],
+        reverseRelations: [],
+        warnings: [],
+      }
+      const code = generateDrizzleSchema(result)
+      expect(code).toContain('check, sql')
+    })
+
+    it('omits check and sql from import when no checks exist', () => {
+      const result = {
+        tables: [{
+          name: 'users',
+          columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }],
+        }],
+        relations: [],
+        reverseRelations: [],
+        warnings: [],
+      }
+      const code = generateDrizzleSchema(result)
+      expect(code).not.toContain('check, sql')
+      expect(code).not.toContain(', (table)')
+    })
+
+    it('emits table-level extraConfig with check constraint', () => {
+      const result = {
+        tables: [{
+          name: 'users',
+          columns: [
+            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+          ],
+          checks: [{ name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' }],
+        }],
+        relations: [],
+        reverseRelations: [],
+        warnings: [],
+      }
+      const code = generateDrizzleSchema(result)
+      expect(code).toContain(', (table) => ({')
+      expect(code).toContain(`name_min_length: check('name_min_length', sql\`length(\${table.name}) >= 2\`)`)
+    })
+
+    it('emits multiple checks on the same table', () => {
+      const result = {
+        tables: [{
+          name: 'users',
+          columns: [
+            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'age', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+          ],
+          checks: [
+            { name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' },
+            { name: 'name_max_length', columns: ['name'], template: 'length(%s) <= 100' },
+            { name: 'age_min', columns: ['age'], template: '%s >= 0' },
+            { name: 'age_max', columns: ['age'], template: '%s <= 150' },
+          ],
+        }],
+        relations: [],
+        reverseRelations: [],
+        warnings: [],
+      }
+      const code = generateDrizzleSchema(result)
+      expect(code).toContain('name_min_length: check(')
+      expect(code).toContain('name_max_length: check(')
+      expect(code).toContain('age_min: check(')
+      expect(code).toContain('age_max: check(')
+    })
+
+    it('handles mix of tables with and without checks', () => {
+      const result = {
+        tables: [
+          { name: 'config', columns: [{ name: 'key', drizzleType: 'text()', isPrimary: true, isAutoIncrement: false, isNullable: false, isUnique: false }] },
+          { name: 'users', columns: [{ name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false }], checks: [{ name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' }] },
+        ],
+        relations: [],
+        reverseRelations: [],
+        warnings: [],
+      }
+      const code = generateDrizzleSchema(result)
+      expect(code).toContain('export const config = sqliteTable(')
+      expect(code).toContain('export const users = sqliteTable(')
+      expect(code).toContain('(table) => ({')
+      expect(code).toContain('name_min_length: check(\'name_min_length\'')
+    })
+
+    it('end-to-end: KitchenSink score field generates check constraints', () => {
+      const schema = {
+        title: 'KitchenSink',
+        type: 'object',
+        table: { name: 'kitchen_sink' },
+        properties: {
+          id: { type: 'integer', primary: true, autoIncrement: true },
+          name: { type: 'string', minLength: 1, maxLength: 200 },
+          score: { type: 'number', default: 0, minimum: 0, maximum: 100 },
+          count: { type: 'integer', minimum: 0 },
+        },
+        required: ['name'],
+      }
+      const validated = JsonSchemaDefinitionSchema.parse(schema)
+      const result = parseJsonSchema(validated)
+      const table = result.tables[0]
+      expect(table.checks).toBeDefined()
+      expect(table.checks!.some(c => c.name === 'name_min_length')).toBe(true)
+      expect(table.checks!.some(c => c.name === 'name_max_length')).toBe(true)
+      expect(table.checks!.some(c => c.name === 'score_min')).toBe(true)
+      expect(table.checks!.some(c => c.name === 'score_max')).toBe(true)
+      expect(table.checks!.some(c => c.name === 'count_min')).toBe(true)
+
+      const code = generateDrizzleSchema(result)
+      expect(code).toContain('check, sql')
+      expect(code).toContain(`sql\`length(\${table.name})`)
+      expect(code).toContain(`sql\`\${table.score}`)
+      expect(code).toContain(`sql\`\${table.count}`)
+    })
+  })
 })

@@ -13,9 +13,16 @@ export interface ParsedColumn {
   }
 }
 
+export interface CheckConstraint {
+  name: string
+  columns: string[]
+  template: string
+}
+
 export interface ParsedTable {
   name: string
   columns: ParsedColumn[]
+  checks?: CheckConstraint[]
 }
 
 export interface ParsedRelation {

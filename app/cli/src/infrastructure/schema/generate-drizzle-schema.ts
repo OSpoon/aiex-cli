@@ -32,7 +32,17 @@ function generateColumnDefinition(column: ParsedColumn): string {
 
 function generateTableDefinition(table: ParsedTable): string {
   const columns = table.columns.map(generateColumnDefinition)
-  return `export const ${table.name} = sqliteTable('${table.name}', {\n${columns.join(',\n')}\n})`
+
+  if (!table.checks?.length) {
+    return `export const ${table.name} = sqliteTable('${table.name}', {\n${columns.join(',\n')}\n})`
+  }
+
+  const checkLines = table.checks.map((c) => {
+    const expr = c.template.replace('%s', `\${table.${c.columns[0]}}`)
+    return `    ${c.name}: check('${c.name}', sql\`${expr}\`)`
+  })
+
+  return `export const ${table.name} = sqliteTable('${table.name}', {\n${columns.join(',\n')}\n}, (table) => ({\n${checkLines.join(',\n')}\n}))`
 }
 
 function generateRelationDefinitions(relations: ParsedRelation[], reverseRelations: ParsedReverseRelation[]): string {
@@ -93,7 +103,9 @@ function generateRelationDefinitions(relations: ParsedRelation[], reverseRelatio
 }
 
 export function generateDrizzleSchema(result: ParseResult): string {
-  const imports = `import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'\nimport { relations } from 'drizzle-orm'`
+  const hasChecks = result.tables.some(t => t.checks?.length)
+  const drizzleImports = `sqliteTable, text, integer, real${hasChecks ? ', check, sql' : ''}`
+  const imports = `import { ${drizzleImports} } from 'drizzle-orm/sqlite-core'\nimport { relations } from 'drizzle-orm'`
   const tableDefs = result.tables.map(generateTableDefinition).join('\n\n')
   const relationDefs = generateRelationDefinitions(result.relations, result.reverseRelations)
 
