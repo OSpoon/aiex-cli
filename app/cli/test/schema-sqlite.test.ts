@@ -1,6 +1,6 @@
 import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from '@/domain/schema/types'
 import { describe, expect, it } from 'vitest'
-import { parseJsonSchema } from '@/domain/schema/parser'
+import { columnTypeInteger, columnTypeReal, columnTypeText, parseJsonSchema } from '@/domain/schema/parser'
 import { JsonSchemaDefinitionSchema } from '@/domain/schema/schemas'
 import { generateDrizzleSchema } from '@/infrastructure/schema/generate-drizzle-schema'
 import { createMigrationConfig, generateDrizzleConfig } from '@/infrastructure/schema/migration-config'
@@ -266,31 +266,31 @@ describe('schema-sqlite', () => {
       expect(table.columns.length).toBe(8)
 
       const idCol = table.columns.find(c => c.name === 'id')
-      expect(idCol?.drizzleType).toBe('integer()')
+      expect(idCol?.columnType).toEqual(columnTypeInteger())
       expect(idCol?.isPrimary).toBe(true)
       expect(idCol?.isAutoIncrement).toBe(true)
 
       const nameCol = table.columns.find(c => c.name === 'name')
-      expect(nameCol?.drizzleType).toBe('text()')
+      expect(nameCol?.columnType).toEqual(columnTypeText())
       expect(nameCol?.isNullable).toBe(false)
 
       const ageCol = table.columns.find(c => c.name === 'age')
-      expect(ageCol?.drizzleType).toBe('integer()')
+      expect(ageCol?.columnType).toEqual(columnTypeInteger())
 
       const balanceCol = table.columns.find(c => c.name === 'balance')
-      expect(balanceCol?.drizzleType).toBe('real()')
+      expect(balanceCol?.columnType).toEqual(columnTypeReal())
 
       const activeCol = table.columns.find(c => c.name === 'active')
-      expect(activeCol?.drizzleType).toBe(`integer({ mode: 'boolean' })`)
+      expect(activeCol?.columnType).toEqual(columnTypeInteger('boolean'))
 
       const metadataCol = table.columns.find(c => c.name === 'metadata')
-      expect(metadataCol?.drizzleType).toBe(`text({ mode: 'json' })`)
+      expect(metadataCol?.columnType).toEqual(columnTypeText('json'))
 
       const tagsCol = table.columns.find(c => c.name === 'tags')
-      expect(tagsCol?.drizzleType).toBe(`text({ mode: 'json' })`)
+      expect(tagsCol?.columnType).toEqual(columnTypeText('json'))
 
       const createdAtCol = table.columns.find(c => c.name === 'created_at')
-      expect(createdAtCol?.drizzleType).toBe(`integer({ mode: 'timestamp' })`)
+      expect(createdAtCol?.columnType).toEqual(columnTypeInteger('timestamp'))
     })
 
     it('should ignore examples/few-shot data and not generate columns for it', () => {
@@ -481,7 +481,7 @@ describe('schema-sqlite', () => {
       expect(emailCol?.isUnique).toBe(true)
 
       const activeCol = table.columns.find(c => c.name === 'active')
-      expect(activeCol?.defaultValue).toBe('true')
+      expect(activeCol?.default).toBe(true)
     })
 
     it('should skip nested object with drizzle mode json (not separate table)', () => {
@@ -510,7 +510,7 @@ describe('schema-sqlite', () => {
 
       const table = result.tables[0]
       const settingsCol = table.columns.find(c => c.name === 'settings')
-      expect(settingsCol?.drizzleType).toBe(`text({ mode: 'json' })`)
+      expect(settingsCol?.columnType).toEqual(columnTypeText('json'))
     })
 
     it('should skip array items without nested enabled (treated as json column)', () => {
@@ -537,7 +537,7 @@ describe('schema-sqlite', () => {
 
       const table = result.tables[0]
       const tagsCol = table.columns.find(c => c.name === 'tags')
-      expect(tagsCol?.drizzleType).toBe(`text({ mode: 'json' })`)
+      expect(tagsCol?.columnType).toEqual(columnTypeText('json'))
     })
   })
 
@@ -547,9 +547,9 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'users',
           columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
-            { name: 'email', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: true },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'name', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'email', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: true },
           ],
         }],
         relations: [],
@@ -570,11 +570,11 @@ describe('schema-sqlite', () => {
     it('should generate child table relation with one()', () => {
       const result = {
         tables: [
-          { name: 'users', columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
+          { name: 'users', columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
           { name: 'users_profile', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'users_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
-            { name: 'bio', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'users_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'bio', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
           ] },
         ],
         relations: [{
@@ -604,10 +604,10 @@ describe('schema-sqlite', () => {
     it('should generate parent table relation with one() for has-one', () => {
       const result = {
         tables: [
-          { name: 'users', columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
+          { name: 'users', columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
           { name: 'users_profile', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'users_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'users_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
           ] },
         ],
         relations: [{
@@ -635,10 +635,10 @@ describe('schema-sqlite', () => {
     it('should generate parent table relation with many() for has-many', () => {
       const result = {
         tables: [
-          { name: 'users', columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
+          { name: 'users', columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
           { name: 'users_orders', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'users_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'users_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
           ] },
         ],
         relations: [{
@@ -707,7 +707,7 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
 
       const col = result.tables[0].columns.find(c => c.name === 'created_at')
-      expect(col?.drizzleType).toBe(`integer({ mode: 'timestamp_ms' })`)
+      expect(col?.columnType).toEqual(columnTypeInteger('timestamp_ms'))
     })
 
     it('should map integer with drizzle.mode bigint correctly', () => {
@@ -724,7 +724,7 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
 
       const col = result.tables[0].columns.find(c => c.name === 'big_value')
-      expect(col?.drizzleType).toBe(`integer({ mode: 'bigint' })`)
+      expect(col?.columnType).toEqual(columnTypeInteger('bigint'))
     })
 
     it('should map null type to text()', () => {
@@ -741,7 +741,7 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
 
       const col = result.tables[0].columns.find(c => c.name === 'empty_field')
-      expect(col?.drizzleType).toBe('text()')
+      expect(col?.columnType).toEqual(columnTypeText())
     })
 
     it('should map string with format json to text json mode', () => {
@@ -758,7 +758,7 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
 
       const col = result.tables[0].columns.find(c => c.name === 'config')
-      expect(col?.drizzleType).toBe(`text({ mode: 'json' })`)
+      expect(col?.columnType).toEqual(columnTypeText('json'))
     })
 
     it('should map string with drizzle.mode timestamp to integer timestamp', () => {
@@ -775,7 +775,7 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
 
       const col = result.tables[0].columns.find(c => c.name === 'event_time')
-      expect(col?.drizzleType).toBe(`integer({ mode: 'timestamp' })`)
+      expect(col?.columnType).toEqual(columnTypeInteger('timestamp'))
     })
   })
 
@@ -797,10 +797,10 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
       const cols = result.tables[0].columns
 
-      expect(cols.find(c => c.name === 'role')?.defaultValue).toBe('"user"')
-      expect(cols.find(c => c.name === 'count')?.defaultValue).toBe('0')
-      expect(cols.find(c => c.name === 'active')?.defaultValue).toBe('true')
-      expect(cols.find(c => c.name === 'score')?.defaultValue).toBe('0.5')
+      expect(cols.find(c => c.name === 'role')?.default).toBe('user')
+      expect(cols.find(c => c.name === 'count')?.default).toBe(0)
+      expect(cols.find(c => c.name === 'active')?.default).toBe(true)
+      expect(cols.find(c => c.name === 'score')?.default).toBe(0.5)
     })
 
     it('should handle object and array default values via JSON.stringify', () => {
@@ -818,8 +818,8 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
       const cols = result.tables[0].columns
 
-      expect(cols.find(c => c.name === 'config')?.defaultValue).toBe('{"theme":"dark"}')
-      expect(cols.find(c => c.name === 'flags')?.defaultValue).toBe('["a","b"]')
+      expect(cols.find(c => c.name === 'config')?.default).toEqual({ theme: 'dark' })
+      expect(cols.find(c => c.name === 'flags')?.default).toEqual(['a', 'b'])
     })
 
     it('should handle null default value', () => {
@@ -836,7 +836,7 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
 
       const col = result.tables[0].columns.find(c => c.name === 'note')
-      expect(col?.defaultValue).toBe('null')
+      expect(col?.default).toBe(null)
     })
 
     it('should have no defaultValue when not specified', () => {
@@ -853,7 +853,7 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
 
       const col = result.tables[0].columns.find(c => c.name === 'name')
-      expect(col?.defaultValue).toBeUndefined()
+      expect(col?.default).toBeUndefined()
     })
   })
 
@@ -874,7 +874,7 @@ describe('schema-sqlite', () => {
       const pk = result.tables[0].columns.find(c => c.name === 'code')
       expect(pk?.isPrimary).toBe(true)
       expect(pk?.isAutoIncrement).toBe(false)
-      expect(pk?.drizzleType).toBe('text()')
+      expect(pk?.columnType).toEqual(columnTypeText())
     })
 
     it('should mark required fields as not nullable', () => {
@@ -1135,15 +1135,15 @@ describe('schema-sqlite', () => {
       const cols = result.tables[0].columns
 
       const createdAt = cols.find(c => c.name === 'created_at')
-      expect(createdAt?.drizzleType).toBe(`integer({ mode: 'timestamp' })`)
+      expect(createdAt?.columnType).toEqual(columnTypeInteger('timestamp'))
       expect(createdAt?.isNullable).toBe(false)
 
       const updatedAt = cols.find(c => c.name === 'updated_at')
-      expect(updatedAt?.drizzleType).toBe(`integer({ mode: 'timestamp' })`)
+      expect(updatedAt?.columnType).toEqual(columnTypeInteger('timestamp'))
       expect(updatedAt?.isNullable).toBe(false)
 
       const deletedAt = cols.find(c => c.name === 'deleted_at')
-      expect(deletedAt?.drizzleType).toBe(`integer({ mode: 'timestamp' })`)
+      expect(deletedAt?.columnType).toEqual(columnTypeInteger('timestamp'))
       expect(deletedAt?.isNullable).toBe(true)
     })
   })
@@ -1158,8 +1158,8 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'categories',
           columns: [
-            { name: 'code', drizzleType: 'text()', isPrimary: true, isAutoIncrement: false, isNullable: false, isUnique: false },
-            { name: 'label', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'code', columnType: columnTypeText(), isPrimary: true, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'label', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
           ],
         }],
         relations: [],
@@ -1178,9 +1178,9 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'test',
           columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'role', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false, defaultValue: '"admin"' },
-            { name: 'count', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false, defaultValue: '0' },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'role', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false, default: 'admin' },
+            { name: 'count', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false, default: 0 },
           ],
         }],
         relations: [],
@@ -1198,8 +1198,8 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'test',
           columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'email', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: true },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'email', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: true },
           ],
         }],
         relations: [],
@@ -1216,7 +1216,7 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'test',
           columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: false, isNullable: false, isUnique: true },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: false, isNullable: false, isUnique: true },
           ],
         }],
         relations: [],
@@ -1234,13 +1234,13 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'all_types',
           columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
-            { name: 'score', drizzleType: 'real()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
-            { name: 'active', drizzleType: `integer({ mode: 'boolean' })`, isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
-            { name: 'data', drizzleType: `text({ mode: 'json' })`, isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
-            { name: 'created_at', drizzleType: `integer({ mode: 'timestamp' })`, isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
-            { name: 'big_id', drizzleType: `integer({ mode: 'bigint' })`, isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'name', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'score', columnType: columnTypeReal(), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+            { name: 'active', columnType: columnTypeInteger('boolean'), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+            { name: 'data', columnType: columnTypeText('json'), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+            { name: 'created_at', columnType: columnTypeInteger('timestamp'), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'big_id', columnType: columnTypeInteger('bigint'), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
           ],
         }],
         relations: [],
@@ -1263,14 +1263,14 @@ describe('schema-sqlite', () => {
       // Table 'users' is both a child (of organizations) and a parent (of users_profile)
       const result = {
         tables: [
-          { name: 'organizations', columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
+          { name: 'organizations', columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
           { name: 'users', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'organizations_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'organizations_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
           ] },
           { name: 'users_profile', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'users_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'users_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
           ] },
         ],
         relations: [
@@ -1300,10 +1300,10 @@ describe('schema-sqlite', () => {
     it('should generate separate exports for unrelated tables', () => {
       const result = {
         tables: [
-          { name: 'users', columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
+          { name: 'users', columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
           { name: 'users_profile', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'users_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'users_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
           ] },
         ],
         relations: [
@@ -1464,11 +1464,11 @@ describe('schema-sqlite', () => {
     it('should generate .references() syntax for FK columns', () => {
       const result = {
         tables: [
-          { name: 'users', columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
+          { name: 'users', columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
           { name: 'users_profile', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'users_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false, isForeignKey: true, foreignKeyRef: { table: 'users', column: 'id' } },
-            { name: 'bio', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'users_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false, isForeignKey: true, foreignKeyRef: { table: 'users', column: 'id' } },
+            { name: 'bio', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
           ] },
         ],
         relations: [{
@@ -1495,10 +1495,10 @@ describe('schema-sqlite', () => {
     it('should generate references with correct arrow function syntax', () => {
       const result = {
         tables: [
-          { name: 'posts', columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
+          { name: 'posts', columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }] },
           { name: 'posts_comments', columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'posts_id', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false, isForeignKey: true, foreignKeyRef: { table: 'posts', column: 'id' } },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'posts_id', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false, isForeignKey: true, foreignKeyRef: { table: 'posts', column: 'id' } },
           ] },
         ],
         relations: [],
@@ -1565,8 +1565,8 @@ describe('schema-sqlite', () => {
 
       const table = result.tables[0]
       expect(table.columns.find(c => c.name === 'sku')?.isUnique).toBe(true)
-      expect(table.columns.find(c => c.name === 'tags')?.drizzleType).toBe(`text({ mode: 'json' })`)
-      expect(table.columns.find(c => c.name === 'attributes')?.drizzleType).toBe(`text({ mode: 'json' })`)
+      expect(table.columns.find(c => c.name === 'tags')?.columnType).toEqual(columnTypeText('json'))
+      expect(table.columns.find(c => c.name === 'attributes')?.columnType).toEqual(columnTypeText('json'))
       expect(table.columns.find(c => c.name === 'created_at')).toBeDefined()
       // No softDelete, so no deleted_at
       expect(table.columns.find(c => c.name === 'deleted_at')).toBeUndefined()
@@ -1747,8 +1747,8 @@ describe('schema-sqlite', () => {
       const table = result.tables[0]
       expect(table.checks).toBeDefined()
       expect(table.checks).toHaveLength(2)
-      expect(table.checks![0]).toEqual({ name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' })
-      expect(table.checks![1]).toEqual({ name: 'name_max_length', columns: ['name'], template: 'length(%s) <= 100' })
+      expect(table.checks![0]).toEqual({ name: 'name_min_length', column: 'name', kind: 'min_length', value: 2 })
+      expect(table.checks![1]).toEqual({ name: 'name_max_length', column: 'name', kind: 'max_length', value: 100 })
     })
 
     it('generates range checks for integer minimum/maximum', () => {
@@ -1764,8 +1764,8 @@ describe('schema-sqlite', () => {
       const result = parseJsonSchema(validated)
       const table = result.tables[0]
       expect(table.checks).toHaveLength(2)
-      expect(table.checks![0]).toEqual({ name: 'age_min', columns: ['age'], template: '%s >= 0' })
-      expect(table.checks![1]).toEqual({ name: 'age_max', columns: ['age'], template: '%s <= 150' })
+      expect(table.checks![0]).toEqual({ name: 'age_min', column: 'age', kind: 'min_value', value: 0 })
+      expect(table.checks![1]).toEqual({ name: 'age_max', column: 'age', kind: 'max_value', value: 150 })
     })
 
     it('generates range checks for number minimum/maximum', () => {
@@ -1863,8 +1863,8 @@ describe('schema-sqlite', () => {
       const result = {
         tables: [{
           name: 'users',
-          columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }],
-          checks: [{ name: 'id_min', columns: ['id'], template: '%s >= 0' }],
+          columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }],
+          checks: [{ name: 'id_min', column: 'id', kind: 'min_value' as const, value: 0 }],
         }],
         relations: [],
         reverseRelations: [],
@@ -1878,7 +1878,7 @@ describe('schema-sqlite', () => {
       const result = {
         tables: [{
           name: 'users',
-          columns: [{ name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }],
+          columns: [{ name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false }],
         }],
         relations: [],
         reverseRelations: [],
@@ -1894,10 +1894,10 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'users',
           columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'name', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
           ],
-          checks: [{ name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' }],
+          checks: [{ name: 'name_min_length', column: 'name', kind: 'min_length' as const, value: 2 }],
         }],
         relations: [],
         reverseRelations: [],
@@ -1913,15 +1913,15 @@ describe('schema-sqlite', () => {
         tables: [{
           name: 'users',
           columns: [
-            { name: 'id', drizzleType: 'integer()', isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
-            { name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
-            { name: 'age', drizzleType: 'integer()', isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
+            { name: 'id', columnType: columnTypeInteger(), isPrimary: true, isAutoIncrement: true, isNullable: false, isUnique: false },
+            { name: 'name', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+            { name: 'age', columnType: columnTypeInteger(), isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false },
           ],
           checks: [
-            { name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' },
-            { name: 'name_max_length', columns: ['name'], template: 'length(%s) <= 100' },
-            { name: 'age_min', columns: ['age'], template: '%s >= 0' },
-            { name: 'age_max', columns: ['age'], template: '%s <= 150' },
+            { name: 'name_min_length', column: 'name', kind: 'min_length' as const, value: 2 },
+            { name: 'name_max_length', column: 'name', kind: 'max_length' as const, value: 100 },
+            { name: 'age_min', column: 'age', kind: 'min_value' as const, value: 0 },
+            { name: 'age_max', column: 'age', kind: 'max_value' as const, value: 150 },
           ],
         }],
         relations: [],
@@ -1938,8 +1938,8 @@ describe('schema-sqlite', () => {
     it('handles mix of tables with and without checks', () => {
       const result = {
         tables: [
-          { name: 'config', columns: [{ name: 'key', drizzleType: 'text()', isPrimary: true, isAutoIncrement: false, isNullable: false, isUnique: false }] },
-          { name: 'users', columns: [{ name: 'name', drizzleType: 'text()', isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false }], checks: [{ name: 'name_min_length', columns: ['name'], template: 'length(%s) >= 2' }] },
+          { name: 'config', columns: [{ name: 'key', columnType: columnTypeText(), isPrimary: true, isAutoIncrement: false, isNullable: false, isUnique: false }] },
+          { name: 'users', columns: [{ name: 'name', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false }], checks: [{ name: 'name_min_length', column: 'name', kind: 'min_length' as const, value: 2 }] },
         ],
         relations: [],
         reverseRelations: [],

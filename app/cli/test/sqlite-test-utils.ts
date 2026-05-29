@@ -1,20 +1,33 @@
 import type Database from 'better-sqlite3'
 import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
-import type { CheckConstraint, ParsedColumn, ParsedTable } from '@/domain/schema/types'
+import type { CheckConstraint, ColumnType, ParsedColumn, ParsedTable } from '@/domain/schema/types'
 import { parseJsonSchema } from '@/domain/schema/parser'
 
-function drizzleTypeToSql(type: string): string {
-  if (type.startsWith('text'))
-    return 'TEXT'
-  if (type.startsWith('integer'))
-    return 'INTEGER'
-  if (type.startsWith('real'))
-    return 'REAL'
-  return 'TEXT'
+function renderColumnTypeToSql(ct: ColumnType): string {
+  switch (ct.class) {
+    case 'text':
+      return 'TEXT'
+    case 'integer':
+      return 'INTEGER'
+    case 'real':
+      return 'REAL'
+  }
+}
+
+function renderDefaultToSql(value: unknown): string {
+  if (typeof value === 'string')
+    return `'${value.replace(/'/g, '\'\'')}'`
+  if (typeof value === 'number')
+    return String(value)
+  if (typeof value === 'boolean')
+    return value ? '1' : '0'
+  if (value === null)
+    return 'NULL'
+  return `'${JSON.stringify(value)}'`
 }
 
 function buildColumnSql(column: ParsedColumn): string {
-  let sql = `${column.name} ${drizzleTypeToSql(column.drizzleType)}`
+  let sql = `${column.name} ${renderColumnTypeToSql(column.columnType)}`
 
   if (column.isPrimary)
     sql += ' PRIMARY KEY'
@@ -24,23 +37,37 @@ function buildColumnSql(column: ParsedColumn): string {
     sql += ' NOT NULL'
   if (column.isUnique)
     sql += ' UNIQUE'
-  if (column.defaultValue !== undefined)
-    sql += ` DEFAULT ${column.defaultValue}`
+  if (column.default !== undefined)
+    sql += ` DEFAULT ${renderDefaultToSql(column.default)}`
   if (column.isForeignKey && column.foreignKeyRef)
     sql += ` REFERENCES ${column.foreignKeyRef.table}(${column.foreignKeyRef.column})`
 
   return sql
 }
 
-function buildCheckSql(check: CheckConstraint): string {
-  const expr = check.template.replace('%s', check.columns[0])
+function renderCheckToSql(check: CheckConstraint): string {
+  let expr: string
+  switch (check.kind) {
+    case 'min_length':
+      expr = `length(${check.column}) >= ${check.value}`
+      break
+    case 'max_length':
+      expr = `length(${check.column}) <= ${check.value}`
+      break
+    case 'min_value':
+      expr = `${check.column} >= ${check.value}`
+      break
+    case 'max_value':
+      expr = `${check.column} <= ${check.value}`
+      break
+  }
   return `CONSTRAINT ${check.name} CHECK(${expr})`
 }
 
 function buildCreateTableSql(table: ParsedTable): string {
   const columnDefs = table.columns.map(buildColumnSql)
   if (table.checks?.length) {
-    const checkDefs = table.checks.map(buildCheckSql)
+    const checkDefs = table.checks.map(renderCheckToSql)
     return `CREATE TABLE IF NOT EXISTS ${table.name} (${[...columnDefs, ...checkDefs].join(', ')})`
   }
   return `CREATE TABLE IF NOT EXISTS ${table.name} (${columnDefs.join(', ')})`

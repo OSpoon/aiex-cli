@@ -63,6 +63,8 @@ export interface JsonSchemaProperty {
   description?: string;
   type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array' | 'null';
   format?: string;
+  pattern?: string;
+  enum?: (string | number)[];
   primary?: boolean;
   autoIncrement?: boolean;
   unique?: boolean;
@@ -71,6 +73,8 @@ export interface JsonSchemaProperty {
   minLength?: number;
   minimum?: number;
   maximum?: number;
+  examples?: unknown[];
+  xPrompt?: string;
   drizzle?: {
     mode?: 'json' | 'timestamp' | 'timestamp_ms' | 'boolean' | 'bigint';
     customType?: string;
@@ -93,12 +97,12 @@ export interface MigrationConfig {
 }
 export interface ParsedColumn {
   name: string;
-  drizzleType: string;
+  columnType: ColumnType;
   isPrimary: boolean;
   isAutoIncrement: boolean;
   isNullable: boolean;
   isUnique: boolean;
-  defaultValue?: string;
+  default?: unknown;
   isForeignKey?: boolean;
   foreignKeyRef?: {
     table: string;
@@ -115,6 +119,7 @@ export interface ParsedRelation {
 export interface ParsedTable {
   name: string;
   columns: ParsedColumn[];
+  checks?: CheckConstraint[];
 }
 export interface ParseResult {
   tables: ParsedTable[];

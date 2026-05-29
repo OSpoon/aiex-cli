@@ -3,23 +3,17 @@ import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
 import type { ParsedColumn, ParsedTable, ParseResult } from '@/domain/schema/types'
 import { parseJsonSchema, toSnakeCase } from '@/domain/schema/parser'
 
-const DRIZZLE_MODE_RE = /mode:\s*'(\w+)'/
-
 export interface InsertResult {
   success: boolean
   tablesInserted: Array<{ table: string, rowId: number }>
   error?: string
 }
 
-function extractDrizzleMode(column: ParsedColumn): string | undefined {
-  return column.drizzleType.match(DRIZZLE_MODE_RE)?.[1]
-}
-
 function convertValue(value: unknown, column: ParsedColumn): unknown {
   if (value === null || value === undefined)
     return null
 
-  const mode = extractDrizzleMode(column)
+  const mode = column.columnType.class !== 'real' ? column.columnType.mode : undefined
 
   if (mode === 'json') {
     return typeof value === 'string' ? value : JSON.stringify(value)
@@ -50,9 +44,9 @@ function buildInsertSql(table: ParsedTable, data: Record<string, unknown>): { sq
 
     const value = data[col.name]
     if (value === undefined) {
-      if (col.defaultValue !== undefined) {
+      if (col.default !== undefined) {
         columns.push(col.name)
-        values.push(convertValue(JSON.parse(col.defaultValue), col))
+        values.push(convertValue(col.default, col))
       }
       continue
     }

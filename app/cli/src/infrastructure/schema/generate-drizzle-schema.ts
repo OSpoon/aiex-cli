@@ -1,33 +1,63 @@
-import type { ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from '@/domain/schema/types'
+import type { CheckConstraint, ColumnType, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from '@/domain/schema/types'
+
+function renderColumnType(ct: ColumnType): string {
+  switch (ct.class) {
+    case 'text':
+      return ct.mode === 'json' ? `text({ mode: 'json' })` : 'text()'
+    case 'integer':
+      return ct.mode ? `integer({ mode: '${ct.mode}' })` : 'integer()'
+    case 'real':
+      return 'real()'
+  }
+}
+
+function renderDefaultValue(value: unknown): string {
+  return JSON.stringify(value)
+}
 
 function generateColumnDefinition(column: ParsedColumn): string {
   if (column.isPrimary && column.isAutoIncrement) {
     return `  ${column.name}: integer().primaryKey({ autoIncrement: true })`
   }
 
-  let def = `  ${column.name}: ${column.drizzleType}`
+  let def = `  ${column.name}: ${renderColumnType(column.columnType)}`
 
-  if (column.isPrimary) {
+  if (column.isPrimary)
     def += '.primaryKey()'
-  }
 
-  if (!column.isNullable && !column.isPrimary) {
+  if (!column.isNullable && !column.isPrimary)
     def += '.notNull()'
-  }
 
-  if (column.isUnique && !column.isPrimary) {
+  if (column.isUnique && !column.isPrimary)
     def += '.unique()'
-  }
 
-  if (column.defaultValue !== undefined) {
-    def += `.default(${column.defaultValue})`
-  }
+  if (column.default !== undefined)
+    def += `.default(${renderDefaultValue(column.default)})`
 
-  if (column.isForeignKey && column.foreignKeyRef) {
+  if (column.isForeignKey && column.foreignKeyRef)
     def += `.references(() => ${column.foreignKeyRef.table}.${column.foreignKeyRef.column})`
-  }
 
   return def
+}
+
+function renderCheckToDrizzle(check: CheckConstraint, tableVar: string): string {
+  const colRef = `\${${tableVar}.${check.column}}`
+  let expr: string
+  switch (check.kind) {
+    case 'min_length':
+      expr = `length(${colRef}) >= ${check.value}`
+      break
+    case 'max_length':
+      expr = `length(${colRef}) <= ${check.value}`
+      break
+    case 'min_value':
+      expr = `${colRef} >= ${check.value}`
+      break
+    case 'max_value':
+      expr = `${colRef} <= ${check.value}`
+      break
+  }
+  return `    ${check.name}: check('${check.name}', sql\`${expr}\`)`
 }
 
 function generateTableDefinition(table: ParsedTable): string {
@@ -37,11 +67,7 @@ function generateTableDefinition(table: ParsedTable): string {
     return `export const ${table.name} = sqliteTable('${table.name}', {\n${columns.join(',\n')}\n})`
   }
 
-  const checkLines = table.checks.map((c) => {
-    const expr = c.template.replace('%s', `\${table.${c.columns[0]}}`)
-    return `    ${c.name}: check('${c.name}', sql\`${expr}\`)`
-  })
-
+  const checkLines = table.checks.map(c => renderCheckToDrizzle(c, 'table'))
   return `export const ${table.name} = sqliteTable('${table.name}', {\n${columns.join(',\n')}\n}, (table) => ({\n${checkLines.join(',\n')}\n}))`
 }
 
@@ -88,12 +114,10 @@ function generateRelationDefinitions(relations: ParsedRelation[], reverseRelatio
     }
 
     for (const rel of parentRels) {
-      if (rel.type === 'has-many') {
+      if (rel.type === 'has-many')
         relDefs.push(`    ${rel.name}: many(${rel.toTable})`)
-      }
-      else {
+      else
         relDefs.push(`    ${rel.name}: one(${rel.toTable})`)
-      }
     }
 
     definitions.push(`export const ${tableName}Relations = relations(${tableName}, ({ ${importStr} }) => ({\n${relDefs.join(',\n')}\n}))`)
@@ -110,9 +134,8 @@ export function generateDrizzleSchema(result: ParseResult): string {
   const relationDefs = generateRelationDefinitions(result.relations, result.reverseRelations)
 
   const parts = [imports, '', tableDefs]
-  if (relationDefs) {
+  if (relationDefs)
     parts.push('', relationDefs)
-  }
   parts.push('')
 
   return parts.join('\n')

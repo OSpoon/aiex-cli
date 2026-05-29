@@ -1,71 +1,60 @@
 import type { JsonSchemaDefinition, JsonSchemaProperty } from './schemas'
-import type { CheckConstraint, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from './types'
+import type { CheckConstraint, ColumnType, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from './types'
 
 export function toSnakeCase(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
 }
 
-function mapPropertyToColumn(name: string, property: JsonSchemaProperty, isRequired: boolean): ParsedColumn {
-  const snakeName = toSnakeCase(name)
-  let drizzleType: string
-  const isPrimary = property.primary ?? false
-  const isAutoIncrement = property.autoIncrement ?? false
+export function columnTypeText(mode?: 'json'): ColumnType {
+  return mode ? { class: 'text', mode } : { class: 'text' }
+}
 
+export function columnTypeInteger(mode?: 'boolean' | 'timestamp' | 'timestamp_ms' | 'bigint'): ColumnType {
+  return mode ? { class: 'integer', mode } : { class: 'integer' }
+}
+
+export function columnTypeReal(): ColumnType {
+  return { class: 'real' }
+}
+
+function mapColumnType(property: JsonSchemaProperty): ColumnType {
   switch (property.type) {
     case 'string': {
       const format = property.format
-      if (format === 'date-time' || property.drizzle?.mode === 'timestamp') {
-        drizzleType = `integer({ mode: 'timestamp' })`
-      }
-      else if (format === 'json' || property.drizzle?.mode === 'json') {
-        drizzleType = `text({ mode: 'json' })`
-      }
-      else {
-        drizzleType = 'text()'
-      }
-      break
+      if (format === 'date-time' || property.drizzle?.mode === 'timestamp')
+        return { class: 'integer', mode: 'timestamp' }
+      if (format === 'json' || property.drizzle?.mode === 'json')
+        return { class: 'text', mode: 'json' }
+      return { class: 'text' }
     }
     case 'integer': {
       const mode = property.drizzle?.mode
-      if (mode === 'boolean') {
-        drizzleType = `integer({ mode: 'boolean' })`
-      }
-      else if (mode === 'timestamp' || mode === 'timestamp_ms') {
-        drizzleType = `integer({ mode: '${mode}' })`
-      }
-      else if (mode === 'bigint') {
-        drizzleType = `integer({ mode: 'bigint' })`
-      }
-      else {
-        drizzleType = 'integer()'
-      }
-      break
+      if (mode === 'boolean' || mode === 'timestamp' || mode === 'timestamp_ms' || mode === 'bigint')
+        return { class: 'integer', mode }
+      return { class: 'integer' }
     }
     case 'number':
-      drizzleType = 'real()'
-      break
+      return { class: 'real' }
     case 'boolean':
-      drizzleType = `integer({ mode: 'boolean' })`
-      break
+      return { class: 'integer', mode: 'boolean' }
     case 'object':
     case 'array':
-      drizzleType = `text({ mode: 'json' })`
-      break
+      return { class: 'text', mode: 'json' }
     case 'null':
-      drizzleType = 'text()'
-      break
     default:
-      drizzleType = 'text()'
+      return { class: 'text' }
   }
+}
 
+function mapPropertyToColumn(name: string, property: JsonSchemaProperty, isRequired: boolean): ParsedColumn {
   return {
-    name: snakeName,
-    drizzleType,
-    isPrimary,
-    isAutoIncrement,
-    isNullable: !isRequired && !isPrimary,
+    name: toSnakeCase(name),
+    columnType: mapColumnType(property),
+    isPrimary: property.primary ?? false,
+    isAutoIncrement: property.autoIncrement ?? false,
+    isNullable: !isRequired && !property.primary,
     isUnique: property.unique ?? false,
-    defaultValue: property.default !== undefined ? JSON.stringify(property.default) : undefined,
+    default: property.default,
     isForeignKey: property.foreignKey !== undefined,
     foreignKeyRef: property.foreignKey ?? undefined,
   }
@@ -75,21 +64,17 @@ function getColumnChecks(prop: JsonSchemaProperty, colName: string): CheckConstr
   const checks: CheckConstraint[] = []
 
   if (prop.type === 'string') {
-    if (prop.minLength !== undefined && prop.minLength > 0) {
-      checks.push({ name: `${colName}_min_length`, columns: [colName], template: `length(%s) >= ${prop.minLength}` })
-    }
-    if (prop.maxLength !== undefined) {
-      checks.push({ name: `${colName}_max_length`, columns: [colName], template: `length(%s) <= ${prop.maxLength}` })
-    }
+    if (prop.minLength !== undefined && prop.minLength > 0)
+      checks.push({ name: `${colName}_min_length`, column: colName, kind: 'min_length', value: prop.minLength })
+    if (prop.maxLength !== undefined)
+      checks.push({ name: `${colName}_max_length`, column: colName, kind: 'max_length', value: prop.maxLength })
   }
 
   if (prop.type === 'integer' || prop.type === 'number') {
-    if (prop.minimum !== undefined) {
-      checks.push({ name: `${colName}_min`, columns: [colName], template: `%s >= ${prop.minimum}` })
-    }
-    if (prop.maximum !== undefined) {
-      checks.push({ name: `${colName}_max`, columns: [colName], template: `%s <= ${prop.maximum}` })
-    }
+    if (prop.minimum !== undefined)
+      checks.push({ name: `${colName}_min`, column: colName, kind: 'min_value', value: prop.minimum })
+    if (prop.maximum !== undefined)
+      checks.push({ name: `${colName}_max`, column: colName, kind: 'max_value', value: prop.maximum })
   }
 
   return checks
@@ -131,36 +116,13 @@ function parseObjectToTable(
   }
 
   if (schema.table.timestamps) {
-    columns.push({
-      name: 'created_at',
-      drizzleType: `integer({ mode: 'timestamp' })`,
-      isPrimary: false,
-      isAutoIncrement: false,
-      isNullable: false,
-      isUnique: false,
-      defaultValue: undefined,
-    })
-    columns.push({
-      name: 'updated_at',
-      drizzleType: `integer({ mode: 'timestamp' })`,
-      isPrimary: false,
-      isAutoIncrement: false,
-      isNullable: false,
-      isUnique: false,
-      defaultValue: undefined,
-    })
+    const tsCol: ParsedColumn = { name: 'created_at', columnType: { class: 'integer', mode: 'timestamp' }, isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false }
+    columns.push(tsCol)
+    columns.push({ ...tsCol, name: 'updated_at' })
   }
 
   if (schema.table.softDelete) {
-    columns.push({
-      name: 'deleted_at',
-      drizzleType: `integer({ mode: 'timestamp' })`,
-      isPrimary: false,
-      isAutoIncrement: false,
-      isNullable: true,
-      isUnique: false,
-      defaultValue: undefined,
-    })
+    columns.push({ name: 'deleted_at', columnType: { class: 'integer', mode: 'timestamp' }, isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false })
   }
 
   return checks.length > 0 ? { name: tableName, columns, checks } : { name: tableName, columns }
@@ -179,22 +141,20 @@ function parseNestedObject(
 
   columns.push({
     name: 'id',
-    drizzleType: 'integer()',
+    columnType: { class: 'integer' },
     isPrimary: true,
     isAutoIncrement: true,
     isNullable: false,
     isUnique: false,
-    defaultValue: undefined,
   })
 
   columns.push({
     name: `${parentTableName}_id`,
-    drizzleType: 'integer()',
+    columnType: { class: 'integer' },
     isPrimary: false,
     isAutoIncrement: false,
     isNullable: false,
     isUnique: false,
-    defaultValue: undefined,
     isForeignKey: true,
     foreignKeyRef: { table: parentTableName, column: 'id' },
   })

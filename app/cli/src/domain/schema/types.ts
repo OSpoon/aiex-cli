@@ -1,22 +1,27 @@
+export type ColumnType = { class: 'text', mode?: 'json' }
+  | { class: 'integer', mode?: 'boolean' | 'timestamp' | 'timestamp_ms' | 'bigint' }
+  | { class: 'real' }
+
+export interface CheckConstraint {
+  name: string
+  column: string
+  kind: 'min_length' | 'max_length' | 'min_value' | 'max_value'
+  value: number
+}
+
 export interface ParsedColumn {
   name: string
-  drizzleType: string
+  columnType: ColumnType
   isPrimary: boolean
   isAutoIncrement: boolean
   isNullable: boolean
   isUnique: boolean
-  defaultValue?: string
+  default?: unknown
   isForeignKey?: boolean
   foreignKeyRef?: {
     table: string
     column: string
   }
-}
-
-export interface CheckConstraint {
-  name: string
-  columns: string[]
-  template: string
 }
 
 export interface ParsedTable {
