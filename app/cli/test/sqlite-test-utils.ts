@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
-import type { ParsedColumn, ParsedTable } from '@/domain/schema/types'
+import type { CheckConstraint, ParsedColumn, ParsedTable } from '@/domain/schema/types'
 import { parseJsonSchema } from '@/domain/schema/parser'
 
 function drizzleTypeToSql(type: string): string {
@@ -32,8 +32,18 @@ function buildColumnSql(column: ParsedColumn): string {
   return sql
 }
 
+function buildCheckSql(check: CheckConstraint): string {
+  const expr = check.template.replace('%s', check.columns[0])
+  return `CONSTRAINT ${check.name} CHECK(${expr})`
+}
+
 function buildCreateTableSql(table: ParsedTable): string {
-  return `CREATE TABLE IF NOT EXISTS ${table.name} (${table.columns.map(buildColumnSql).join(', ')})`
+  const columnDefs = table.columns.map(buildColumnSql)
+  if (table.checks?.length) {
+    const checkDefs = table.checks.map(buildCheckSql)
+    return `CREATE TABLE IF NOT EXISTS ${table.name} (${[...columnDefs, ...checkDefs].join(', ')})`
+  }
+  return `CREATE TABLE IF NOT EXISTS ${table.name} (${columnDefs.join(', ')})`
 }
 
 export function createTablesFromSchema(db: Database.Database, schema: JsonSchemaDefinition): void {
