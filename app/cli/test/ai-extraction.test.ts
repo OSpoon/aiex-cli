@@ -347,6 +347,17 @@ describe('ai config schema', () => {
     expect(result.pdf?.mineru?.timeout).toBe(600)
   })
 
+  it('accepts liteparse pdf converter config', () => {
+    const result = AIConfigSchema.parse({
+      ...validConfig,
+      pdf: {
+        converter: 'liteparse',
+      },
+    })
+
+    expect(result.pdf?.converter).toBe('liteparse')
+  })
+
   it('migrates removed markitdown pdf converter config to external', () => {
     const result = AIConfigSchema.parse({
       ...validConfig,

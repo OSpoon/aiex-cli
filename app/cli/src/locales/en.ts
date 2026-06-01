@@ -448,7 +448,9 @@ export const en = {
   pdf: {
     converterOptions: {
       unpdf: 'Built-in text extraction (unpdf)',
+      liteparse: 'Built-in layout parsing (liteparse)',
       mineru: 'MinerU (mineru)',
+      mineru_api: 'MinerU API (mineru_api)',
       external: 'Custom External Command',
     },
     ocrFallbackOptions: {

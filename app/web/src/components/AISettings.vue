@@ -129,7 +129,7 @@ async function loadConfig() {
     models.value = config.provider?.models ?? []
     systemTemplate.value = config.prompt?.systemTemplate ?? defaultSystemTemplate
     userTemplate.value = config.prompt?.userTemplate ?? defaultUserTemplate
-    pdfConverter.value = ["unpdf", "mineru", "mineru_api", "external"].includes(config.pdf?.converter ?? "")
+    pdfConverter.value = ["unpdf", "liteparse", "mineru", "mineru_api", "external"].includes(config.pdf?.converter ?? "")
       ? (config.pdf?.converter as PdfConverterKind)
       : "unpdf"
     mineruApiToken.value = config.pdf?.mineruApi?.token ?? ""

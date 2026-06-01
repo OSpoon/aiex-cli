@@ -176,6 +176,7 @@ const appEn = {
     confirmActionLoadExample: 'load example',
     // PDF converter option labels
     pdfConverterUnpdf: 'Built-in text extraction (unpdf)',
+    pdfConverterLiteparse: 'Built-in layout parsing (liteparse)',
     pdfConverterMineru: 'MinerU (mineru)',
     pdfConverterMineruApi: 'MinerU Online API (mineru_api)',
     pdfConverterExternal: 'Custom External Command',
@@ -365,6 +366,7 @@ const appZh = {
     confirmActionLoadExample: '加载示例',
     // PDF converter option labels
     pdfConverterUnpdf: '内置文本提取（unpdf）',
+    pdfConverterLiteparse: '内置版面解析（liteparse）',
     pdfConverterMineru: 'MinerU（mineru）',
     pdfConverterMineruApi: 'MinerU 在线 API（mineru_api）',
     pdfConverterExternal: '自定义外部命令',

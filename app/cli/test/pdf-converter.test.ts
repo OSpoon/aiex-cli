@@ -6,7 +6,7 @@ import AdmZip from 'adm-zip'
 import { execa } from 'execa'
 import { getDocumentProxy } from 'unpdf'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPdfConverter, ExternalCommandPdfConverter, registerPdfConverter, UnpdfConverter } from '@/infrastructure/pdf'
+import { createPdfConverter, ExternalCommandPdfConverter, LiteparsePdfConverter, registerPdfConverter, UnpdfConverter } from '@/infrastructure/pdf'
 import { MineruApiPdfConverter } from '@/infrastructure/pdf/mineru-api-converter'
 
 vi.mock('execa', () => ({
@@ -417,6 +417,12 @@ describe('createPdfConverter', () => {
     expect(converter).toBeInstanceOf(UnpdfConverter)
   })
 
+  it('returns a LiteparsePdfConverter when type is "liteparse"', () => {
+    const converter = createPdfConverter('liteparse')
+    expect(converter).toBeInstanceOf(LiteparsePdfConverter)
+    expect(converter.name).toBe('liteparse')
+  })
+
   it('creates a mineru converter from pdf config', () => {
     const converter = createPdfConverter({
       converter: 'mineru',
@@ -449,6 +455,13 @@ describe('createPdfConverter', () => {
       converter: 'mineru',
     })
     expect(converter.name).toBe('mineru')
+  })
+
+  it('creates liteparse converter from pdf config', () => {
+    const converter = createPdfConverter({
+      converter: 'liteparse',
+    })
+    expect(converter.name).toBe('liteparse')
   })
 
   it('creates mineru converter without fallback when opted out', () => {

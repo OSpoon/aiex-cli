@@ -29,6 +29,7 @@ const { t } = useI18n()
 
 const pdfConverterOptions = computed(() => [
   { label: t("app.pdfConverterUnpdf"), value: "unpdf" },
+  { label: t("app.pdfConverterLiteparse"), value: "liteparse" },
   { label: t("app.pdfConverterMineru"), value: "mineru" },
   { label: t("app.pdfConverterMineruApi"), value: "mineru_api" },
   { label: t("app.pdfConverterExternal"), value: "external" }

@@ -79,7 +79,7 @@ export const PdfConfigSchema = z.preprocess((value) => {
   delete config.marker
   return config
 }, z.object({
-  converter: z.enum(['unpdf', 'mineru', 'mineru_api', 'external']),
+  converter: z.enum(['unpdf', 'liteparse', 'mineru', 'mineru_api', 'external']),
   mineru: ExternalPdfConverterConfigSchema.optional(),
   mineruApi: MineruApiPdfConverterConfigSchema.optional(),
   external: ExternalPdfConverterConfigSchema.optional(),

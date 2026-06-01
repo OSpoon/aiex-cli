@@ -9,6 +9,7 @@ catalog:
   '@hono/node-server': ^1.0.0
   '@hono/zod-validator': ^0.8.0
   '@langfuse/otel': ^5.3.0
+  '@llamaindex/liteparse': ^2.0.4
   '@napi-rs/system-ocr': ^1.0.2
   '@notionhq/client': ^5.22.0
   '@opentelemetry/sdk-trace-node': ^2.7.1
@@ -97,6 +98,7 @@ catalogs:
     '@types/node': ^25.6.0
 ignoreWorkspaceRootCheck: true
 onlyBuiltDependencies:
+  - '@llamaindex/liteparse'
   - '@napi-rs/system-ocr'
   - better-sqlite3
   - esbuild

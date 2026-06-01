@@ -105,7 +105,7 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
-export type PdfConverterKind = "unpdf" | "mineru" | "mineru_api" | "external"
+export type PdfConverterKind = "unpdf" | "liteparse" | "mineru" | "mineru_api" | "external"
 
 export interface MineruApiPdfConverterConfig {
   token: string

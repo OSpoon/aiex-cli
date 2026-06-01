@@ -4,10 +4,11 @@ import { consola } from 'consola'
 import { DEFAULT_MINERU_API_CONFIG, DEFAULT_MINERU_CONFIG } from '@/domain/ai/types'
 import { t } from '@/locales'
 import { ExternalCommandPdfConverter } from './external-converter'
+import { LiteparsePdfConverter } from './liteparse-converter'
 import { MineruApiPdfConverter } from './mineru-api-converter'
 import { UnpdfConverter } from './unpdf-converter'
 
-export type PdfConverterType = 'unpdf' | 'mineru' | 'mineru_api' | 'external'
+export type PdfConverterType = 'unpdf' | 'liteparse' | 'mineru' | 'mineru_api' | 'external'
 
 const registry = new Map<PdfConverterType, PdfConverter>()
 
@@ -48,6 +49,9 @@ function withFallback(converter: PdfConverter, config: { fallbackToUnpdf?: boole
 
 export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfConverter {
   if (typeof config === 'object') {
+    if (config.converter === 'liteparse')
+      return new LiteparsePdfConverter()
+
     if (config.converter === 'mineru') {
       const mineruConfig = config.mineru ?? DEFAULT_MINERU_CONFIG
       return withFallback(new ExternalCommandPdfConverter('mineru', mineruConfig), mineruConfig)
@@ -68,9 +72,12 @@ export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfCo
   const key = typeof config === 'string' ? config : 'unpdf'
   let instance = registry.get(key)
   if (!instance) {
-    if (key !== 'unpdf')
+    if (key === 'liteparse')
+      instance = new LiteparsePdfConverter()
+    else if (key === 'unpdf')
+      instance = new UnpdfConverter()
+    else
       throw new Error(t('errors.pdf.converterRequiresConfig', { name: key }))
-    instance = new UnpdfConverter()
     registry.set(key, instance)
   }
   return instance

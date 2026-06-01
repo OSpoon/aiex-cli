@@ -450,7 +450,9 @@ export const zhCN: Translations = {
   pdf: {
     converterOptions: {
       unpdf: '内置文本抽取（unpdf）',
+      liteparse: '内置版面解析（liteparse）',
       mineru: 'MinerU（mineru）',
+      mineru_api: 'MinerU API（mineru_api）',
       external: '自定义外部命令',
     },
     ocrFallbackOptions: {

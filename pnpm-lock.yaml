@@ -61,6 +61,9 @@ catalogs:
     '@langfuse/otel':
       specifier: ^5.3.0
       version: 5.3.0
+    '@llamaindex/liteparse':
+      specifier: ^2.0.4
+      version: 2.0.4
     '@napi-rs/system-ocr':
       specifier: ^1.0.2
       version: 1.0.2
@@ -457,6 +460,9 @@ importers:
         specifier: catalog:testing
         version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.6)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.19.12)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
     optionalDependencies:
+      '@llamaindex/liteparse':
+        specifier: 'catalog:'
+        version: 2.0.4
       '@napi-rs/system-ocr':
         specifier: 'catalog:'
         version: 1.0.2
@@ -1321,6 +1327,31 @@ packages:
       '@opentelemetry/core': ^2.0.1
       '@opentelemetry/exporter-trace-otlp-http': '>=0.202.0 <1.0.0'
       '@opentelemetry/sdk-trace-base': ^2.0.1
+
+  '@llamaindex/liteparse-darwin-arm64@2.0.4':
+    resolution: {integrity: sha512-FXrXXr8nXgu36dbXtjDh+SedvESodBt1dc+j8zKQvlX3/V1Cuu4RuePvCIHe+cTd1rQxx/YVUDI9EX3JMh2nyA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@llamaindex/liteparse-linux-arm64-gnu@2.0.4':
+    resolution: {integrity: sha512-mYUxHD5O746agBK7PVh96Fo+p+5v47qxBMBQLJpYjjT6HC3yqGPqDXXefDdiMSq80bqz6M6istgWIPNUmLOafg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@llamaindex/liteparse-linux-x64-gnu@2.0.4':
+    resolution: {integrity: sha512-Tf6oi4G8wikExWnSImj98RwXlRUY3VBWejOm0XQENMH/1B2C0frHTOaUuXCq8U3/Ms4h4eAnWpuB8wT2PDC+yw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@llamaindex/liteparse-win32-x64-msvc@2.0.4':
+    resolution: {integrity: sha512-vuhJN6Odc0zF3dVGSI3dy5vWt9/+bN2yi26ZYmXlTrKtZYNuSx06tDXZvZBG/4AQGI6m6E82KsCnRGRAc91V6Q==}
+    cpu: [x64]
+    os: [win32]
+
+  '@llamaindex/liteparse@2.0.4':
+    resolution: {integrity: sha512-wXI+GrYRb7jTPDBxst6RcvK6AI4UXqQP+7RvNhmB9yZERlIz6c1fRdCrlvkHEpMKj850LxgzAcawVMT+UiQwlw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   '@napi-rs/system-ocr-darwin-arm64@1.0.2':
     resolution: {integrity: sha512-/9E1T4+Pzbk8eI1QC1a1wimj4wgweKn9NUGtmO9Vf0rDi1TxYaJsv6ioSzdmhlazkKxd27Brk5VfLfUg6Bha6A==}
@@ -2625,6 +2656,10 @@ packages:
 
   colorette@2.0.20:
     resolution: {integrity: sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w==}
+
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
 
   commander@14.0.3:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
@@ -5507,6 +5542,28 @@ snapshots:
       '@opentelemetry/exporter-trace-otlp-http': 0.218.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.7.1(@opentelemetry/api@1.9.1)
 
+  '@llamaindex/liteparse-darwin-arm64@2.0.4':
+    optional: true
+
+  '@llamaindex/liteparse-linux-arm64-gnu@2.0.4':
+    optional: true
+
+  '@llamaindex/liteparse-linux-x64-gnu@2.0.4':
+    optional: true
+
+  '@llamaindex/liteparse-win32-x64-msvc@2.0.4':
+    optional: true
+
+  '@llamaindex/liteparse@2.0.4':
+    dependencies:
+      commander: 12.1.0
+    optionalDependencies:
+      '@llamaindex/liteparse-darwin-arm64': 2.0.4
+      '@llamaindex/liteparse-linux-arm64-gnu': 2.0.4
+      '@llamaindex/liteparse-linux-x64-gnu': 2.0.4
+      '@llamaindex/liteparse-win32-x64-msvc': 2.0.4
+    optional: true
+
   '@napi-rs/system-ocr-darwin-arm64@1.0.2':
     optional: true
 
@@ -6690,6 +6747,9 @@ snapshots:
   color-name@1.1.4: {}
 
   colorette@2.0.20: {}
+
+  commander@12.1.0:
+    optional: true
 
   commander@14.0.3: {}
 

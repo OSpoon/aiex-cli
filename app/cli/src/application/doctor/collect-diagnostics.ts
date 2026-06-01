@@ -47,6 +47,16 @@ async function commandAvailable(command: string): Promise<boolean> {
   }
 }
 
+async function liteparseAvailable(): Promise<boolean> {
+  try {
+    await import('@llamaindex/liteparse')
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
 async function findImageOcrSelfCheckLogo(): Promise<string | undefined> {
   const candidates = [
     path.resolve(MODULE_DIR, 'logo.png'),
@@ -121,6 +131,11 @@ export async function collectDoctorDiagnostics(
 
       if (pdfConverter === 'unpdf') {
         pdfConverterOk = true
+      }
+      else if (pdfConverter === 'liteparse') {
+        pdfConverterOk = await liteparseAvailable()
+        if (!pdfConverterOk)
+          pdfConverterError = '@llamaindex/liteparse optional dependency is not installed or cannot be loaded'
       }
       else if (pdfConverter === 'mineru') {
         const command = cfg.pdf?.mineru?.command ?? DEFAULT_MINERU_CONFIG.command

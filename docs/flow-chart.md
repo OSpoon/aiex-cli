@@ -39,6 +39,7 @@ flowchart TD
   P2 --> P3{"Configured converter"}
 
   P3 -->|"unpdf"| U1["Built-in unpdf text extraction"]
+  P3 -->|"liteparse"| L1["Built-in liteparse layout parsing\nPDFium text + coordinates"]
   P3 -->|"mineru"| M1["External mineru command to Markdown"]
   P3 -->|"mineru_api"| A1["MinerU API to Markdown"]
   P3 -->|"external"| X1["User configured external command"]
@@ -49,6 +50,7 @@ flowchart TD
   F1 -->|"no"| E1["Return file_conversion failure"]
 
   U1 --> Q1["Collect PDF quality\npageCount, textLength, emptyText, fallbackUsed, converter"]
+  L1 --> Q1
   M1 --> Q1
   A1 --> Q1
   X1 --> Q1
@@ -148,4 +150,3 @@ flowchart TD
   A1 --> A2["Audit stores\nsource, inputProcessing, quality, failureStage, evidence, tokens, output, DB rows, integration result"]
   A2 --> DONE["Done"]
 ```
-

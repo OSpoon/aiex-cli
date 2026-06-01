@@ -97,6 +97,7 @@
     "zod": "catalog:"
   },
   "optionalDependencies": {
+    "@llamaindex/liteparse": "catalog:",
     "@napi-rs/system-ocr": "catalog:"
   },
   "devDependencies": {
