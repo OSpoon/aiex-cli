@@ -14,7 +14,7 @@ export default defineConfig({
     '~': path.resolve('.'),
   },
   dts: true,
-  exports: true,
+  exports: false,
   external: ['@llamaindex/liteparse', '@napi-rs/system-ocr'],
   publint: true,
   copy: ['schemas', 'assets'],
