@@ -3,6 +3,7 @@
 export function buildDoctorDiagnostics(_) {}
 export async function collectDoctorDiagnostics(_) {}
 export function createMigrationConfig(_) {}
+export function doctorDiagnosticsSeverityRows(_) {}
 export function doctorDiagnosticsTableRows(_) {}
 export function formatDoctorDiagnosticsJson(_) {}
 export function generateDrizzleConfig() {}

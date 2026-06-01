@@ -105,7 +105,9 @@ export interface ExtractionConfig {
   outputDir: string
 }
 
-export type PdfConverterKind = "unpdf" | "liteparse" | "mineru" | "mineru_api" | "external"
+export const PDF_CONVERTER_KINDS = ["unpdf", "liteparse", "mineru", "mineru_api", "external"] as const
+
+export type PdfConverterKind = typeof PDF_CONVERTER_KINDS[number]
 
 export interface MineruApiPdfConverterConfig {
   token: string

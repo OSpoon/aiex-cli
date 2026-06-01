@@ -2,6 +2,7 @@ export { collectDoctorDiagnostics } from '@/application/doctor/collect-diagnosti
 export {
   buildDoctorDiagnostics,
   type DoctorDiagnostics,
+  doctorDiagnosticsSeverityRows,
   doctorDiagnosticsTableRows,
   formatDoctorDiagnosticsJson,
 } from '@/domain/doctor/diagnostics'

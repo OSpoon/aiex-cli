@@ -4,6 +4,7 @@ import CliTable3 from 'cli-table3'
 import { consola } from 'consola'
 import { collectDoctorDiagnostics } from '@/application/doctor/collect-diagnostics'
 import {
+  doctorDiagnosticsSeverityRows,
   doctorDiagnosticsTableRows,
   formatDoctorDiagnosticsJson,
 } from '@/domain/doctor/diagnostics'
@@ -36,6 +37,17 @@ export const doctorCommand = defineCommand({
       table.push(...doctorDiagnosticsTableRows(diagnostics))
 
       process.stdout.write(`${table.toString()}\n`)
+
+      const severityRows = doctorDiagnosticsSeverityRows(diagnostics)
+      if (severityRows.length) {
+        const summary = new CliTable3({
+          head: ['status', 'diagnostic'],
+          colAligns: ['right', 'left'],
+          style: { compact: true },
+        })
+        summary.push(...severityRows)
+        process.stdout.write(`${summary.toString()}\n`)
+      }
     }
     catch (err) {
       consola.error(t('command.doctor.diagnosticsFailed', { error: err }))

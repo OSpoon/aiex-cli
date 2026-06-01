@@ -8,6 +8,7 @@ import { useI18n } from "vue-i18n"
 import { toast } from "vue-sonner"
 import {
   getAIConfig,
+  PDF_CONVERTER_KINDS,
   saveAIConfig
 } from "@/api-client"
 import AnchorLayout from "./AnchorLayout.vue"
@@ -133,7 +134,7 @@ async function loadConfig() {
     models.value = config.provider?.models ?? []
     systemTemplate.value = config.prompt?.systemTemplate ?? defaultSystemTemplate
     userTemplate.value = config.prompt?.userTemplate ?? defaultUserTemplate
-    pdfConverter.value = ["unpdf", "liteparse", "mineru", "mineru_api", "external"].includes(config.pdf?.converter ?? "")
+    pdfConverter.value = PDF_CONVERTER_KINDS.includes(config.pdf?.converter as PdfConverterKind)
       ? (config.pdf?.converter as PdfConverterKind)
       : "unpdf"
     liteparseOcrEnabled.value = config.pdf?.liteparse?.ocrEnabled ?? false

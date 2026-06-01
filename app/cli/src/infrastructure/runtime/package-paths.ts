@@ -23,9 +23,9 @@ export function resolveTsxPath(): string {
 
 export function resolveHelperPath(): string {
   try {
-    return path.join(resolvePackageRoot(), 'src/core/schema-sqlite/migrate-helper.ts')
+    return path.join(resolvePackageRoot(), 'src/infrastructure/schema/migrate-helper.ts')
   }
   catch {
-    return path.join(__dirname, '../../core/schema-sqlite/migrate-helper.ts')
+    return path.join(__dirname, '../schema/migrate-helper.ts')
   }
 }

@@ -153,6 +153,7 @@ export declare function buildDoctorDiagnostics(_: {
 }): DoctorDiagnostics;
 export declare function collectDoctorDiagnostics(_?: CollectDoctorDiagnosticsOptions): Promise<DoctorDiagnostics>;
 export declare function createMigrationConfig(_: string): MigrationConfig;
+export declare function doctorDiagnosticsSeverityRows(_: DoctorDiagnostics): [string, string][];
 export declare function doctorDiagnosticsTableRows(_: DoctorDiagnostics): [string, string][];
 export declare function formatDoctorDiagnosticsJson(_: DoctorDiagnostics): string;
 export declare function generateDrizzleConfig(): string;

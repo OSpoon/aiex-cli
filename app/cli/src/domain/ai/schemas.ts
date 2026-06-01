@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PDF_CONVERTER_KINDS } from './types'
 
 export const ModelCapabilitiesSchema = z.object({
   vision: z.boolean(),
@@ -60,10 +61,13 @@ export const MineruApiPdfConverterConfigSchema = z.object({
 })
 
 export const LiteparsePdfConverterConfigSchema = z.object({
-  ocrEnabled: z.boolean().default(false).optional(),
-  ocrLanguage: z.string().min(1).default('eng').optional(),
+  ocrEnabled: z.boolean().default(false),
+  ocrLanguage: z.string().min(1).default('eng'),
   tessdataPath: z.string().min(1).optional(),
-  ocrServerUrl: z.string().url().optional(),
+  ocrServerUrl: z.string().url().refine((value) => {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  }, { message: 'ocrServerUrl must use http or https' }).optional(),
 })
 
 export const PdfConfigSchema = z.preprocess((value) => {
@@ -86,7 +90,7 @@ export const PdfConfigSchema = z.preprocess((value) => {
   delete config.marker
   return config
 }, z.object({
-  converter: z.enum(['unpdf', 'liteparse', 'mineru', 'mineru_api', 'external']),
+  converter: z.enum(PDF_CONVERTER_KINDS),
   liteparse: LiteparsePdfConverterConfigSchema.optional(),
   mineru: ExternalPdfConverterConfigSchema.optional(),
   mineruApi: MineruApiPdfConverterConfigSchema.optional(),

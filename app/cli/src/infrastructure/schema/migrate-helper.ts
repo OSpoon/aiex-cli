@@ -35,7 +35,7 @@ async function loadSchemaExports(schemaPath: string): Promise<Record<string, unk
     cliDir = path.dirname(pkgPath)
   }
   catch {
-    cliDir = path.dirname(path.dirname(path.dirname(path.dirname(__dirname))))
+    cliDir = path.dirname(path.dirname(path.dirname(__dirname)))
   }
 
   // Bundle the schema with esbuild, resolving drizzle-orm from CLI's node_modules

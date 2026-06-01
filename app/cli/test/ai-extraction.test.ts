@@ -358,6 +358,19 @@ describe('ai config schema', () => {
     expect(result.pdf?.converter).toBe('liteparse')
   })
 
+  it('applies liteparse OCR defaults', () => {
+    const result = AIConfigSchema.parse({
+      ...validConfig,
+      pdf: {
+        converter: 'liteparse',
+        liteparse: {},
+      },
+    })
+
+    expect(result.pdf?.liteparse?.ocrEnabled).toBe(false)
+    expect(result.pdf?.liteparse?.ocrLanguage).toBe('eng')
+  })
+
   it('accepts liteparse OCR pdf converter config', () => {
     const result = AIConfigSchema.parse({
       ...validConfig,
@@ -376,6 +389,18 @@ describe('ai config schema', () => {
     expect(result.pdf?.liteparse?.ocrLanguage).toBe('chi_sim')
     expect(result.pdf?.liteparse?.tessdataPath).toBe('/opt/tessdata')
     expect(result.pdf?.liteparse?.ocrServerUrl).toBe('http://localhost:8080')
+  })
+
+  it('rejects invalid liteparse OCR server URL', () => {
+    expect(() => AIConfigSchema.parse({
+      ...validConfig,
+      pdf: {
+        converter: 'liteparse',
+        liteparse: {
+          ocrServerUrl: 'localhost:8080',
+        },
+      },
+    })).toThrow()
   })
 
   it('migrates removed markitdown pdf converter config to external', () => {

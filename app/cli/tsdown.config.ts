@@ -7,7 +7,7 @@ export default defineConfig({
   entry: [
     'src/index.ts',
     'src/cli.ts',
-    'src/core/schema-sqlite/migrate-helper.ts',
+    'src/infrastructure/schema/migrate-helper.ts',
   ],
   alias: {
     '@': path.resolve('./src'),
@@ -15,7 +15,7 @@ export default defineConfig({
   },
   dts: true,
   exports: true,
-  external: ['@napi-rs/system-ocr'],
+  external: ['@llamaindex/liteparse', '@napi-rs/system-ocr'],
   publint: true,
   copy: ['schemas', 'assets'],
   plugins: [

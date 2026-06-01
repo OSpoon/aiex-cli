@@ -157,3 +157,56 @@ export function doctorDiagnosticsTableRows(
 
   return rows
 }
+
+export function doctorDiagnosticsSeverityRows(
+  d: DoctorDiagnostics,
+): [string, string][] {
+  const rows: [string, string][] = []
+  const p = d.project
+
+  rows.push([p.dirExists ? 'ok' : 'warn', p.dirExists ? 'Project directory exists' : 'Project directory is not initialized'])
+  rows.push([p.aiConfig ? 'ok' : 'warn', p.aiConfig ? 'AI config exists' : 'AI config is missing'])
+
+  if (p.aiConfig)
+    rows.push([p.aiApiKeySet ? 'ok' : 'warn', p.aiApiKeySet ? 'AI API key is set' : 'AI API key is empty'])
+
+  if (p.aiConnectionOk !== null)
+    rows.push([p.aiConnectionOk ? 'ok' : 'warn', p.aiConnectionOk ? 'AI provider connection succeeded' : 'AI provider connection failed'])
+
+  if (p.pdfConverterOk !== null) {
+    rows.push([
+      p.pdfConverterOk ? 'ok' : 'error',
+      p.pdfConverterOk
+        ? `PDF converter is available: ${p.pdfConverter ?? 'none'}`
+        : `PDF converter is unavailable: ${p.pdfConverter ?? 'none'}${p.pdfConverterError ? ` (${p.pdfConverterError})` : ''}`,
+    ])
+  }
+  else if (p.pdfConverterError) {
+    rows.push(['warn', p.pdfConverterError])
+  }
+
+  if (d.imageOcr.ocrOk !== null) {
+    rows.push([
+      d.imageOcr.ocrOk ? 'ok' : 'warn',
+      d.imageOcr.ocrOk
+        ? 'Image OCR self-check passed'
+        : `Image OCR self-check failed${d.imageOcr.error ? `: ${d.imageOcr.error}` : ''}`,
+    ])
+  }
+
+  if (p.databaseTablesOk !== null) {
+    rows.push([
+      p.databaseTablesOk ? 'ok' : 'error',
+      p.databaseTablesOk
+        ? 'Database tables match schemas'
+        : `Database tables are missing: ${p.missingDatabaseTables.join(', ') || 'unknown'}`,
+    ])
+  }
+
+  for (const invalid of p.invalidSchemas)
+    rows.push(['error', `Invalid schema ${invalid.file}: ${invalid.error}`])
+  for (const err of p.errors)
+    rows.push(['error', err])
+
+  return rows
+}

@@ -27,7 +27,6 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./cli": "./dist/cli.mjs",
-    "./core/schema-sqlite/migrate-helper": "./dist/core/schema-sqlite/migrate-helper.mjs",
     "./package.json": "./package.json"
   },
   "main": "./dist/index.mjs",
@@ -40,8 +39,8 @@
   "files": [
     "bin",
     "dist",
-    "src/core/schema-sqlite/migrate-helper.ts",
-    "src/core/schema-sqlite/migration-name.ts"
+    "src/infrastructure/schema/migrate-helper.ts",
+    "src/infrastructure/schema/migration-name.ts"
   ],
   "scripts": {
     "build": "tsdown && pnpm --filter aiex-web build",
@@ -49,6 +48,7 @@
     "start": "tsx src/index.ts",
     "test": "vitest",
     "coverage": "vitest --coverage",
+    "smoke:package": "node scripts/package-smoke.mjs",
     "typecheck": "tsc",
     "lint": "eslint .",
     "prepack": "cp ../../README.md . && node scripts/generate-completions.mjs",
