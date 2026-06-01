@@ -40,6 +40,10 @@ flowchart TD
 
   P3 -->|"unpdf"| U1["Built-in unpdf text extraction"]
   P3 -->|"liteparse"| L1["Built-in liteparse layout parsing\nPDFium text + coordinates"]
+  L1 --> L2{"LiteParse OCR enabled?"}
+  L2 -->|"yes"| L3["Use configured Tesseract tessdata\nor OCR server URL"]
+  L2 -->|"no"| Q1
+  L3 --> Q1
   P3 -->|"mineru"| M1["External mineru command to Markdown"]
   P3 -->|"mineru_api"| A1["MinerU API to Markdown"]
   P3 -->|"external"| X1["User configured external command"]
@@ -50,7 +54,6 @@ flowchart TD
   F1 -->|"no"| E1["Return file_conversion failure"]
 
   U1 --> Q1["Collect PDF quality\npageCount, textLength, emptyText, fallbackUsed, converter"]
-  L1 --> Q1
   M1 --> Q1
   A1 --> Q1
   X1 --> Q1

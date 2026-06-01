@@ -1,4 +1,6 @@
 import type { PdfConversionResult, PdfConverter } from './types'
+import type { LiteparsePdfConverterConfig } from '@/domain/ai/types'
+import { DEFAULT_LITEPARSE_CONFIG } from '@/domain/ai/types'
 
 interface LiteParseTextItem {
   text?: string
@@ -25,7 +27,10 @@ interface LiteParseInstance {
 
 interface LiteParseConstructor {
   new (options?: {
+    ocrLanguage?: string
     ocrEnabled?: boolean
+    ocrServerUrl?: string
+    tessdataPath?: string
     quiet?: boolean
   }): LiteParseInstance
 }
@@ -33,6 +38,8 @@ interface LiteParseConstructor {
 interface LiteParseModule {
   LiteParse: LiteParseConstructor
 }
+
+const TESSERACT_FAILURE_RE = /tesseract|tessdata|traineddata|language/i
 
 function textFromPages(pages: LiteParsePage[] = []): string {
   return pages
@@ -68,16 +75,44 @@ async function loadLiteParse(): Promise<LiteParseConstructor> {
   }
 }
 
+function formatLiteparseError(error: unknown, config: LiteparsePdfConverterConfig): Error {
+  const message = error instanceof Error ? error.message : String(error)
+  if (!config.ocrEnabled)
+    return new Error(message)
+
+  const tesseractFailure = TESSERACT_FAILURE_RE.test(message)
+  if (!tesseractFailure)
+    return new Error(message)
+
+  return new Error(
+    `LiteParse OCR is enabled but Tesseract language data could not be loaded. `
+    + `Install the traineddata file for "${config.ocrLanguage ?? DEFAULT_LITEPARSE_CONFIG.ocrLanguage}" `
+    + `and set pdf.liteparse.tessdataPath to the directory that contains it, `
+    + `or disable pdf.liteparse.ocrEnabled. Original error: ${message}`,
+  )
+}
+
 export class LiteparsePdfConverter implements PdfConverter {
   readonly name = 'liteparse'
 
+  constructor(private readonly config: LiteparsePdfConverterConfig = DEFAULT_LITEPARSE_CONFIG) {}
+
   async convert(input: Uint8Array, filePath?: string): Promise<PdfConversionResult> {
     const LiteParse = await loadLiteParse()
+    const config = {
+      ...DEFAULT_LITEPARSE_CONFIG,
+      ...this.config,
+    }
     const parser = new LiteParse({
-      ocrEnabled: false,
+      ocrEnabled: config.ocrEnabled,
+      ocrLanguage: config.ocrLanguage,
+      ocrServerUrl: config.ocrServerUrl,
+      tessdataPath: config.tessdataPath,
       quiet: true,
     })
-    const result = await parser.parse(filePath ?? input)
+    const result = await parser.parse(filePath ?? input).catch((error: unknown) => {
+      throw formatLiteparseError(error, config)
+    })
     const pages = Array.isArray(result.pages) ? result.pages : []
     const text = typeof result.text === 'string' ? result.text : textFromPages(pages)
 
@@ -86,6 +121,8 @@ export class LiteparsePdfConverter implements PdfConverter {
       pageCount: pages.length,
       metadata: {
         converter: this.name,
+        ocrEnabled: String(config.ocrEnabled ?? false),
+        ...(config.ocrLanguage ? { ocrLanguage: config.ocrLanguage } : {}),
         hasBoundingBoxes: String(hasBoundingBoxes(pages)),
       },
     }

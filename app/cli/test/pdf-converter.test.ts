@@ -9,8 +9,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPdfConverter, ExternalCommandPdfConverter, LiteparsePdfConverter, registerPdfConverter, UnpdfConverter } from '@/infrastructure/pdf'
 import { MineruApiPdfConverter } from '@/infrastructure/pdf/mineru-api-converter'
 
+const liteparseMock = vi.hoisted(() => ({
+  options: [] as unknown[],
+}))
+
 vi.mock('execa', () => ({
   execa: vi.fn(),
+}))
+
+vi.mock('@llamaindex/liteparse', () => ({
+  LiteParse: function LiteParse(this: { parse: () => Promise<unknown> }, options: unknown) {
+    liteparseMock.options.push(options)
+    this.parse = async () => ({
+      text: 'LiteParse text',
+      pages: [
+        {
+          pageNum: 1,
+          text: 'LiteParse text',
+          textItems: [{ text: 'LiteParse', x: 1, y: 2, width: 3, height: 4 }],
+        },
+      ],
+    })
+  },
 }))
 
 vi.mock('unpdf', async (importOriginal) => {
@@ -406,6 +426,10 @@ describe('unpdfConverter', () => {
 // ─── Factory ──────────────────────────────────────────────────
 
 describe('createPdfConverter', () => {
+  beforeEach(() => {
+    liteparseMock.options.length = 0
+  })
+
   it('returns an UnpdfConverter by default', () => {
     const converter = createPdfConverter()
     expect(converter).toBeInstanceOf(UnpdfConverter)
@@ -462,6 +486,32 @@ describe('createPdfConverter', () => {
       converter: 'liteparse',
     })
     expect(converter.name).toBe('liteparse')
+  })
+
+  it('passes liteparse OCR options to the parser', async () => {
+    const converter = createPdfConverter({
+      converter: 'liteparse',
+      liteparse: {
+        ocrEnabled: true,
+        ocrLanguage: 'chi_sim',
+        tessdataPath: '/opt/tessdata',
+        ocrServerUrl: 'http://localhost:8080',
+      },
+    })
+
+    const result = await converter.convert(new Uint8Array([1, 2, 3]), '/tmp/liteparse.pdf')
+
+    expect(result.text).toBe('LiteParse text')
+    expect(result.metadata?.ocrEnabled).toBe('true')
+    expect(result.metadata?.ocrLanguage).toBe('chi_sim')
+    expect(result.metadata?.hasBoundingBoxes).toBe('true')
+    expect(liteparseMock.options[0]).toMatchObject({
+      ocrEnabled: true,
+      ocrLanguage: 'chi_sim',
+      tessdataPath: '/opt/tessdata',
+      ocrServerUrl: 'http://localhost:8080',
+      quiet: true,
+    })
   })
 
   it('creates mineru converter without fallback when opted out', () => {

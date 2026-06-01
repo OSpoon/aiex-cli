@@ -43,6 +43,13 @@ export interface MineruApiPdfConverterConfig {
   enableTable?: boolean
 }
 
+export interface LiteparsePdfConverterConfig {
+  ocrEnabled?: boolean
+  ocrLanguage?: string
+  tessdataPath?: string
+  ocrServerUrl?: string
+}
+
 export interface ExternalPdfConverterConfig {
   command: string
   args: string[]
@@ -53,6 +60,7 @@ export interface ExternalPdfConverterConfig {
 
 export interface PdfConfig {
   converter: PdfConverterKind
+  liteparse?: LiteparsePdfConverterConfig
   mineru?: ExternalPdfConverterConfig
   mineruApi?: MineruApiPdfConverterConfig
   external?: ExternalPdfConverterConfig
@@ -153,6 +161,11 @@ export const DEFAULT_MINERU_CONFIG: ExternalPdfConverterConfig = {
   fallbackToUnpdf: true,
 }
 
+export const DEFAULT_LITEPARSE_CONFIG: LiteparsePdfConverterConfig = {
+  ocrEnabled: false,
+  ocrLanguage: 'eng',
+}
+
 export const DEFAULT_MINERU_API_CONFIG: MineruApiPdfConverterConfig = {
   token: '',
   baseURL: 'https://mineru.net/api/v4',
@@ -164,6 +177,7 @@ export const DEFAULT_MINERU_API_CONFIG: MineruApiPdfConverterConfig = {
 
 export const DEFAULT_PDF_CONFIG: PdfConfig = {
   converter: 'unpdf',
+  liteparse: DEFAULT_LITEPARSE_CONFIG,
   mineru: DEFAULT_MINERU_CONFIG,
   mineruApi: DEFAULT_MINERU_API_CONFIG,
 }

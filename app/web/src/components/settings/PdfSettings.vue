@@ -9,6 +9,10 @@ import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 
 const pdfConverter = defineModel<PdfConverterKind>("pdfConverter", { required: true })
+const liteparseOcrEnabled = defineModel<boolean>("liteparseOcrEnabled", { required: true })
+const liteparseOcrLanguage = defineModel<string>("liteparseOcrLanguage", { required: true })
+const liteparseTessdataPath = defineModel<string>("liteparseTessdataPath", { required: true })
+const liteparseOcrServerUrl = defineModel<string>("liteparseOcrServerUrl", { required: true })
 const mineruCommand = defineModel<string>("mineruCommand", { required: true })
 const mineruArgs = defineModel<string>("mineruArgs", { required: true })
 const mineruTimeout = defineModel<number>("mineruTimeout", { required: true })
@@ -53,6 +57,29 @@ const pdfConverterOptions = computed(() => [
             option-value="value"
             size="small"
           />
+        </div>
+
+        <!-- LiteParse PDF Converter config -->
+        <div v-if="pdfConverter === 'liteparse'" class="space-y-3 pl-6 border-l-2 border-border">
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="liteparseOcrEnabled" :binary="true" input-id="liteparse-ocr-enabled" />
+            <label for="liteparse-ocr-enabled" class="text-sm cursor-pointer">{{ $t("app.liteparseOcrEnabled") }}</label>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">{{ $t("app.liteparseOcrLanguage") }}</label>
+            <InputText v-model="liteparseOcrLanguage" size="small" placeholder="eng" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">{{ $t("app.liteparseTessdataPath") }}</label>
+            <InputText v-model="liteparseTessdataPath" size="small" placeholder="/path/to/tessdata" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-muted-foreground">{{ $t("app.liteparseOcrServerUrl") }}</label>
+            <InputText v-model="liteparseOcrServerUrl" size="small" placeholder="http://localhost:8080" />
+          </div>
+          <div class="text-xs text-muted-foreground p-2 rounded border border-border">
+            {{ $t("app.liteparseOcrHint") }}
+          </div>
         </div>
 
         <!-- Mineru PDF Converter config -->

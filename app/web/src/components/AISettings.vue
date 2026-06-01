@@ -50,6 +50,10 @@ const systemTemplate = ref("")
 const userTemplate = ref("")
 
 const pdfConverter = ref<PdfConverterKind>("unpdf")
+const liteparseOcrEnabled = ref(false)
+const liteparseOcrLanguage = ref("eng")
+const liteparseTessdataPath = ref("")
+const liteparseOcrServerUrl = ref("")
 const mineruCommand = ref("mineru")
 const mineruArgs = ref("-p\n{input}\n-o\n{outputDir}")
 const mineruTimeout = ref(600)
@@ -132,6 +136,10 @@ async function loadConfig() {
     pdfConverter.value = ["unpdf", "liteparse", "mineru", "mineru_api", "external"].includes(config.pdf?.converter ?? "")
       ? (config.pdf?.converter as PdfConverterKind)
       : "unpdf"
+    liteparseOcrEnabled.value = config.pdf?.liteparse?.ocrEnabled ?? false
+    liteparseOcrLanguage.value = config.pdf?.liteparse?.ocrLanguage ?? "eng"
+    liteparseTessdataPath.value = config.pdf?.liteparse?.tessdataPath ?? ""
+    liteparseOcrServerUrl.value = config.pdf?.liteparse?.ocrServerUrl ?? ""
     mineruApiToken.value = config.pdf?.mineruApi?.token ?? ""
     mineruApiBaseUrl.value = config.pdf?.mineruApi?.baseURL ?? "https://mineru.net/api/v4"
     mineruApiModel.value = config.pdf?.mineruApi?.modelVersion ?? "vlm"
@@ -187,6 +195,12 @@ async function handleSave() {
       },
       pdf: {
         converter: pdfConverter.value,
+        liteparse: {
+          ocrEnabled: liteparseOcrEnabled.value,
+          ocrLanguage: liteparseOcrLanguage.value.trim() || "eng",
+          tessdataPath: liteparseTessdataPath.value.trim() || undefined,
+          ocrServerUrl: liteparseOcrServerUrl.value.trim() || undefined
+        },
         mineru: mineruCommand.value.trim()
           ? {
               command: mineruCommand.value,
@@ -291,6 +305,10 @@ onMounted(() => {
       <section data-anchor-section="documents">
         <PdfSettings
           v-model:pdf-converter="pdfConverter"
+          v-model:liteparse-ocr-enabled="liteparseOcrEnabled"
+          v-model:liteparse-ocr-language="liteparseOcrLanguage"
+          v-model:liteparse-tessdata-path="liteparseTessdataPath"
+          v-model:liteparse-ocr-server-url="liteparseOcrServerUrl"
           v-model:mineru-command="mineruCommand"
           v-model:mineru-args="mineruArgs"
           v-model:mineru-timeout="mineruTimeout"
@@ -350,6 +368,10 @@ onMounted(() => {
 
       <PdfSettings
         v-model:pdf-converter="pdfConverter"
+        v-model:liteparse-ocr-enabled="liteparseOcrEnabled"
+        v-model:liteparse-ocr-language="liteparseOcrLanguage"
+        v-model:liteparse-tessdata-path="liteparseTessdataPath"
+        v-model:liteparse-ocr-server-url="liteparseOcrServerUrl"
         v-model:mineru-command="mineruCommand"
         v-model:mineru-args="mineruArgs"
         v-model:mineru-timeout="mineruTimeout"

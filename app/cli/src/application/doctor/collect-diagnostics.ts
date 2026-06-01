@@ -136,6 +136,8 @@ export async function collectDoctorDiagnostics(
         pdfConverterOk = await liteparseAvailable()
         if (!pdfConverterOk)
           pdfConverterError = '@llamaindex/liteparse optional dependency is not installed or cannot be loaded'
+        else if (cfg.pdf?.liteparse?.ocrEnabled && !cfg.pdf.liteparse.tessdataPath)
+          pdfConverterError = 'LiteParse OCR is enabled. If OCR fails, install Tesseract traineddata and configure pdf.liteparse.tessdataPath.'
       }
       else if (pdfConverter === 'mineru') {
         const command = cfg.pdf?.mineru?.command ?? DEFAULT_MINERU_CONFIG.command

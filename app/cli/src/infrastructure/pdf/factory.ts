@@ -1,7 +1,7 @@
 import type { PdfConversionResult, PdfConverter } from './types'
 import type { PdfConfig } from '@/domain/ai/types'
 import { consola } from 'consola'
-import { DEFAULT_MINERU_API_CONFIG, DEFAULT_MINERU_CONFIG } from '@/domain/ai/types'
+import { DEFAULT_LITEPARSE_CONFIG, DEFAULT_MINERU_API_CONFIG, DEFAULT_MINERU_CONFIG } from '@/domain/ai/types'
 import { t } from '@/locales'
 import { ExternalCommandPdfConverter } from './external-converter'
 import { LiteparsePdfConverter } from './liteparse-converter'
@@ -50,7 +50,7 @@ function withFallback(converter: PdfConverter, config: { fallbackToUnpdf?: boole
 export function createPdfConverter(config?: PdfConverterType | PdfConfig): PdfConverter {
   if (typeof config === 'object') {
     if (config.converter === 'liteparse')
-      return new LiteparsePdfConverter()
+      return new LiteparsePdfConverter(config.liteparse ?? DEFAULT_LITEPARSE_CONFIG)
 
     if (config.converter === 'mineru') {
       const mineruConfig = config.mineru ?? DEFAULT_MINERU_CONFIG

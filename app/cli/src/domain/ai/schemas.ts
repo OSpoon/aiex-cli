@@ -59,6 +59,13 @@ export const MineruApiPdfConverterConfigSchema = z.object({
   enableTable: z.boolean().optional(),
 })
 
+export const LiteparsePdfConverterConfigSchema = z.object({
+  ocrEnabled: z.boolean().default(false).optional(),
+  ocrLanguage: z.string().min(1).default('eng').optional(),
+  tessdataPath: z.string().min(1).optional(),
+  ocrServerUrl: z.string().url().optional(),
+})
+
 export const PdfConfigSchema = z.preprocess((value) => {
   if (!value || typeof value !== 'object')
     return value
@@ -80,6 +87,7 @@ export const PdfConfigSchema = z.preprocess((value) => {
   return config
 }, z.object({
   converter: z.enum(['unpdf', 'liteparse', 'mineru', 'mineru_api', 'external']),
+  liteparse: LiteparsePdfConverterConfigSchema.optional(),
   mineru: ExternalPdfConverterConfigSchema.optional(),
   mineruApi: MineruApiPdfConverterConfigSchema.optional(),
   external: ExternalPdfConverterConfigSchema.optional(),

@@ -116,6 +116,13 @@ export interface MineruApiPdfConverterConfig {
   enableTable?: boolean
 }
 
+export interface LiteparsePdfConverterConfig {
+  ocrEnabled?: boolean
+  ocrLanguage?: string
+  tessdataPath?: string
+  ocrServerUrl?: string
+}
+
 export interface ExternalPdfConverterConfig {
   command: string
   args: string[]
@@ -126,6 +133,7 @@ export interface ExternalPdfConverterConfig {
 
 export interface PdfConfig {
   converter: PdfConverterKind
+  liteparse?: LiteparsePdfConverterConfig
   mineru?: ExternalPdfConverterConfig
   mineruApi?: MineruApiPdfConverterConfig
   external?: ExternalPdfConverterConfig
