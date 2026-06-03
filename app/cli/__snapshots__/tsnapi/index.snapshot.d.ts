@@ -62,7 +62,7 @@ export interface DoctorDiagnostics {
 export interface JsonSchemaProperty {
   description?: string;
   type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array' | 'null';
-  format?: string;
+  format?: 'date-time' | 'email' | 'uri' | 'json';
   pattern?: string;
   enum?: (string | number)[];
   primary?: boolean;
@@ -77,7 +77,6 @@ export interface JsonSchemaProperty {
   xPrompt?: string;
   drizzle?: {
     mode?: 'json' | 'timestamp' | 'timestamp_ms' | 'boolean' | 'bigint';
-    customType?: string;
   };
   nested?: {
     enabled: true;

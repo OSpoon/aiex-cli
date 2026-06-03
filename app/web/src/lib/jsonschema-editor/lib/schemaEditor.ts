@@ -115,13 +115,12 @@ export function updateArrayItems(
  * Creates a schema for a new field
  */
 export function createFieldSchema(field: NewField): JSONSchema {
-  const { type, description, validation, additionalProperties } = field
+  const { type, description, validation } = field
   if (validation && isObjectSchema(validation)) {
     return {
       type,
       description,
       ...validation,
-      ...(additionalProperties === false ? { additionalProperties } : {}),
     }
   }
   return validation ?? { type: 'string' }

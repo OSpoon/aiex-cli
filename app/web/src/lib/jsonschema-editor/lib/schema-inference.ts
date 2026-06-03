@@ -1,4 +1,4 @@
-import type { JSONSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
+import type { Format, JSONSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
 import { isDeepEqual } from '@/lib/jsonschema-editor/lib/object-utils'
 import { asObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
 
@@ -7,17 +7,15 @@ const COORDINATES_KEY_REGEX = /coordinates?|coords?|latLon|lonLat|point/i
 const TIMESTAMP_KEY_REGEX = /timestamp|createdAt|updatedAt|occurredAt/i
 
 // Static regex patterns for string format detection
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 const DATE_TIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/
 const EMAIL_REGEX = /^[^@]+@[^@][^.@]*\.[^@]+$/
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const URI_REGEX = /^(https?|ftp):\/\/[^\s/$.?#].\S*$/i
 
 /**
  * Merges two JSON schemas.
  * If schemas are compatible (e.g., integer and number), attempts to merge.
  * If schemas are identical, returns the first schema.
- * If schemas are incompatible, returns a schema with oneOf.
+ * If schemas are incompatible, falls back to string because oneOf is outside the AIEX dialect.
  */
 function mergeSchemas(schema1: JSONSchema, schema2: JSONSchema): JSONSchema {
   const s1 = asObjectSchema(schema1)
@@ -34,28 +32,7 @@ function mergeSchemas(schema1: JSONSchema, schema2: JSONSchema): JSONSchema {
   if (s1.type === 'number' && s2.type === 'integer')
     return { type: 'number' }
 
-  // If types are different or complex merging is needed, use oneOf
-  const existingOneOf = Array.isArray(s1.oneOf) ? s1.oneOf : [s1]
-  const newSchemaToAdd = s2
-
-  // Avoid adding duplicate schemas to oneOf
-  if (
-    !existingOneOf.some(
-      s => isDeepEqual(s, newSchemaToAdd),
-    )
-  ) {
-    const mergedOneOf = [...existingOneOf, newSchemaToAdd]
-    // Simplify oneOf if it contains only one unique schema after potential merge attempts
-    const uniqueSchemas = [
-      ...new Map(mergedOneOf.map(s => [JSON.stringify(s), s])).values(),
-    ]
-    if (uniqueSchemas.length === 1) {
-      return uniqueSchemas[0]
-    }
-    return { oneOf: uniqueSchemas }
-  }
-
-  return s1.oneOf ? s1 : { oneOf: [s1] } // Return existing oneOf or create new if only s1 existed
+  return { type: 'string' }
 }
 
 // --- Helper Functions for Type Inference ---
@@ -172,8 +149,6 @@ function detectSemanticFormatsInArrayItems(
           updatedProperties[key] = {
             type: 'array',
             items: { type: 'number' },
-            minItems: coordLength,
-            maxItems: coordLength,
           }
         }
       }
@@ -203,7 +178,7 @@ function detectSemanticFormatsInArrayItems(
       if (isTimestampLike) {
         updatedProperties[key] = {
           type: 'integer',
-          format: 'unix-timestamp',
+          drizzle: { mode: 'timestamp_ms' },
           description: 'Unix timestamp (likely milliseconds)',
         }
       }
@@ -280,13 +255,11 @@ function inferArraySchema(obj: unknown[]): JSONSchema {
       return {
         type: 'array',
         items: itemsSchema,
-        minItems: 0, // Keep minItems consistent
       }
     }
     return {
       type: 'array',
       items: itemSchemas[0],
-      minItems: 0,
     }
   }
 
@@ -303,28 +276,23 @@ function inferArraySchema(obj: unknown[]): JSONSchema {
     return {
       type: 'array',
       items: uniqueSchemas[0],
-      minItems: 0,
     }
   }
 
   return {
     type: 'array',
-    items:
-      uniqueSchemas.length === 1 ? uniqueSchemas[0] : { oneOf: uniqueSchemas },
-    minItems: 0,
+    items: uniqueSchemas.length === 1 ? uniqueSchemas[0] : { type: 'string' },
   }
 }
 
 function inferStringSchema(str: string): JSONSchema {
-  const formats: Record<string, RegExp> = {
-    'date': DATE_REGEX,
-    'date-time': DATE_TIME_REGEX,
-    'email': EMAIL_REGEX,
-    'uuid': UUID_REGEX,
-    'uri': URI_REGEX,
-  }
+  const formats: Array<[Format, RegExp]> = [
+    ['date-time', DATE_TIME_REGEX],
+    ['email', EMAIL_REGEX],
+    ['uri', URI_REGEX],
+  ]
 
-  for (const [format, regex] of Object.entries(formats)) {
+  for (const [format, regex] of formats) {
     if (regex.test(str)) {
       return { type: 'string', format }
     }
@@ -387,12 +355,11 @@ export function createSchemaFromJson(jsonObject: unknown): JSONSchema {
       finalSchema.required = rootSchema.required
   }
   else if (rootSchema.type === 'array' || rootSchema.items) {
-    finalSchema.type = 'array'
-    finalSchema.items = rootSchema.items
-    if (rootSchema.minItems !== undefined)
-      finalSchema.minItems = rootSchema.minItems
-    if (rootSchema.maxItems !== undefined)
-      finalSchema.maxItems = rootSchema.maxItems
+    finalSchema.type = 'object'
+    finalSchema.properties = { value: rootSchema }
+    finalSchema.required = ['value']
+    finalSchema.title = 'Generated Schema (Array Root)'
+    finalSchema.description = 'Input was an array value, wrapped in an object.'
   }
   else if (rootSchema.type) {
     // Handle primitive types at the root (e.g., input is just "hello")

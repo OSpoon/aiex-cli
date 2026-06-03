@@ -2,9 +2,7 @@
 import type { ObjectJSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import type { ValidationTreeNode } from "@/lib/jsonschema-editor/types/validation"
 import { computed, ref } from "vue"
-import ButtonToggle from "@/lib/jsonschema-editor/components/ui/ButtonToggle.vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
-import { useSchemaStore } from "@/lib/jsonschema-editor/hooks/useSchemaStore"
 import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
 import { getSchemaProperties } from "@/lib/jsonschema-editor/lib/schemaEditor"
 import { isBooleanSchema, withObjectSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
@@ -27,15 +25,9 @@ const emit = defineEmits<{
   change: [schema: ObjectJSONSchema]
 }>()
 
-const store = useSchemaStore()
 const t = useTranslation()
 
 const properties = computed(() => getSchemaProperties(props.schema))
-
-const isAdditionalPropertiesForbidden = computed(() => {
-  if (isBooleanSchema(props.schema)) return false
-  return props.schema.additionalProperties === false
-})
 
 // aiex nested config
 const nestedEnabled = ref(
@@ -44,27 +36,6 @@ const nestedEnabled = ref(
 const nestedRelation = ref<"has-one" | "has-many">(
   withObjectSchema(props.schema, s => s.nested?.relation || "has-one", "has-one")
 )
-
-function handleAdditionalPropertiesToggle() {
-  // Read the current schema at this path from the store and toggle additionalProperties
-  const current = store.getAtPath(props.path)
-  if (!current || isBooleanSchema(current)) return
-
-  const plain = cloneJson(current)
-  if (plain.additionalProperties !== false) {
-    plain.additionalProperties = false
-  } else {
-    delete plain.additionalProperties
-  }
-
-  if (props.path.length > 0) {
-    const parentPath = props.path.slice(0, -1)
-    const propertyName = props.path[props.path.length - 1]
-    store.updateProperty(parentPath, propertyName, plain)
-  } else {
-    store.replaceSchema(plain)
-  }
-}
 
 function handleNestedToggle() {
   nestedEnabled.value = !nestedEnabled.value
@@ -148,16 +119,6 @@ function updateSchemaWithNested() {
 
     <div v-if="!readOnly" class="mt-4 flex flex-row gap-x-4">
       <AddFieldButton :path="path" variant="secondary" />
-      <ButtonToggle
-        @click="handleAdditionalPropertiesToggle()"
-        :class="
-          isAdditionalPropertiesForbidden
-            ? 'bg-amber-50 text-amber-600'
-            : 'bg-lime-50 text-lime-600'
-        "
-      >
-        {{ isAdditionalPropertiesForbidden ? t.additionalPropertiesForbid : t.additionalPropertiesAllow }}
-      </ButtonToggle>
     </div>
   </div>
 </template>

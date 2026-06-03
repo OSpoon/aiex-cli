@@ -45,6 +45,50 @@ describe('aiex Drizzle-backed schema dialect', () => {
     }
   })
 
+  it('rejects format values that are outside the Drizzle-backed dialect', () => {
+    const result = parseAllSchemas([
+      {
+        filePath: 'customer.json',
+        content: JSON.stringify({
+          title: 'Customer',
+          type: 'object',
+          table: { name: 'customers' },
+          properties: {
+            birthday: { type: 'string', format: 'date' },
+          },
+        }),
+      },
+    ])
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toContain('customer.json')
+      expect(result.error).toContain('properties.birthday.format')
+    }
+  })
+
+  it('rejects drizzle options that are not emitted by the generator', () => {
+    const result = parseAllSchemas([
+      {
+        filePath: 'customer.json',
+        content: JSON.stringify({
+          title: 'Customer',
+          type: 'object',
+          table: { name: 'customers' },
+          properties: {
+            metadata: { type: 'object', drizzle: { customType: 'jsonb' } },
+          },
+        }),
+      },
+    ])
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toContain('customer.json')
+      expect(result.error).toContain('properties.metadata.drizzle')
+    }
+  })
+
   it('emits enum as a SQLite check constraint and warns for non-portable pattern constraints', () => {
     const result = parseAllSchemas([
       {

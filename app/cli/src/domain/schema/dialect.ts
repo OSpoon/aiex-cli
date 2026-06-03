@@ -33,7 +33,7 @@ const PROPERTY_KEYS = new Set([
   'required',
 ])
 
-const DRIZZLE_KEYS = new Set(['mode', 'customType'])
+const DRIZZLE_KEYS = new Set(['mode'])
 const NESTED_KEYS = new Set(['enabled', 'relation'])
 const FOREIGN_KEY_KEYS = new Set(['table', 'column'])
 const TABLE_KEYS = new Set(['name', 'timestamps', 'softDelete'])

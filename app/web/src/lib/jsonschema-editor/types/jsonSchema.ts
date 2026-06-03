@@ -33,12 +33,15 @@ export const DrizzleModeSchema = z.enum([
 
 export type DrizzleMode = z.infer<typeof DrizzleModeSchema>
 
+export const FormatSchema = z.enum(['date-time', 'email', 'uri', 'json'])
+export type Format = z.infer<typeof FormatSchema>
+
 /** Drizzle ORM property extension */
 export const DrizzleExtensionSchema = z
   .object({
     mode: DrizzleModeSchema.optional(),
-    customType: z.string().optional(),
   })
+  .strict()
   .optional()
 
 export type DrizzleExtension = z.infer<typeof DrizzleExtensionSchema>
@@ -85,7 +88,7 @@ export const baseSchema = z.object({
   minLength: z.number().int().min(0).optional(),
   maxLength: z.number().int().min(0).optional(),
   pattern: z.string().optional(),
-  format: z.string().optional(),
+  format: FormatSchema.optional(),
   contentMediaType: z.string().optional(),
   contentEncoding: z.string().optional(),
 
@@ -193,7 +196,6 @@ export interface NewField {
   description: string
   required: boolean
   validation?: ObjectJSONSchema
-  additionalProperties?: boolean
 }
 
 export interface SchemaEditorState {

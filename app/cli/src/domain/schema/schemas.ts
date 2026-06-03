@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
 export const DrizzleModeSchema = z.enum(['json', 'timestamp', 'timestamp_ms', 'boolean', 'bigint'])
+export const FormatSchema = z.enum(['date-time', 'email', 'uri', 'json'])
 
 export const DrizzleExtensionSchema = z.object({
   mode: DrizzleModeSchema.optional(),
-  customType: z.string().optional(),
-}).optional()
+}).strict().optional()
 
 export const NestedConfigSchema = z.object({
   enabled: z.literal(true),
@@ -20,7 +20,7 @@ export const ForeignKeyRefSchema = z.object({
 export const JsonSchemaPropertySchema: z.ZodType<JsonSchemaProperty> = z.lazy(() => z.object({
   description: z.string().optional(),
   type: z.enum(['string', 'integer', 'number', 'boolean', 'object', 'array', 'null']),
-  format: z.string().optional(),
+  format: FormatSchema.optional(),
   pattern: z.string().optional(),
   enum: z.array(z.union([z.string(), z.number()])).optional(),
   primary: z.boolean().optional(),
@@ -83,7 +83,7 @@ export interface ForeignKeyRef {
 export interface JsonSchemaProperty {
   description?: string
   type: 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array' | 'null'
-  format?: string
+  format?: 'date-time' | 'email' | 'uri' | 'json'
   pattern?: string
   enum?: (string | number)[]
   primary?: boolean
@@ -96,7 +96,7 @@ export interface JsonSchemaProperty {
   maximum?: number
   examples?: unknown[]
   xPrompt?: string
-  drizzle?: { mode?: 'json' | 'timestamp' | 'timestamp_ms' | 'boolean' | 'bigint', customType?: string }
+  drizzle?: { mode?: 'json' | 'timestamp' | 'timestamp_ms' | 'boolean' | 'bigint' }
   nested?: { enabled: true, relation: 'has-one' | 'has-many' }
   foreignKey?: ForeignKeyRef
   properties?: Record<string, JsonSchemaProperty>

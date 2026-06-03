@@ -19,6 +19,8 @@ Unsupported JSON Schema features should be reported as warnings or validation er
 | `type: "object"` without `nested.enabled` | `text({ mode: "json" })` |
 | `type: "array"` without nested object items | `text({ mode: "json" })` |
 | `format: "date-time"` | `integer({ mode: "timestamp" })` |
+| `format: "json"` | `text({ mode: "json" })` |
+| `format: "email"` / `format: "uri"` | `text()` |
 | `required` | `.notNull()` |
 | `primary` | `.primaryKey()` |
 | `autoIncrement` | `.primaryKey({ autoIncrement: true })` |
@@ -43,8 +45,6 @@ Unsupported JSON Schema features should be reported as warnings or validation er
 | `drizzle.mode: "boolean"` | Store as Drizzle boolean integer |
 | `drizzle.mode: "bigint"` | Store as Drizzle bigint integer |
 
-`drizzle.customType` is currently accepted by the schema shape but not emitted. The generator warns because custom Drizzle types need project-specific runtime support.
-
 ## Non-Portable Or Unsupported JSON Schema Keywords
 
 The dialect warns for full JSON Schema keywords that do not map reliably to Drizzle SQLite:
@@ -62,28 +62,6 @@ Every schema generation writes:
 ```
 
 The report records each AIEX schema field and the generated table, column, Drizzle type, SQLite type, nullability, uniqueness, relation role, and notes. This is the primary artifact for debugging Schema to SQLite behavior.
-
-## Migration Risk Analysis
-
-Before applying migrations, AIEX compares the previous mapping report with the newly generated mapping report.
-
-High-risk changes are blocked by default:
-
-- table removal
-- column removal
-- column type changes
-- nullable to not-null changes
-- added unique constraints
-- primary key changes
-- narrowed enum values
-
-Medium and low risk changes are reported but allowed. High-risk migrations require an explicit CLI override:
-
-```bash
-aiex schema --force
-```
-
-When a high-risk migration is blocked, `schema-map.json` keeps `baselineEntries` so the next run still compares against the last accepted database mapping instead of losing the old baseline.
 
 ## Migration Risk Analysis
 

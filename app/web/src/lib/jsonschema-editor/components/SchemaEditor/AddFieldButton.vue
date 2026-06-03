@@ -25,13 +25,11 @@ const fieldName = ref("")
 const fieldType = ref<SchemaType>("string")
 const fieldDesc = ref("")
 const fieldRequired = ref(false)
-const additionalProperties = ref(true)
 
 const fieldNameId = useId()
 const fieldDescId = useId()
 const fieldRequiredId = useId()
 const fieldTypeId = useId()
-const additionalPropertiesId = useId()
 
 const t = useTranslation()
 
@@ -43,9 +41,7 @@ function handleSubmit(e: Event) {
     name: fieldName.value,
     type: fieldType.value,
     description: fieldDesc.value,
-    required: fieldRequired.value,
-    additionalProperties:
-      fieldType.value === "object" ? additionalProperties.value : undefined
+    required: fieldRequired.value
   })
 
   fieldName.value = ""
@@ -53,7 +49,6 @@ function handleSubmit(e: Event) {
   fieldDesc.value = ""
   fieldRequired.value = false
   dialogOpen.value = false
-  additionalProperties.value = true
 }
 </script>
 
@@ -126,17 +121,6 @@ function handleSubmit(e: Event) {
               class="rounded border-border accent-primary shrink-0"
             >
             <label :for="fieldRequiredId" class="text-sm text-foreground">{{ t.fieldRequiredLabel }}</label>
-          </div>
-
-          <div v-if="fieldType === 'object'" class="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary">
-            <input
-              type="checkbox"
-              :id="additionalPropertiesId"
-              v-model="additionalProperties"
-              class="rounded border-border accent-primary shrink-0"
-            >
-            <label :for="additionalPropertiesId" class="text-sm">{{ t.additionalPropertiesAllow }}</label>
-            <Info class="h-4 w-4 text-muted-foreground shrink-0" v-tooltip="t.additionalPropertiesTooltip" />
           </div>
         </div>
 

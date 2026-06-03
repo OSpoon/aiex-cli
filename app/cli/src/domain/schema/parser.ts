@@ -93,11 +93,6 @@ function warnNonDrizzleBackedProperty(
       `${schemaPath}.pattern is kept for extraction guidance but is not emitted as a SQLite constraint because SQLite has no portable REGEXP support.`,
     )
   }
-  if (property.drizzle?.customType) {
-    warnings.push(
-      `${schemaPath}.drizzle.customType is declared but not emitted. AIEX currently supports stable built-in Drizzle SQLite column types only.`,
-    )
-  }
 }
 
 function describeColumnType(columnType: ColumnType): { drizzleType: string, sqliteType: 'text' | 'integer' | 'real' } {

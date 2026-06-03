@@ -206,10 +206,6 @@
           "type": "string",
           "enum": ["json", "timestamp", "timestamp_ms", "boolean", "bigint"],
           "description": "Override Drizzle column mode. 'json' stores as TEXT(json), 'timestamp'/'timestamp_ms' as INTEGER, 'boolean' as INTEGER(boolean), 'bigint' as INTEGER(bigint)."
-        },
-        "customType": {
-          "type": "string",
-          "description": "Custom Drizzle type name. Accepted by the schema shape but not emitted by AIEX; generation reports a warning."
         }
       }
     },

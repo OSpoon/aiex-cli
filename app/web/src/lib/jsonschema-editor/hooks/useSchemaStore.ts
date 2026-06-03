@@ -302,11 +302,10 @@ export function createSchemaStore(
     },
 
     addProperty(path: string[], field: NewField): void {
-      const { type, description, additionalProperties } = field
+      const { type, description } = field
       const fieldSchema: ObjectJSONSchema = {
         type,
         ...(description ? { description } : {}),
-        ...(additionalProperties === false ? { additionalProperties } : {}),
       }
 
       let newSchema = setDeep(schema.value, path, field.name, fieldSchema)

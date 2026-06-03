@@ -99,7 +99,7 @@ function handleValidationChange(property: Property, value: unknown) {
 
   // Handle format — clear drizzle and string constraints when format changes column type
   if (property === "format") {
-    const format = value === "none" ? undefined : String(value)
+    const format = value === "none" ? undefined : value as ObjectJSONSchema["format"]
     const updatedValidation: ObjectJSONSchema = {
       ...validationProps,
       type: "string",
@@ -182,14 +182,9 @@ const formatValue = computed(() => format.value || "none")
 const formatOptions = computed(() => [
   { label: t.stringFormatNone, value: "none" },
   { label: t.stringFormatDateTime, value: "date-time" },
-  { label: t.stringFormatDate, value: "date" },
-  { label: t.stringFormatTime, value: "time" },
+  { label: t.drizzleModeJson, value: "json" },
   { label: t.stringFormatEmail, value: "email" },
-  { label: t.stringFormatUri, value: "uri" },
-  { label: t.stringFormatUuid, value: "uuid" },
-  { label: t.stringFormatHostname, value: "hostname" },
-  { label: t.stringFormatIpv4, value: "ipv4" },
-  { label: t.stringFormatIpv6, value: "ipv6" }
+  { label: t.stringFormatUri, value: "uri" }
 ])
 
 const drizzleModeOptions = computed(() => [
