@@ -89,6 +89,28 @@ describe('aiex Drizzle-backed schema dialect', () => {
     }
   })
 
+  it('rejects property names that cannot be emitted as stable Drizzle columns', () => {
+    const result = parseAllSchemas([
+      {
+        filePath: 'customer.json',
+        content: JSON.stringify({
+          title: 'Customer',
+          type: 'object',
+          table: { name: 'customers' },
+          properties: {
+            'full name': { type: 'string' },
+          },
+        }),
+      },
+    ])
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toContain('customer.json')
+      expect(result.error).toContain('properties.full name')
+    }
+  })
+
   it('emits enum as a SQLite check constraint and warns for non-portable pattern constraints', () => {
     const result = parseAllSchemas([
       {
@@ -111,6 +133,39 @@ describe('aiex Drizzle-backed schema dialect', () => {
       expect(result.data.drizzleCode).toContain(`\${table.status} IN (`)
       expect(result.data.drizzleCode).toContain('\'pending\', \'paid\'')
       expect(result.data.warnings).toContain('$.properties.code.pattern is kept for extraction guidance but is not emitted as a SQLite constraint because SQLite has no portable REGEXP support.')
+    }
+  })
+
+  it('maps required nested object fields to non-null child table columns', () => {
+    const result = parseAllSchemas([
+      {
+        filePath: 'customer.json',
+        content: JSON.stringify({
+          title: 'Customer',
+          type: 'object',
+          table: { name: 'customers' },
+          properties: {
+            id: { type: 'integer', primary: true },
+            address: {
+              type: 'object',
+              nested: { enabled: true, relation: 'has-one' },
+              properties: {
+                city: { type: 'string' },
+                country: { type: 'string' },
+              },
+              required: ['city'],
+            },
+          },
+        }),
+      },
+    ])
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      const addressTable = result.data.tables.find(table => table.name === 'customers_address')
+      expect(addressTable?.columns.find(column => column.name === 'city')?.isNullable).toBe(false)
+      expect(addressTable?.columns.find(column => column.name === 'country')?.isNullable).toBe(true)
+      expect(result.data.drizzleCode).toContain('city: text().notNull()')
     }
   })
 

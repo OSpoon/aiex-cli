@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const DrizzleModeSchema = z.enum(['json', 'timestamp', 'timestamp_ms', 'boolean', 'bigint'])
 export const FormatSchema = z.enum(['date-time', 'email', 'uri', 'json'])
+export const PropertyNameSchema = z.string().regex(/^[a-z]\w*$/i, 'Property name must start with a letter and contain only letters, digits, or underscores')
 
 export const DrizzleExtensionSchema = z.object({
   mode: DrizzleModeSchema.optional(),
@@ -36,7 +37,7 @@ export const JsonSchemaPropertySchema: z.ZodType<JsonSchemaProperty> = z.lazy(()
   drizzle: DrizzleExtensionSchema,
   nested: NestedConfigSchema.optional(),
   foreignKey: ForeignKeyRefSchema.optional(),
-  properties: z.record(z.string(), JsonSchemaPropertySchema).optional(),
+  properties: z.record(PropertyNameSchema, JsonSchemaPropertySchema).optional(),
   items: JsonSchemaPropertySchema.optional(),
   required: z.array(z.string()).optional(),
 }))
@@ -58,7 +59,7 @@ export const JsonSchemaDefinitionSchema = z.object({
   description: z.string().optional(),
   type: z.literal('object'),
   table: TableConfigSchema,
-  properties: z.record(z.string(), JsonSchemaPropertySchema),
+  properties: z.record(PropertyNameSchema, JsonSchemaPropertySchema),
   required: z.array(z.string()).optional(),
   examples: z.array(ExamplePairSchema).optional(),
 }).refine(

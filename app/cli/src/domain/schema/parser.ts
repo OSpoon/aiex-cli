@@ -216,6 +216,7 @@ function parseNestedObject(
   const columns: ParsedColumn[] = []
   const checks: CheckConstraint[] = []
   const relationType = property.nested?.relation === 'has-many' ? 'has-many' : 'has-one'
+  const requiredFields = new Set(property.required ?? [])
 
   columns.push({
     name: 'id',
@@ -269,7 +270,7 @@ function parseNestedObject(
         )
         continue
       }
-      const column = mapPropertyToColumn(childName, childProp, false)
+      const column = mapPropertyToColumn(childName, childProp, requiredFields.has(childName))
       columns.push(column)
       checks.push(...getColumnChecks(childProp, column.name))
       warnNonDrizzleBackedProperty(warnings, `$.properties.${propName}.properties.${childName}`, childProp)

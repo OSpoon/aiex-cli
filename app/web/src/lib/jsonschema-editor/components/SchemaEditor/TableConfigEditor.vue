@@ -29,24 +29,39 @@ const t = useTranslation()
 const tableNameId = useId()
 const timestampsId = useId()
 const softDeleteId = useId()
+const schemaTitleId = useId()
 
 // Table name validation regex: must start with lowercase letter, followed by lowercase letters, digits, or underscores
 const TABLE_NAME_REGEX = /^[a-z][a-z0-9_]*$/
 const STARTS_WITH_LOWERCASE_REGEX = /^[a-z]/
 
-// Unified name - same value for both title and table.name
-const tableName = computed({
+const schemaTitle = computed({
   get: () => {
     const schema = store.schema.value
     if (!isObjectSchema(schema)) return ""
-    return schema.table?.name ?? schema.title ?? ""
+    return schema.title ?? ""
   },
   set: (value: string) => {
     const schema = store.schema.value
     if (!isObjectSchema(schema)) return
     store.replaceSchema({
       ...schema,
-      title: value,
+      title: value
+    })
+  }
+})
+
+const tableName = computed({
+  get: () => {
+    const schema = store.schema.value
+    if (!isObjectSchema(schema)) return ""
+    return schema.table?.name ?? ""
+  },
+  set: (value: string) => {
+    const schema = store.schema.value
+    if (!isObjectSchema(schema)) return
+    store.replaceSchema({
+      ...schema,
       table: {
         ...schema.table,
         name: value
@@ -57,6 +72,7 @@ const tableName = computed({
 
 // Validation state
 const isValid = computed(() => {
+  if (!schemaTitle.value.trim()) return false
   if (!tableName.value) return false
   return TABLE_NAME_REGEX.test(tableName.value)
 })
@@ -113,6 +129,16 @@ const softDelete = computed({
   <div class="table-config p-4 border-b" style="border-color: var(--p-content-border-color);">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="flex min-w-0 flex-1 flex-wrap items-start gap-x-6 gap-y-3">
+        <div class="flex min-w-[180px] max-w-[260px] flex-1 flex-col gap-1">
+          <InputText
+            :id="schemaTitleId"
+            v-model="schemaTitle"
+            :placeholder="t.schemaTitlePlaceholder"
+            size="small"
+            class="w-full"
+            :invalid="!schemaTitle.trim()"
+          />
+        </div>
         <div class="flex min-w-[200px] max-w-[280px] flex-1 flex-col gap-1">
           <InputText
             :id="tableNameId"

@@ -78,8 +78,12 @@
     "properties": {
       "type": "object",
       "minProperties": 1,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+      },
       "additionalProperties": { "$ref": "#/$defs/property" },
-      "description": "Column definitions. Keys are camelCase property names."
+      "description": "Column definitions. Keys must start with a letter and contain only letters, digits, or underscores."
     },
 
     "property": {

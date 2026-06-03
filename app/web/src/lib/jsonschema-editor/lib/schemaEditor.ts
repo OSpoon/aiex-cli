@@ -7,7 +7,7 @@ import { cloneJson } from '@/lib/jsonschema-editor/lib/object-utils'
 import { isBooleanSchema, isObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
 
 // Static regex for field name validation
-const VALID_NAME_PATTERN = /^[a-z_$][\w$]*$/i
+const VALID_NAME_PATTERN = /^[a-z]\w*$/i
 
 export interface Property {
   name: string

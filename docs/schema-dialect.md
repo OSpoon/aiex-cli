@@ -10,6 +10,8 @@ Unsupported JSON Schema features should be reported as warnings or validation er
 
 ## Supported Mapping Surface
 
+Property names must start with a letter and contain only letters, digits, or underscores. They are emitted as stable Drizzle object keys and converted to SQLite column names with `snake_case`.
+
 | AIEX schema input | Drizzle / SQLite output |
 |---|---|
 | `type: "string"` | `text()` |

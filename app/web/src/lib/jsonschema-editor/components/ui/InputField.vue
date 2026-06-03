@@ -10,6 +10,7 @@ defineProps<{
   min?: number
   step?: number | string
   required?: boolean
+  pattern?: string
   autofocus?: boolean
 }>()
 
@@ -33,6 +34,7 @@ const model = defineModel<string>()
     :min="min"
     :step="step"
     :required="required"
+    :pattern="pattern"
     :autofocus="autofocus"
     @blur="emit('blur', $event)"
     @keydown="emit('keydown', $event)"

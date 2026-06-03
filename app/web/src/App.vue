@@ -271,7 +271,13 @@ async function loadSchema(name: string) {
 
 async function handleSave() {
   const schemaValue = schema.value as any
+  const title = schemaValue.title?.trim()
   const tableName = schemaValue.table?.name?.trim()
+
+  if (!title) {
+    toast.error(t("app.pleaseEnterSchemaTitle"))
+    return
+  }
 
   if (!tableName) {
     toast.error(t("app.pleaseEnterTableName"))
@@ -311,7 +317,13 @@ async function runMigration(force = false) {
 
 async function handleSaveAndMigrate() {
   const schemaValue = schema.value as any
+  const title = schemaValue.title?.trim()
   const tableName = schemaValue.table?.name?.trim()
+
+  if (!title) {
+    toast.error(t("app.pleaseEnterSchemaTitle"))
+    return
+  }
 
   if (!tableName) {
     toast.error(t("app.pleaseEnterTableName"))

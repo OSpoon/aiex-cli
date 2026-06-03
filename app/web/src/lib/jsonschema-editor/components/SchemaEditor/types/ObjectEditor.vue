@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ObjectJSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import type { ValidationTreeNode } from "@/lib/jsonschema-editor/types/validation"
-import { computed, ref } from "vue"
+import { computed } from "vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
 import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
 import { getSchemaProperties } from "@/lib/jsonschema-editor/lib/schemaEditor"
@@ -30,23 +30,22 @@ const t = useTranslation()
 const properties = computed(() => getSchemaProperties(props.schema))
 
 // aiex nested config
-const nestedEnabled = ref(
+const nestedEnabled = computed(() =>
   withObjectSchema(props.schema, s => s.nested?.enabled === true, false)
 )
-const nestedRelation = ref<"has-one" | "has-many">(
+const nestedRelation = computed<"has-one" | "has-many">(() =>
   withObjectSchema(props.schema, s => s.nested?.relation || "has-one", "has-one")
 )
 
 function handleNestedToggle() {
-  nestedEnabled.value = !nestedEnabled.value
-  updateSchemaWithNested()
+  updateSchemaWithNested(!nestedEnabled.value, nestedRelation.value)
 }
 
-function handleNestedRelationChange() {
-  updateSchemaWithNested()
+function handleNestedRelationChange(relation: "has-one" | "has-many") {
+  updateSchemaWithNested(nestedEnabled.value, relation)
 }
 
-function updateSchemaWithNested() {
+function updateSchemaWithNested(enabled: boolean, relation: "has-one" | "has-many") {
   if (emit) {
     const base = isBooleanSchema(props.schema)
       ? {}
@@ -54,11 +53,11 @@ function updateSchemaWithNested() {
     const updated: ObjectJSONSchema = {
       type: "object",
       ...base,
-      nested: nestedEnabled.value
-        ? { enabled: true as const, relation: nestedRelation.value }
+      nested: enabled
+        ? { enabled: true as const, relation }
         : undefined
     }
-    if (!nestedEnabled.value) {
+    if (!enabled) {
       delete updated.nested
     }
     emit("change", updated)
@@ -86,7 +85,7 @@ function updateSchemaWithNested() {
         <select
           :value="nestedRelation"
           :disabled="readOnly"
-          @change="(e: Event) => { nestedRelation = ((e.target as HTMLSelectElement).value) as 'has-one' | 'has-many'; handleNestedRelationChange(); }"
+          @change="handleNestedRelationChange(((($event.target as HTMLSelectElement).value) as 'has-one' | 'has-many'))"
           class="text-sm border border-border rounded px-2 py-1 bg-background text-foreground"
         >
           <option value="has-one">

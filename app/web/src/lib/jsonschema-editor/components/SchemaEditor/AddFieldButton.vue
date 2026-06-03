@@ -8,6 +8,7 @@ import Dialog from "@/lib/jsonschema-editor/components/ui/Dialog.vue"
 import InputField from "@/lib/jsonschema-editor/components/ui/InputField.vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
 import { useSchemaStore } from "@/lib/jsonschema-editor/hooks/useSchemaStore"
+import { validateFieldName } from "@/lib/jsonschema-editor/lib/schemaEditor"
 import SchemaTypeSelector from "./SchemaTypeSelector.vue"
 
 const props = withDefaults(
@@ -35,10 +36,11 @@ const t = useTranslation()
 
 function handleSubmit(e: Event) {
   e.preventDefault()
-  if (!fieldName.value.trim()) return
+  const name = fieldName.value.trim()
+  if (!validateFieldName(name)) return
 
   store.addProperty(props.path, {
-    name: fieldName.value,
+    name,
     type: fieldType.value,
     description: fieldDesc.value,
     required: fieldRequired.value
@@ -96,6 +98,7 @@ function handleSubmit(e: Event) {
               v-model="fieldName"
               :placeholder="t.fieldNamePlaceholder"
               class="font-mono text-sm w-full"
+              pattern="[A-Za-z][A-Za-z0-9_]*"
               :required="true"
             />
           </div>
@@ -153,7 +156,7 @@ function handleSubmit(e: Event) {
         <Button type="button" variant="outline" size="sm" @click="dialogOpen = false">
           {{ t.fieldAddNewCancel }}
         </Button>
-        <Button type="submit" size="sm">
+        <Button type="submit" size="sm" :disabled="!validateFieldName(fieldName.trim())">
           {{ t.fieldAddNewConfirm }}
         </Button>
       </div>

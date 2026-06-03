@@ -13,6 +13,7 @@ import InputField from "@/lib/jsonschema-editor/components/ui/InputField.vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
 import { useSchemaStore } from "@/lib/jsonschema-editor/hooks/useSchemaStore"
 import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
+import { validateFieldName } from "@/lib/jsonschema-editor/lib/schemaEditor"
 import { cn } from "@/lib/jsonschema-editor/lib/utils"
 import {
   getSchemaDescription,
@@ -79,7 +80,7 @@ function startEditingDesc() {
 
 function handleNameSubmit() {
   const trimmedName = tempName.value.trim()
-  if (trimmedName && trimmedName !== props.name) {
+  if (validateFieldName(trimmedName) && trimmedName !== props.name) {
     store.renameProperty(props.path, props.name, trimmedName)
   } else {
     tempName.value = props.name
@@ -106,17 +107,48 @@ function startEditingDefault() {
   isEditingDefault.value = true
 }
 
+function parseDefaultValue(value: string): unknown {
+  const trimmed = value.trim()
+  if (trimmed === "")
+    return undefined
+
+  switch (type()) {
+    case "string":
+      return value
+    case "integer": {
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? Math.trunc(parsed) : value
+    }
+    case "number": {
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? parsed : value
+    }
+    case "boolean":
+      if (trimmed === "true")
+        return true
+      if (trimmed === "false")
+        return false
+      return value
+    case "object":
+    case "array":
+      try {
+        return JSON.parse(value)
+      } catch {
+        return value
+      }
+    default:
+      return value
+  }
+}
+
 function handleDefaultSubmit() {
   const currentSchema = store.getAtPath([...props.path, props.name])
   const plain = editableObjectSchema(currentSchema)
-  // Try to parse as JSON for objects/arrays, otherwise use as string
-  let parsedDefault: unknown
-  try {
-    parsedDefault = JSON.parse(tempDefault.value)
-  } catch {
-    parsedDefault = tempDefault.value || undefined
-  }
-  plain.default = parsedDefault
+  const parsedDefault = parseDefaultValue(tempDefault.value)
+  if (parsedDefault === undefined)
+    delete plain.default
+  else
+    plain.default = parsedDefault
   store.updateProperty(props.path, props.name, plain)
   isEditingDefault.value = false
 }
@@ -136,8 +168,10 @@ function handleSchemaUpdate(updatedSchema: ObjectJSONSchema) {
 function handleTypeChange(newType: SchemaType) {
   const currentSchema = store.getAtPath([...props.path, props.name])
   const plain = editableObjectSchema(currentSchema)
-  plain.type = newType
-  store.updateProperty(props.path, props.name, plain)
+  const next: ObjectJSONSchema = { type: newType }
+  if (plain.description)
+    next.description = plain.description
+  store.updateProperty(props.path, props.name, next)
 }
 
 function handleRequiredToggle() {
@@ -185,6 +219,7 @@ function handleDelete() {
               @blur="handleNameSubmit()"
               @keydown="$event.key === 'Enter' && handleNameSubmit()"
               class="h-8 text-sm font-medium min-w-[120px] max-w-full z-10"
+              pattern="[A-Za-z][A-Za-z0-9_]*"
               :autofocus="true"
               @focus="($event.target as HTMLInputElement)?.select()"
             />
