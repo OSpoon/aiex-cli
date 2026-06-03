@@ -83,34 +83,6 @@ export const zhCN: Translations = {
         fileRequiredSingle: '请提供文件路径（-f）进行抽取',
         noSchemas: '在 {{path}} 未找到 schema 文件。运行 {{cmd}} 创建和配置 schemas',
       },
-      history: {
-        description: '列出抽取审计记录',
-        empty: '未找到抽取历史记录',
-        errors: {
-          idRequired: '需要提供审计记录 ID',
-          recordNotFound: '未找到抽取记录: {{id}}',
-        },
-        deleted: '已删除抽取记录: {{id}}',
-      },
-      show: {
-        description: '查看抽取审计记录详情',
-        args: {
-          id: '审计记录 ID',
-        },
-      },
-      retry: {
-        description: '重试抽取审计记录',
-        args: {
-          id: '审计记录 ID',
-          noInsert: '仅保存 JSON，不插入 SQLite',
-        },
-      },
-      rm: {
-        description: '删除抽取审计记录及其缓存的上传文件',
-        args: {
-          id: '审计记录 ID',
-        },
-      },
       batch: {
         scanning: '正在扫描 {{dir}} 中支持的文件...',
         found: '找到 {{count}} 个待处理的文件',
@@ -157,6 +129,14 @@ export const zhCN: Translations = {
         model: '用于抽取的 AI 模型（覆盖默认/自动选择的模型）',
         noInsert: '仅保存 JSON，不插入 SQLite',
       },
+      interactive: {
+        selectSchema: '选择用于监听抽取的 schema:',
+        enterDirPath: '输入要监听的目录路径:',
+        dirPathRequired: '请输入目录路径',
+        selectModel: '选择 AI 模型:',
+        autoModel: '自动选择模型',
+        askNoInsert: '是否仅保存 JSON，不插入 SQLite？',
+      },
       errors: {
         schemaRequired: '需要指定 schema 名称（-s）',
         dirRequired: '需要指定监听目录路径（-d）',
@@ -187,35 +167,6 @@ export const zhCN: Translations = {
         successTitle: 'AIEX 监听: {{file}}',
         failTitle: 'AIEX 监听失败: {{file}}',
       },
-    },
-    dump: {
-      description: '导出 SQLite 数据库表到 Excel（.xlsx）或 CSV（.csv）',
-      args: {
-        table: '要导出的 SQLite 表名',
-        schema: '要导出的 schema 名称（不含 .json 扩展名）',
-        format: '导出格式: csv 或 xlsx（默认: 从输出文件名推断或 csv）',
-        output: '输出文件路径（默认: ./<表名>.<格式>）',
-      },
-      errors: {
-        tableOrSchemaRequired: '需要指定表名（--table / -t）或 schema 名称（--schema / -s）',
-        schemaNotFound: '未找到 schema 文件 "{{name}}"',
-        noTableName: 'Schema "{{name}}" 没有定义数据库表名',
-        tableMismatch: '指定的表名 "{{table}}" 与 schema 表名 "{{schemaTable}}" 不匹配',
-        unsupportedFormat: '不支持的导出格式: "{{format}}"。支持的格式: csv, xlsx',
-        dbNotFound: '在 {{path}} 未找到数据库文件。请先运行 "{{cmd}}" 创建数据库。',
-        tableNotFound: '在数据库中未找到表 "{{name}}" 。请先运行 "{{cmd}}" 迁移。',
-        tableEmpty: '表 "{{name}}" 为空。正在导出空文件...',
-      },
-      loading: '正在从表 "{{name}}" 加载数据...',
-      loaded: '已加载 {{count}} 行',
-      emptyTable: '空表',
-      formatting: '正在格式化数据...',
-      formatted: '数据已格式化',
-      writing: '正在写入 {{format}} 文件到 {{path}}...',
-      dumpCompleted: '导出完成',
-      successMsg: '已成功导出 {{count}} 行到 {{path}}',
-      fileWriteFailed: '文件写入失败',
-      dbQueryFailed: '数据库查询失败',
     },
     doctor: {
       description: '打印环境和配置诊断信息',

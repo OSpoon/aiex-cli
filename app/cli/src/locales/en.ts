@@ -81,34 +81,6 @@ export const en = {
         fileRequiredSingle: 'Please provide a file (-f) to extract from',
         noSchemas: 'No schema files found in {{path}}. Run {{cmd}} to create and configure schemas first.',
       },
-      history: {
-        description: 'List extraction audit records',
-        empty: 'No extraction history found',
-        errors: {
-          idRequired: 'Audit record id is required',
-          recordNotFound: 'Extraction record not found: {{id}}',
-        },
-        deleted: 'Deleted extraction record: {{id}}',
-      },
-      show: {
-        description: 'Show an extraction audit record',
-        args: {
-          id: 'Audit record id',
-        },
-      },
-      retry: {
-        description: 'Retry an extraction audit record',
-        args: {
-          id: 'Audit record id',
-          noInsert: 'Extract and save JSON without inserting into SQLite',
-        },
-      },
-      rm: {
-        description: 'Delete an extraction audit record and cached upload',
-        args: {
-          id: 'Audit record id',
-        },
-      },
       batch: {
         scanning: 'Scanning {{dir}} for supported files...',
         found: 'Found {{count}} file(s) to process',
@@ -155,6 +127,14 @@ export const en = {
         model: 'AI model to use for extraction (overrides default/auto-selected model)',
         noInsert: 'Extract and save JSON without inserting into SQLite database',
       },
+      interactive: {
+        selectSchema: 'Select a schema to watch with:',
+        enterDirPath: 'Enter directory path to watch:',
+        dirPathRequired: 'Please enter a directory path',
+        selectModel: 'Select an AI model:',
+        autoModel: 'Auto-select model',
+        askNoInsert: 'Save extracted JSON without inserting into SQLite?',
+      },
       errors: {
         schemaRequired: 'Schema name (-s) is required',
         dirRequired: 'Watch directory path (-d) is required',
@@ -185,35 +165,6 @@ export const en = {
         successTitle: 'AIEX Watch: {{file}}',
         failTitle: 'AIEX Watch Failed: {{file}}',
       },
-    },
-    dump: {
-      description: 'Dump SQLite database table to Excel (.xlsx) or CSV (.csv)',
-      args: {
-        table: 'SQLite table name to export',
-        schema: 'Schema name (without .json extension) to export',
-        format: 'Export format: csv or xlsx (default: inferred from output or csv)',
-        output: 'Output file path (default: ./<tableName>.<format>)',
-      },
-      errors: {
-        tableOrSchemaRequired: 'Either table name (--table / -t) or schema name (--schema / -s) is required',
-        schemaNotFound: 'Schema file for "{{name}}" not found',
-        noTableName: 'Schema "{{name}}" does not define a database table name.',
-        tableMismatch: 'Specified table name "{{table}}" does not match schema table name "{{schemaTable}}"',
-        unsupportedFormat: 'Unsupported dump format: "{{format}}". Supported formats: csv, xlsx',
-        dbNotFound: 'Database file not found at {{path}}. Please run "{{cmd}}" to create the database first.',
-        tableNotFound: 'Table "{{name}}" not found in database. Run "{{cmd}}" first to migrate.',
-        tableEmpty: 'Table "{{name}}" is empty. Exporting empty file...',
-      },
-      loading: 'Loading data from table "{{name}}"...',
-      loaded: 'Loaded {{count}} row(s)',
-      emptyTable: 'Empty table',
-      formatting: 'Formatting data...',
-      formatted: 'Data formatted',
-      writing: 'Writing {{format}} file to {{path}}...',
-      dumpCompleted: 'Dump completed successfully',
-      successMsg: 'Successfully dumped {{count}} row(s) to {{path}}',
-      fileWriteFailed: 'File write failed',
-      dbQueryFailed: 'Database query failed',
     },
     doctor: {
       description: 'Print environment and configuration diagnostics',

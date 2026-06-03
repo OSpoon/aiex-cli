@@ -5,8 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { watchCommand } from '@/commands/watch'
 
 vi.mock('@clack/prompts', () => ({
+  confirm: vi.fn(),
   intro: vi.fn(),
+  isCancel: vi.fn(() => false),
   outro: vi.fn(),
+  select: vi.fn(),
+  text: vi.fn(),
 }))
 
 vi.mock('@/application/watch/watch-service', () => ({
@@ -14,6 +18,7 @@ vi.mock('@/application/watch/watch-service', () => ({
 }))
 
 vi.mock('@/application/schema/load-schema', () => ({
+  listSchemas: vi.fn(),
   loadSchema: vi.fn(),
 }))
 
@@ -59,9 +64,45 @@ describe('watchCommand.run', () => {
     vi.clearAllMocks()
   })
 
-  it('should fail when schema arg is missing', async () => {
+  it('should enter guided mode when no args are provided', async () => {
     process.chdir(projectDir)
+    const watchDir = path.join(projectDir, 'watch')
+    fs.mkdirSync(watchDir)
+
+    const { select, text, confirm } = await import('@clack/prompts')
+    const { listSchemas } = await import('@/application/schema/load-schema')
+    const { loadConfiguredAI, resolveModelOverride } = await import('@/commands/extract')
+    const { startWatcher } = await import('@/application/watch/watch-service')
+
+    vi.mocked(listSchemas).mockResolvedValueOnce(['test'])
+    vi.mocked(loadConfiguredAI).mockResolvedValueOnce({
+      provider: {
+        apiKey: 'test-key',
+        baseURL: 'https://example.com',
+        models: [{ name: 'gpt-4o-mini' }],
+      },
+      extraction: {} as any,
+    } as any)
+    vi.mocked(select)
+      .mockResolvedValueOnce('test')
+      .mockResolvedValueOnce('')
+    vi.mocked(text).mockResolvedValueOnce(watchDir)
+    vi.mocked(confirm).mockResolvedValueOnce(false)
+    vi.mocked(resolveModelOverride).mockReturnValueOnce(undefined)
+
     await cmd.run({ args: {} })
+
+    expect(process.exitCode).toBe(0)
+    expect(startWatcher).toHaveBeenCalledWith(expect.objectContaining({
+      schemaName: 'test',
+      watchDir,
+      insert: true,
+    }))
+  })
+
+  it('should fail when schema arg is missing in non-interactive mode', async () => {
+    process.chdir(projectDir)
+    await cmd.run({ args: { dir: projectDir } })
     expect(process.exitCode).toBe(1)
   })
 

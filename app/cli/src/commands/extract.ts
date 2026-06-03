@@ -1,5 +1,4 @@
 import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
-import type { ExtractionAuditRecord } from '@/domain/audit/types'
 import type { MigrationConfig } from '@/domain/schema/types'
 import path from 'node:path'
 import process from 'node:process'
@@ -11,53 +10,12 @@ import {
   runAuditedExtraction,
   runBatchExtraction,
 } from '@/application/extraction'
-import { isMissingUploadFileError, MISSING_UPLOAD_FILE_TEXT, SUPPORTED_FILE_TYPES_TEXT } from '@/application/input/file-policy'
+import { SUPPORTED_FILE_TYPES_TEXT } from '@/application/input/file-policy'
 import { listSchemas } from '@/application/schema/load-schema'
 import { failCommand } from '@/commands/utils'
 import { readAIConfig } from '@/infrastructure/ai/ai-config-store'
-import {
-  deleteExtractionAuditRecord,
-  listExtractionAuditRecords,
-  readExtractionAuditRecord,
-} from '@/infrastructure/audit/file-audit-store'
 import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 import { initI18n, t } from '@/locales'
-
-function getIdArg(args: Record<string, unknown>): string {
-  if (typeof args.id === 'string')
-    return args.id
-  const positional = args._ as unknown
-  return Array.isArray(positional) && typeof positional[0] === 'string' ? positional[0] : ''
-}
-
-function isExtractSubCommand(rawArgs: unknown): boolean {
-  if (!Array.isArray(rawArgs))
-    return false
-  return rawArgs.some(arg => typeof arg === 'string' && ['history', 'show', 'retry', 'rm'].includes(arg))
-}
-
-function formatSource(source: { type: 'text' | 'file', fileName?: string }): string {
-  return source.type === 'file' ? source.fileName || 'file' : 'unknown'
-}
-
-function formatInputProcessing(input?: ExtractionAuditRecord['inputProcessing']): string {
-  if (!input)
-    return ''
-  const handler = input.converter ? `${input.handler}(${input.converter})` : input.handler
-  return ` [${input.mime ?? input.kind} -> ${handler}]`
-}
-
-function formatQuality(quality?: ExtractionAuditRecord['quality'], failureStage?: ExtractionAuditRecord['failureStage']): string {
-  if (failureStage)
-    return ` [failed:${failureStage}]`
-  if (quality?.input?.pdf)
-    return ` [pdf:${quality.input.pdf.pageCount}p/${quality.input.pdf.textLength}chars${quality.input.pdf.fallbackUsed ? '/fallback' : ''}]`
-  if (quality?.input?.ocr)
-    return ` [ocr:${Math.round(quality.input.ocr.confidence * 100)}%/${quality.input.ocr.textLength}chars]`
-  if (quality?.ai?.missingFieldRate !== undefined)
-    return ` [missing:${Math.round(quality.ai.missingFieldRate * 100)}%]`
-  return ''
-}
 
 export async function loadConfiguredAI(aiexDir: string): Promise<AIConfig | null> {
   const aiConfig = await readAIConfig(aiexDir)
@@ -91,170 +49,10 @@ export function resolveModelOverride(aiConfig: AIConfig, modelName?: string): AI
   return matched
 }
 
-const historyCommand = defineCommand({
-  meta: {
-    name: 'history',
-    description: t('command.extract.history.description'),
-  },
-  async run() {
-    const config = createMigrationConfig(process.cwd())
-    const aiexDir = path.dirname(config.schemaPath)
-    const records = await listExtractionAuditRecords(aiexDir)
-
-    if (records.length === 0) {
-      consola.info(t('command.extract.history.empty'))
-      return
-    }
-
-    for (const record of records) {
-      const suffix = record.error ? ` — ${record.error}` : record.outputName ? ` — ${record.outputName}` : ''
-      consola.info(`${record.status.padEnd(9)} ${record.id}  ${record.schemaName}  ${formatSource(record.source)}${formatInputProcessing(record.inputProcessing)}${formatQuality(record.quality, record.failureStage)}${suffix}`)
-    }
-  },
-})
-
-const showCommand = defineCommand({
-  meta: {
-    name: 'show',
-    description: t('command.extract.show.description'),
-  },
-  args: {
-    id: {
-      type: 'string',
-      description: t('command.extract.show.args.id'),
-    },
-  },
-  async run({ args }) {
-    const id = getIdArg(args)
-    if (!id) {
-      failCommand(t('command.extract.history.errors.idRequired'))
-      return
-    }
-
-    const config = createMigrationConfig(process.cwd())
-    const aiexDir = path.dirname(config.schemaPath)
-    const record = await readExtractionAuditRecord(aiexDir, id)
-    if (!record) {
-      failCommand(t('command.extract.history.errors.recordNotFound', { id }))
-      return
-    }
-
-    consola.info(JSON.stringify(record, null, 2))
-  },
-})
-
-const retryCommand = defineCommand({
-  meta: {
-    name: 'retry',
-    description: t('command.extract.retry.description'),
-  },
-  args: {
-    id: {
-      type: 'string',
-      description: t('command.extract.retry.args.id'),
-    },
-    noInsert: {
-      type: 'boolean',
-      description: t('command.extract.retry.args.noInsert'),
-      default: false,
-    },
-  },
-  async run({ args }) {
-    intro(pc.inverse(' aiex extract retry '))
-    await initI18n()
-
-    const id = getIdArg(args)
-    if (!id) {
-      failCommand(t('command.extract.history.errors.idRequired'))
-      return
-    }
-
-    const config = createMigrationConfig(process.cwd())
-    const aiexDir = path.dirname(config.schemaPath)
-    const record = await readExtractionAuditRecord(aiexDir, id)
-    if (!record) {
-      failCommand(t('command.extract.history.errors.recordNotFound', { id }))
-      return
-    }
-
-    const aiConfig = await loadConfiguredAI(aiexDir)
-    if (!aiConfig)
-      return
-
-    const modelOverride = resolveModelOverride(aiConfig, record.modelName)
-    if (modelOverride === null)
-      return
-
-    try {
-      const result = await runAuditedExtraction({
-        aiexDir,
-        config,
-        aiConfig,
-        schemaName: record.schemaName,
-        source: record.source as any,
-        modelOverride,
-        retryOf: record.id,
-        insert: !args.noInsert,
-        force: true, // Retry should always bypass duplicate check
-      })
-
-      if (!result.success) {
-        failCommand(result.error)
-        return
-      }
-
-      outro(t('common.done'))
-    }
-    catch (error) {
-      if (isMissingUploadFileError(error)) {
-        failCommand(MISSING_UPLOAD_FILE_TEXT)
-        return
-      }
-      failCommand(error instanceof Error ? error.message : String(error))
-    }
-  },
-})
-
-const rmCommand = defineCommand({
-  meta: {
-    name: 'rm',
-    description: t('command.extract.rm.description'),
-  },
-  args: {
-    id: {
-      type: 'string',
-      description: t('command.extract.rm.args.id'),
-    },
-  },
-  async run({ args }) {
-    const id = getIdArg(args)
-    if (!id) {
-      failCommand(t('command.extract.history.errors.idRequired'))
-      return
-    }
-
-    const config = createMigrationConfig(process.cwd())
-    const aiexDir = path.dirname(config.schemaPath)
-    const deleted = await deleteExtractionAuditRecord(aiexDir, id)
-    if (!deleted) {
-      failCommand(t('command.extract.history.errors.recordNotFound', { id }))
-      return
-    }
-
-    consola.success(t('command.extract.history.deleted', { id }))
-  },
-})
-
 export const extractCommand = defineCommand({
   meta: {
     name: 'extract',
     description: t('command.extract.description'),
-  },
-  subCommands: {
-    history: historyCommand,
-    show: showCommand,
-    retry: retryCommand,
-    rm: rmCommand,
   },
   args: {
     schema: {
@@ -293,10 +91,7 @@ export const extractCommand = defineCommand({
       default: false,
     },
   },
-  async run({ args, rawArgs }) {
-    if (isExtractSubCommand(rawArgs))
-      return
-
+  async run({ args }) {
     intro(pc.inverse(' aiex extract '))
     await initI18n()
 

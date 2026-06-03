@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { intro, outro } from '@clack/prompts'
+import { outro } from '@clack/prompts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { extractStructuredData } from '@/application/ai-extraction/extract-structured-data'
@@ -112,6 +112,10 @@ describe('extractCommand definition', () => {
   it('should describe supported file types from the shared file constants', () => {
     expect(cmd.args.file.description).toContain(`Supported: ${SUPPORTED_FILE_TYPES_TEXT}.`)
   })
+
+  it('should not expose record-management subcommands', () => {
+    expect(cmd.subCommands).toBeUndefined()
+  })
 })
 
 describe('extractCommand.run', () => {
@@ -131,13 +135,6 @@ describe('extractCommand.run', () => {
   it('should fail when combining --dir and --file', async () => {
     await cmd.run({ args: { dir: os.tmpdir(), file: path.join(os.tmpdir(), 'test.txt') } })
     expect(process.exitCode).toBe(1)
-  })
-
-  it('should not enter interactive extraction after a subcommand runs', async () => {
-    await cmd.run({ rawArgs: ['history'], args: {} })
-
-    expect(intro).not.toHaveBeenCalled()
-    expect(readAIConfig).not.toHaveBeenCalled()
   })
 
   it('should fail without crash for empty batch directory', async () => {
@@ -251,34 +248,6 @@ describe('extractCommand.run', () => {
       source: { type: 'file', filePath: inputFile },
       outputName: 'test_table-result.json',
     })
-
-    cleanupDir(projectDir)
-  })
-
-  it('should delete audit record and cached upload through extract rm', async () => {
-    const projectDir = createProjectFixture()
-    process.chdir(projectDir)
-
-    const auditDir = path.join(projectDir, '.aiex', 'extracted', '_audit')
-    const uploadsDir = path.join(projectDir, '.aiex', 'uploads')
-    const uploadPath = path.join(uploadsDir, 'run-1-source.txt')
-    fs.mkdirSync(auditDir, { recursive: true })
-    fs.mkdirSync(uploadsDir, { recursive: true })
-    fs.writeFileSync(uploadPath, 'Alice')
-    fs.writeFileSync(path.join(auditDir, 'run-1.json'), JSON.stringify({
-      id: 'run-1',
-      status: 'failed',
-      schemaName: 'test',
-      source: { type: 'file', filePath: uploadPath, fileName: 'source.txt' },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }))
-
-    await cmd.subCommands.rm.run({ args: { id: 'run-1' } })
-
-    expect(process.exitCode).toBe(0)
-    expect(fs.existsSync(path.join(auditDir, 'run-1.json'))).toBe(false)
-    expect(fs.existsSync(uploadPath)).toBe(false)
 
     cleanupDir(projectDir)
   })
