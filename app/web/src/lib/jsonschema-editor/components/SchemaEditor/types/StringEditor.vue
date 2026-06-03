@@ -63,6 +63,8 @@ const drizzleMode = computed(() =>
 // When drizzle or format changes the column type away from text(), string constraints don't apply
 const columnTypeChanged = computed(() =>
   drizzleMode.value === "timestamp"
+  || drizzleMode.value === "timestamp_ms"
+  || drizzleMode.value === "bigint"
   || drizzleMode.value === "json"
   || format.value === "date-time"
   || format.value === "json"
@@ -193,7 +195,9 @@ const formatOptions = computed(() => [
 const drizzleModeOptions = computed(() => [
   { label: t.drizzleModeNone, value: "none" },
   { label: t.drizzleModeJson, value: "json" },
-  { label: t.drizzleModeTimestamp, value: "timestamp" }
+  { label: t.drizzleModeTimestamp, value: "timestamp" },
+  { label: t.drizzleModeTimestampMs, value: "timestamp_ms" },
+  { label: t.drizzleModeBigint, value: "bigint" }
 ])
 
 const needsDetail = computed(

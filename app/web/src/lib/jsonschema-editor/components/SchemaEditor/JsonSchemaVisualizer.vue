@@ -60,9 +60,7 @@ function handleDownload() {
   <div
     :class="cn('relative overflow-hidden flex-1 min-h-0 flex flex-col', props.class, 'jscb')"
   >
-    <div
-      class="flex items-center justify-between bg-secondary/80 backdrop-blur-xs px-4 py-2 border-b shrink-0"
-    >
+    <div class="editor-pane-header justify-between bg-secondary/80 backdrop-blur-xs">
       <div class="flex items-center gap-2">
         <FileJson :size="18" />
         <span class="font-medium text-sm">{{ t.visualizerSource }}</span>
@@ -70,7 +68,7 @@ function handleDownload() {
       <button
         type="button"
         @click="handleDownload"
-        class="p-1.5 hover:bg-secondary rounded-md transition-colors"
+        class="flex h-8 w-8 items-center justify-center rounded-md hover:bg-secondary transition-colors"
         :title="t.visualizerDownloadTitle"
       >
         <Download :size="16" />

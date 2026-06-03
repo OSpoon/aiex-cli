@@ -52,14 +52,49 @@ export interface MigrateResult {
   tag?: string
   error?: string
   warnings?: string[]
+  riskReport?: MigrationRiskReport
 }
 
-export async function migrateSchema(): Promise<MigrateResult> {
-  const data = await api.post('api/migrate').json<MigrateResult>()
-  if (!data.success) {
-    throw new Error(data.error || 'Migration failed')
+export interface MigrationRiskItem {
+  severity: 'low' | 'medium' | 'high'
+  kind: string
+  table: string
+  column?: string
+  message: string
+}
+
+export interface MigrationRiskReport {
+  level: 'none' | 'low' | 'medium' | 'high'
+  items: MigrationRiskItem[]
+  hasHighRisk: boolean
+}
+
+export class MigrationError extends Error {
+  constructor(message: string, public readonly riskReport?: MigrationRiskReport) {
+    super(message)
+    this.name = 'MigrationError'
   }
-  return data
+}
+
+export async function migrateSchema(options: { force?: boolean } = {}): Promise<MigrateResult> {
+  try {
+    const data = await api.post(`api/migrate${options.force ? '?force=true' : ''}`).json<MigrateResult>()
+    if (!data.success)
+      throw new MigrationError(data.error || 'Migration failed', data.riskReport)
+    return data
+  }
+  catch (error) {
+    if (error instanceof MigrationError)
+      throw error
+    if (error instanceof HTTPError) {
+      const data = await error.response.json().catch(() => undefined) as MigrateResult | undefined
+      throw new MigrationError(data?.error || 'Migration failed', data?.riskReport)
+    }
+    if (error instanceof Error) {
+      throw new MigrationError(error.message)
+    }
+    throw new MigrationError('Migration failed')
+  }
 }
 
 // Prompt Snapshot API

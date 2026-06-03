@@ -234,6 +234,10 @@
 }
 
 @layer components {
+  .editor-pane-header {
+    @apply flex h-14 shrink-0 items-center border-b border-border/80 bg-secondary/10 px-4;
+  }
+
   .p-tooltip {
     max-width: min(18rem, calc(100vw - 1rem));
   }

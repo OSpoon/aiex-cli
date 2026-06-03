@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/OSpoon/aiex-cli/main/app/cli/schemas/table-schema.json",
   "title": "aiex Table Schema",
-  "description": "Defines a database table and its columns for aiex-cli schema-to-SQLite migration.",
+  "description": "Defines an AIEX Drizzle-backed schema dialect file for schema-to-SQLite migration.",
   "type": "object",
   "required": ["title", "type", "table", "properties"],
   "additionalProperties": false,
@@ -39,6 +39,12 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "List of property names that are NOT NULL.",
+      "default": []
+    },
+    "examples": {
+      "type": "array",
+      "description": "Few-shot examples used by AI extraction prompts.",
+      "items": { "$ref": "#/$defs/examplePair" },
       "default": []
     }
   },
@@ -113,12 +119,17 @@
         },
         "pattern": {
           "type": "string",
-          "description": "Regular expression constraint for string values."
+          "description": "Regular expression guidance for extraction and validation. Not emitted as a SQLite constraint because SQLite has no portable built-in REGEXP support."
         },
         "enum": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Enumeration of allowed values for this field."
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "number" }
+            ]
+          },
+          "description": "Enumeration of allowed values for this field. Emitted as a SQLite CHECK constraint."
         },
         "examples": {
           "type": "array",
@@ -132,20 +143,20 @@
         "minLength": {
           "type": "integer",
           "minimum": 0,
-          "description": "Minimum string length (validation only, not a DB constraint)."
+          "description": "Minimum string length. Emitted as a SQLite CHECK constraint."
         },
         "maxLength": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum string length (validation only, not a DB constraint)."
+          "description": "Maximum string length. Emitted as a SQLite CHECK constraint."
         },
         "minimum": {
           "type": "number",
-          "description": "Minimum numeric value (validation only, not a DB constraint)."
+          "description": "Minimum numeric value. Emitted as a SQLite CHECK constraint."
         },
         "maximum": {
           "type": "number",
-          "description": "Maximum numeric value (validation only, not a DB constraint)."
+          "description": "Maximum numeric value. Emitted as a SQLite CHECK constraint."
         },
         "drizzle": {
           "$ref": "#/$defs/drizzleConfig",
@@ -198,7 +209,24 @@
         },
         "customType": {
           "type": "string",
-          "description": "Custom Drizzle type name (reserved for future use)."
+          "description": "Custom Drizzle type name. Accepted by the schema shape but not emitted by AIEX; generation reports a warning."
+        }
+      }
+    },
+
+    "examplePair": {
+      "type": "object",
+      "required": ["text", "output"],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Source text example."
+        },
+        "output": {
+          "type": "object",
+          "description": "Expected extracted output for the source text example."
         }
       }
     },

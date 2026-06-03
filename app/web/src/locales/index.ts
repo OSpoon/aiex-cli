@@ -92,6 +92,9 @@ const appEn = {
     migrationApplied: 'Migration applied ({changes} changes, {tables} tables)',
     noChangesDetected: 'No changes detected',
     migrationFailed: 'Migration failed',
+    migrationRiskTitle: 'High-risk migration blocked',
+    migrationRiskDescription: 'Review these schema changes before continuing. Forcing the migration may alter or remove existing SQLite data.',
+    forceMigration: 'Force migration',
     notionConnectionFailed: 'Notion connection failed',
     // AISettings
     provider: 'Provider',
@@ -287,6 +290,9 @@ const appZh = {
     migrationApplied: '迁移完成（{changes} 个变更，{tables} 个表）',
     noChangesDetected: '未检测到变更',
     migrationFailed: '迁移失败',
+    migrationRiskTitle: '已阻止高风险迁移',
+    migrationRiskDescription: '继续前请检查这些 Schema 变更。强制迁移可能修改或删除现有 SQLite 数据。',
+    forceMigration: '强制迁移',
     notionConnectionFailed: 'Notion 连接失败',
     // AISettings
     provider: '提供商',

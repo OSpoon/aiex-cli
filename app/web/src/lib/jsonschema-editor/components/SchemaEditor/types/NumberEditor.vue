@@ -14,9 +14,6 @@ import {
 type Property
   = | "minimum"
     | "maximum"
-    | "exclusiveMinimum"
-    | "exclusiveMaximum"
-    | "multipleOf"
     | "enum"
     | "primary"
     | "autoIncrement"
@@ -44,24 +41,12 @@ const t = useTranslation()
 
 const maximumId = useId()
 const minimumId = useId()
-const exclusiveMinimumId = useId()
-const exclusiveMaximumId = useId()
-const multipleOfId = useId()
 
 const minimum = computed(() =>
   withObjectSchema(props.schema, s => s.minimum, undefined)
 )
 const maximum = computed(() =>
   withObjectSchema(props.schema, s => s.maximum, undefined)
-)
-const exclusiveMinimum = computed(() =>
-  withObjectSchema(props.schema, s => s.exclusiveMinimum, undefined)
-)
-const exclusiveMaximum = computed(() =>
-  withObjectSchema(props.schema, s => s.exclusiveMaximum, undefined)
-)
-const multipleOf = computed(() =>
-  withObjectSchema(props.schema, s => s.multipleOf, undefined)
 )
 const enumValues = computed(() =>
   withObjectSchema(props.schema, s => (s.enum as number[]) || [], [])
@@ -83,10 +68,13 @@ const drizzleMode = computed(() =>
 
 // Whether drizzle mode changes the column type away from the default
 const drizzleChangesType = computed(() =>
-  drizzleMode.value === "boolean" || drizzleMode.value === "timestamp"
+  drizzleMode.value === "boolean"
+  || drizzleMode.value === "timestamp"
+  || drizzleMode.value === "timestamp_ms"
+  || drizzleMode.value === "bigint"
 )
 
-// Whether numeric constraints (min/max/multipleOf) are relevant
+// Whether numeric constraints (min/max) are relevant
 const showNumericConstraints = computed(() => {
   if (props.integer && drizzleChangesType.value) return false
   return true
@@ -97,7 +85,9 @@ const drizzleModeOptions = computed(() => {
   return [
     { label: t.drizzleModeNone, value: "none" },
     { label: t.drizzleModeBoolean, value: "boolean" },
-    { label: t.drizzleModeTimestamp, value: "timestamp" }
+    { label: t.drizzleModeTimestamp, value: "timestamp" },
+    { label: t.drizzleModeTimestampMs, value: "timestamp_ms" },
+    { label: t.drizzleModeBigint, value: "bigint" }
   ]
 })
 
@@ -111,12 +101,6 @@ function handleValidationChange(property: Property, value: unknown) {
       baseProperties.minimum = props.schema.minimum
     if (props.schema.maximum !== undefined)
       baseProperties.maximum = props.schema.maximum
-    if (props.schema.exclusiveMinimum !== undefined)
-      baseProperties.exclusiveMinimum = props.schema.exclusiveMinimum
-    if (props.schema.exclusiveMaximum !== undefined)
-      baseProperties.exclusiveMaximum = props.schema.exclusiveMaximum
-    if (props.schema.multipleOf !== undefined)
-      baseProperties.multipleOf = props.schema.multipleOf
     if (props.schema.enum !== undefined)
       baseProperties.enum = [...(props.schema.enum as unknown[])]
     if (props.schema.primary !== undefined)
@@ -137,9 +121,6 @@ function handleValidationChange(property: Property, value: unknown) {
     if (value !== "none") {
       delete updatedProperties.minimum
       delete updatedProperties.maximum
-      delete updatedProperties.exclusiveMinimum
-      delete updatedProperties.exclusiveMaximum
-      delete updatedProperties.multipleOf
     }
     emit("change", updatedProperties as ObjectJSONSchema)
     return
@@ -155,47 +136,9 @@ function handleValidationChange(property: Property, value: unknown) {
     return
   }
 
-  // Handle exclusiveMinimum — clear minimum when setting exclusiveMinimum
-  if (property === "exclusiveMinimum" && value !== undefined) {
-    const updatedProperties: Partial<ObjectJSONSchema> = { ...baseProperties }
-    updatedProperties.exclusiveMinimum = value as number
-    delete updatedProperties.minimum
-    emit("change", updatedProperties as ObjectJSONSchema)
-    return
-  }
-
-  // Handle minimum — clear exclusiveMinimum when setting minimum
-  if (property === "minimum" && value !== undefined) {
-    const updatedProperties: Partial<ObjectJSONSchema> = { ...baseProperties }
-    updatedProperties.minimum = value as number
-    delete updatedProperties.exclusiveMinimum
-    emit("change", updatedProperties as ObjectJSONSchema)
-    return
-  }
-
-  // Handle exclusiveMaximum — clear maximum when setting exclusiveMaximum
-  if (property === "exclusiveMaximum" && value !== undefined) {
-    const updatedProperties: Partial<ObjectJSONSchema> = { ...baseProperties }
-    updatedProperties.exclusiveMaximum = value as number
-    delete updatedProperties.maximum
-    emit("change", updatedProperties as ObjectJSONSchema)
-    return
-  }
-
-  // Handle maximum — clear exclusiveMaximum when setting maximum
-  if (property === "maximum" && value !== undefined) {
-    const updatedProperties: Partial<ObjectJSONSchema> = { ...baseProperties }
-    updatedProperties.maximum = value as number
-    delete updatedProperties.exclusiveMaximum
-    emit("change", updatedProperties as ObjectJSONSchema)
-    return
-  }
-
   if (value !== undefined) {
     const updatedProperties: Partial<ObjectJSONSchema> = { ...baseProperties }
-    if (property === "multipleOf")
-      updatedProperties.multipleOf = value as number
-    else if (property === "enum") updatedProperties.enum = value as unknown[]
+    if (property === "enum") updatedProperties.enum = value as unknown[]
     else if (property === "primary") updatedProperties.primary = value as boolean
     else if (property === "autoIncrement") updatedProperties.autoIncrement = value as boolean
     else if (property === "unique") updatedProperties.unique = value as boolean
@@ -253,20 +196,10 @@ const enumError = computed(
       err => err.path[0] === "enum"
     )?.message
 )
-const multipleOfError = computed(
-  () =>
-    props.validationNode?.validation.errors?.find(
-      err => err.path[0] === "multipleOf"
-    )?.message
-)
-
 const hasConstraint = computed(
   () =>
     !!minimum.value
     || !!maximum.value
-    || !!exclusiveMinimum.value
-    || !!exclusiveMaximum.value
-    || !!multipleOf.value
     || enumValues.value.length > 0
     || isPrimary.value
     || isAutoIncrement.value
@@ -276,9 +209,6 @@ const hasConstraint = computed(
 
 const minimumValue = computed(() => minimum.value ?? null)
 const maximumValue = computed(() => maximum.value ?? null)
-const exclusiveMinimumValue = computed(() => exclusiveMinimum.value ?? null)
-const exclusiveMaximumValue = computed(() => exclusiveMaximum.value ?? null)
-const multipleOfValue = computed(() => multipleOf.value ?? null)
 </script>
 
 <template>
@@ -357,8 +287,7 @@ const multipleOfValue = computed(() => multipleOf.value ?? null)
           </div>
         </div>
 
-        <!-- Minimum (hidden when exclusiveMinimum is set) -->
-        <div v-if="(!readOnly || !!minimum) && !exclusiveMinimum" class="flex flex-col gap-2">
+        <div v-if="!readOnly || !!minimum" class="flex flex-col gap-2">
           <label :for="minimumId" class="text-sm font-medium" :class="[minimum !== undefined && (!!minMaxError || !!redundantMinError) && 'text-red-500']">
             {{ t.numberMinimumLabel }}
           </label>
@@ -376,8 +305,7 @@ const multipleOfValue = computed(() => multipleOf.value ?? null)
           />
         </div>
 
-        <!-- Maximum (hidden when exclusiveMaximum is set) -->
-        <div v-if="(!readOnly || !!maximum) && !exclusiveMaximum" class="flex flex-col gap-2">
+        <div v-if="!readOnly || !!maximum" class="flex flex-col gap-2">
           <label :for="maximumId" class="text-sm font-medium" :class="[maximum !== undefined && (!!minMaxError || !!redundantMaxError) && 'text-red-500']">
             {{ t.numberMaximumLabel }}
           </label>
@@ -393,59 +321,6 @@ const multipleOfValue = computed(() => multipleOf.value ?? null)
             size="small"
             show-buttons
           />
-        </div>
-      </div>
-
-      <div v-if="!readOnly || !!exclusiveMaximum || !!exclusiveMinimum" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Exclusive Minimum (hidden when minimum is set) -->
-        <div v-if="(!readOnly || !!exclusiveMinimum) && !minimum" class="flex flex-col gap-2">
-          <label :for="exclusiveMinimumId" class="text-sm font-medium">{{ t.numberExclusiveMinimumLabel }}</label>
-          <InputNumber
-            :input-id="exclusiveMinimumId"
-            :model-value="exclusiveMinimumValue"
-            @update:model-value="(v: number | null) => handleValidationChange('exclusiveMinimum', v ?? undefined)"
-            :placeholder="t.numberExclusiveMinimumPlaceholder"
-            :step="integer ? 1 : undefined"
-            :disabled="readOnly"
-            fluid
-            size="small"
-            show-buttons
-          />
-        </div>
-        <!-- Exclusive Maximum (hidden when maximum is set) -->
-        <div v-if="(!readOnly || !!exclusiveMaximum) && !maximum" class="flex flex-col gap-2">
-          <label :for="exclusiveMaximumId" class="text-sm font-medium">{{ t.numberExclusiveMaximumLabel }}</label>
-          <InputNumber
-            :input-id="exclusiveMaximumId"
-            :model-value="exclusiveMaximumValue"
-            @update:model-value="(v: number | null) => handleValidationChange('exclusiveMaximum', v ?? undefined)"
-            :placeholder="t.numberExclusiveMaximumPlaceholder"
-            :step="integer ? 1 : undefined"
-            :disabled="readOnly"
-            fluid
-            size="small"
-            show-buttons
-          />
-        </div>
-      </div>
-
-      <div v-if="!readOnly || !!multipleOf" class="flex flex-col gap-2">
-        <label :for="multipleOfId" class="text-sm font-medium" :class="[!!multipleOfError && 'text-red-500']">{{ t.numberMultipleOfLabel }}</label>
-        <InputNumber
-          :input-id="multipleOfId"
-          :model-value="multipleOfValue"
-          @update:model-value="(v: number | null) => handleValidationChange('multipleOf', v ?? undefined)"
-          :placeholder="t.numberMultipleOfPlaceholder"
-          :min="0"
-          :step="integer ? 1 : undefined"
-          :invalid="!!multipleOfError"
-          :disabled="readOnly"
-          fluid
-          size="small"
-          show-buttons
-        />
-        <div v-if="!!multipleOfError" class="text-xs text-red-500 italic whitespace-pre-line">
-          {{ multipleOfError }}
         </div>
       </div>
     </template>

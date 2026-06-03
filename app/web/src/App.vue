@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExtractionRecord, TableData, TableInfo } from "@/api-client"
+import type { ExtractionRecord, MigrateResult, MigrationRiskReport, TableData, TableInfo } from "@/api-client"
 import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 import tableSchemaMeta from "@aiex/table-schema"
 import { useEventListener } from "@vueuse/core"
@@ -8,7 +8,7 @@ import Dialog from "primevue/dialog"
 import { computed, defineAsyncComponent, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { toast, Toaster } from "vue-sonner"
-import { deleteSchema, getPromptSnapshot, getSchema, getTableData, listDataTables, listExtractions, listSchemas, migrateSchema, saveSchema } from "@/api-client"
+import { deleteSchema, getPromptSnapshot, getSchema, getTableData, listDataTables, listExtractions, listSchemas, migrateSchema, MigrationError, saveSchema } from "@/api-client"
 import { cloneJson, isDeepEqual } from "@/lib/jsonschema-editor/lib/object-utils"
 import { useTheme } from "@/lib/jsonschema-editor/themes/useTheme"
 
@@ -228,6 +228,8 @@ const showPromptPreview = ref(false)
 const promptPreviewName = ref("")
 const promptPreviewContent = ref("")
 const promptPreviewLoading = ref(false)
+const showMigrationRisk = ref(false)
+const migrationRisk = ref<MigrationRiskReport | null>(null)
 
 const hasUnsavedChanges = computed(() => {
   return !isDeepEqual(schema.value, originalSchema.value)
@@ -288,6 +290,25 @@ async function handleSave() {
   loading.value = false
 }
 
+function showMigrationResult(result: MigrateResult) {
+  if (result.warnings && result.warnings.length > 0) {
+    for (const warning of result.warnings) {
+      toast.warning(warning)
+    }
+  }
+
+  if (result.changes > 0) {
+    toast.success(t("app.migrationApplied", { changes: result.changes, tables: result.tables }))
+  } else {
+    toast.info(t("app.noChangesDetected"))
+  }
+}
+
+async function runMigration(force = false) {
+  const result = await migrateSchema({ force })
+  showMigrationResult(result)
+}
+
 async function handleSaveAndMigrate() {
   const schemaValue = schema.value as any
   const tableName = schemaValue.table?.name?.trim()
@@ -307,26 +328,32 @@ async function handleSaveAndMigrate() {
     await loadSchemaList()
 
     loading.value = false
-    const result = await migrateSchema()
-
-    if (result.warnings && result.warnings.length > 0) {
-      for (const warning of result.warnings) {
-        toast.warning(warning)
-      }
+    await runMigration()
+  } catch (e) {
+    if (e instanceof MigrationError && e.riskReport?.hasHighRisk) {
+      migrationRisk.value = e.riskReport
+      showMigrationRisk.value = true
+      return
     }
+    const message = e instanceof Error ? e.message : String(e)
+    toast.error(message || t("app.migrationFailed"))
+  } finally {
+    loading.value = false
+    migrating.value = false
+  }
+}
 
-    if (result.changes > 0) {
-      toast.success(t("app.migrationApplied", { changes: result.changes, tables: result.tables }))
-    } else {
-      toast.info(t("app.noChangesDetected"))
-    }
+async function confirmHighRiskMigration() {
+  showMigrationRisk.value = false
+  migrating.value = true
+  try {
+    await runMigration(true)
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     toast.error(message || t("app.migrationFailed"))
+  } finally {
+    migrating.value = false
   }
-
-  loading.value = false
-  migrating.value = false
 }
 
 async function handleDelete(name: string) {
@@ -405,6 +432,40 @@ onMounted(() => {
 <template>
   <div class="jscb h-screen bg-background p-4">
     <Toaster position="top-center" rich-colors />
+
+    <Dialog v-model:visible="showMigrationRisk" modal :draggable="false" :style="{ width: '760px' }" :header="$t('app.migrationRiskTitle')">
+      <div class="space-y-4">
+        <p class="m-0 text-sm text-muted-foreground">
+          {{ $t("app.migrationRiskDescription") }}
+        </p>
+        <div class="max-h-[360px] overflow-y-auto rounded-md border border-border">
+          <div
+            v-for="(item, index) in migrationRisk?.items ?? []"
+            :key="`${item.kind}-${item.table}-${item.column ?? ''}-${index}`"
+            class="grid grid-cols-[88px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-2 last:border-b-0"
+          >
+            <span
+              class="h-6 rounded px-2 text-center text-xs font-semibold uppercase leading-6"
+              :class="item.severity === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : item.severity === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'"
+            >
+              {{ item.severity }}
+            </span>
+            <div class="min-w-0">
+              <p class="m-0 text-sm text-foreground">
+                {{ item.message }}
+              </p>
+              <p class="m-0 mt-1 truncate text-xs text-muted-foreground">
+                {{ item.table }}<span v-if="item.column">.{{ item.column }}</span> · {{ item.kind }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <Button :label="$t('app.cancel')" severity="secondary" size="small" text @click="showMigrationRisk = false" />
+        <Button :label="$t('app.forceMigration')" severity="danger" size="small" :loading="migrating" @click="confirmHighRiskMigration" />
+      </template>
+    </Dialog>
 
     <Dialog v-model:visible="showPromptPreview" modal :draggable="false" :style="{ width: '720px' }" :header="$t('app.promptPreview', { name: promptPreviewName })">
       <div v-if="promptPreviewLoading" class="flex items-center justify-center py-8 text-muted-foreground">

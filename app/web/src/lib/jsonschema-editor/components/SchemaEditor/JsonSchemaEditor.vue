@@ -157,11 +157,11 @@ const leftTab = ref<"fields" | "examples">("fields")
         "
       >
         <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" :show-fullscreen="showFullscreen" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" @toggle-fullscreen="toggleFullscreen" />
-        <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
+        <div class="editor-pane-header gap-2">
           <button
             type="button"
             @click="leftTab = 'fields'"
-            class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+            class="h-8 px-3 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
               leftTab === 'fields'
                 ? 'bg-secondary text-foreground font-bold shadow-xs'
                 : 'text-muted-foreground hover:text-foreground',
@@ -172,7 +172,7 @@ const leftTab = ref<"fields" | "examples">("fields")
           <button
             type="button"
             @click="leftTab = 'examples'"
-            class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+            class="h-8 px-3 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
               leftTab === 'examples'
                 ? 'bg-secondary text-foreground font-bold shadow-xs'
                 : 'text-muted-foreground hover:text-foreground',
@@ -210,11 +210,11 @@ const leftTab = ref<"fields" | "examples">("fields")
             "
           >
             <TableConfigEditor v-if="!readOnly" :loading="loading" :migrating="migrating" :show-fullscreen="showFullscreen" @save="emit('save')" @save-and-migrate="emit('saveAndMigrate')" @toggle-fullscreen="toggleFullscreen" />
-            <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
+            <div class="editor-pane-header gap-2">
               <button
                 type="button"
                 @click="leftTab = 'fields'"
-                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                class="h-8 px-3 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
                   leftTab === 'fields'
                     ? 'bg-secondary text-foreground font-bold shadow-xs'
                     : 'text-muted-foreground hover:text-foreground',
@@ -225,7 +225,7 @@ const leftTab = ref<"fields" | "examples">("fields")
               <button
                 type="button"
                 @click="leftTab = 'examples'"
-                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                class="h-8 px-3 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
                   leftTab === 'examples'
                     ? 'bg-secondary text-foreground font-bold shadow-xs'
                     : 'text-muted-foreground hover:text-foreground',
@@ -270,11 +270,11 @@ const leftTab = ref<"fields" | "examples">("fields")
             class="flex flex-col min-h-0 min-w-0"
             :style="{ width: `${leftPanelWidth}%` }"
           >
-            <div class="flex items-center gap-2 border-b border-border/80 px-4 py-2 shrink-0 bg-secondary/10">
+            <div class="editor-pane-header gap-2">
               <button
                 type="button"
                 @click="leftTab = 'fields'"
-                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                class="h-8 px-3 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
                   leftTab === 'fields'
                     ? 'bg-secondary text-foreground font-bold shadow-xs'
                     : 'text-muted-foreground hover:text-foreground',
@@ -285,7 +285,7 @@ const leftTab = ref<"fields" | "examples">("fields")
               <button
                 type="button"
                 @click="leftTab = 'examples'"
-                class="px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
+                class="h-8 px-3 text-xs font-semibold rounded-md transition-colors cursor-pointer" :class="[
                   leftTab === 'examples'
                     ? 'bg-secondary text-foreground font-bold shadow-xs'
                     : 'text-muted-foreground hover:text-foreground',
