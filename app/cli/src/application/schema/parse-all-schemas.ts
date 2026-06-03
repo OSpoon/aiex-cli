@@ -1,5 +1,6 @@
-import type { ParsedRelation, ParsedReverseRelation, ParsedTable } from '@/domain/schema/types'
+import type { ParsedRelation, ParsedReverseRelation, ParsedTable, SchemaMappingEntry } from '@/domain/schema/types'
 import { ZodError } from 'zod'
+import { collectDialectWarnings } from '@/domain/schema/dialect'
 import { parseJsonSchema } from '@/domain/schema/parser'
 import { JsonSchemaDefinitionSchema } from '@/domain/schema/schemas'
 import { generateDrizzleSchema } from '@/infrastructure/schema/generate-drizzle-schema'
@@ -14,6 +15,7 @@ export interface ParsedSchemas {
   relations: ParsedRelation[]
   reverseRelations: ParsedReverseRelation[]
   warnings: string[]
+  mapping: SchemaMappingEntry[]
   drizzleCode: string
 }
 
@@ -27,6 +29,7 @@ export function parseAllSchemas(entries: SchemaEntry[]): { success: true, data: 
   const relations: ParsedRelation[] = []
   const reverseRelations: ParsedReverseRelation[] = []
   const warnings: string[] = []
+  const mapping: SchemaMappingEntry[] = []
 
   for (const { filePath, content } of entries) {
     let schema: unknown
@@ -38,12 +41,17 @@ export function parseAllSchemas(entries: SchemaEntry[]): { success: true, data: 
     }
 
     try {
+      warnings.push(...collectDialectWarnings(schema, filePath))
       const validated = JsonSchemaDefinitionSchema.parse(schema)
       const result = parseJsonSchema(validated)
       tables.push(...result.tables)
       relations.push(...result.relations)
       reverseRelations.push(...result.reverseRelations)
       warnings.push(...result.warnings)
+      mapping.push(...(result.mapping ?? []).map(entry => ({
+        ...entry,
+        schemaPath: `${filePath}${entry.schemaPath.slice(1)}`,
+      })))
     }
     catch (e) {
       if (e instanceof ZodError) {
@@ -54,5 +62,5 @@ export function parseAllSchemas(entries: SchemaEntry[]): { success: true, data: 
   }
 
   const drizzleCode = generateDrizzleSchema({ tables, relations, reverseRelations, warnings })
-  return { success: true, data: { tables, relations, reverseRelations, warnings, drizzleCode } }
+  return { success: true, data: { tables, relations, reverseRelations, warnings, mapping, drizzleCode } }
 }

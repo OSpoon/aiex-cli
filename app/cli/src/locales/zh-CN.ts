@@ -32,6 +32,7 @@ export const zhCN: Translations = {
       args: {
         generate: '仅生成 Drizzle 代码，跳过迁移',
         name: '迁移名称',
+        force: '允许高风险 schema 迁移',
       },
       noSchemas: '在 {{path}} 未找到 schema 文件',
       runWebHint: '运行 {{cmd}} 在 Web UI 中创建和配置 schemas',
@@ -47,6 +48,8 @@ export const zhCN: Translations = {
       migrationsApplied: '迁移已应用',
       migrationFail: '迁移失败',
       runWithoutGenerate: '完成！不加 --generate 运行以应用迁移',
+      riskSummary: '迁移风险: {{level}}（{{count}} 项）',
+      highRiskBlocked: '已阻止高风险 schema 迁移。请检查 .aiex/drizzle/schema-map.json，确认后使用 {{flag}} 继续。',
     },
     extract: {
       description: '从文本、图片或 PDF 中抽取结构化数据',
@@ -217,6 +220,7 @@ export const zhCN: Translations = {
       migrationFailed: '迁移失败',
       migrationHelperInvalidOutput: '迁移辅助程序未返回有效输出',
       migrationHelperFailed: '迁移辅助程序失败',
+      highRiskMigrationBlocked: '已阻止高风险 schema 迁移',
     },
     db: {
       notFound: '在 {{path}} 未找到数据库。请先运行 {{cmd}} 创建数据库。',

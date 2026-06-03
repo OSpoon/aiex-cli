@@ -32,7 +32,7 @@ aiex watch -s invoice -d ./watch_folder # watch folder daemon for automatic extr
 
 ## ✨ Features
 
-- **JSON Schema → SQLite** — Define tables as JSON Schema files, generate Drizzle ORM schema, and migrate to SQLite
+- **AIEX JSON Schema → SQLite** — Define tables with a Drizzle-backed JSON Schema dialect, generate Drizzle ORM schema, and migrate to SQLite
 - **Web Configuration & Viewer** — Browser-based UI for designing schemas, configuring integrations, previewing prompts, and browsing extracted data
 - **AI Extraction** — Extract structured data from files (text, images, PDFs) using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
 - **Interactive Mode** — Run `aiex extract` without arguments for a guided extraction workflow
@@ -61,7 +61,7 @@ Opens a browser UI where you can visually design and manage your schemas, config
 aiex schema
 ```
 
-Converts your JSON Schema files into a SQLite database with full migration support.
+Converts AIEX JSON Schema files into a SQLite database with full migration support. AIEX uses a Drizzle-backed schema dialect rather than the full JSON Schema specification; see [Docs/schema-dialect.md](Docs/schema-dialect.md) for the supported mapping surface.
 
 ### 3. Extract Data
 
@@ -107,6 +107,7 @@ Runs a background watcher daemon to monitor a folder for new incoming files (suc
 | --- | --- |
 | `aiex schema` | Parse JSON Schema files and migrate to SQLite |
 | `aiex schema --generate` | Generate Drizzle schema code only (skip migration) |
+| `aiex schema --force` | Allow a high-risk schema migration after reviewing the migration risk report |
 | `aiex web` | Launch visual schema/configuration UI and data viewer in browser |
 | `aiex extract` | Interactive mode — prompts for schema and file/directory input |
 | `aiex extract -s <name> -f <file>` | Extract structured data from a file and insert into SQLite database |

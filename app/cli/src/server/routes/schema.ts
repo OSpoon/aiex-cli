@@ -134,10 +134,11 @@ export function schemaRoutes(config: MigrationConfig): Hono {
   app.post('/migrate', async (c) => {
     try {
       await ensureDir()
-      const result = await runSchemaSync(config)
+      const force = c.req.query('force') === 'true'
+      const result = await runSchemaSync(config, { force })
       if (!result.success) {
-        const status = result.schemaCount === 0 ? 400 : 500
-        return c.json({ success: false, error: result.error || t('server.migrationFailed') }, status)
+        const status = result.schemaCount === 0 ? 400 : result.riskReport.hasHighRisk ? 409 : 500
+        return c.json({ success: false, error: result.error || t('server.migrationFailed'), riskReport: result.riskReport }, status)
       }
 
       return c.json({
@@ -147,6 +148,7 @@ export function schemaRoutes(config: MigrationConfig): Hono {
         tables: result.tables,
         relations: result.relations,
         warnings: result.warnings,
+        riskReport: result.riskReport,
       })
     }
     catch (error: unknown) {

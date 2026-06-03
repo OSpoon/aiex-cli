@@ -168,5 +168,102 @@ describe('schema-runner', () => {
       expect(result.error).toBeDefined()
       expect(result.schemaCount).toBe(0)
     })
+
+    it('should block high-risk migrations before applying migration', async () => {
+      const config = createMigrationConfig(projectDir)
+      fs.mkdirSync(path.dirname(config.drizzleSchemaPath), { recursive: true })
+      fs.writeFileSync(path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json'), JSON.stringify({
+        dialect: 'aiex-drizzle-sqlite',
+        entries: [
+          {
+            schemaPath: `${projectDir}/.aiex/schema/customer.json.properties.name`,
+            table: 'customers',
+            column: 'name',
+            drizzleType: 'text()',
+            sqliteType: 'text',
+            nullable: true,
+            primary: false,
+            unique: false,
+            relation: 'root',
+            notes: [],
+          },
+          {
+            schemaPath: `${projectDir}/.aiex/schema/customer.json.properties.email`,
+            table: 'customers',
+            column: 'email',
+            drizzleType: 'text()',
+            sqliteType: 'text',
+            nullable: true,
+            primary: false,
+            unique: false,
+            relation: 'root',
+            notes: [],
+          },
+        ],
+      }))
+      fs.writeFileSync(path.join(config.schemaPath, 'customer.json'), JSON.stringify({
+        title: 'Customer',
+        type: 'object',
+        table: { name: 'customers' },
+        properties: {
+          name: { type: 'string' },
+        },
+      }))
+
+      const result = await runSchemaSync(config)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('High-risk schema migration blocked')
+      expect(result.riskReport.hasHighRisk).toBe(true)
+      expect(result.riskReport.items).toContainEqual(expect.objectContaining({
+        kind: 'column_removed',
+        column: 'email',
+      }))
+
+      const report = JSON.parse(fs.readFileSync(path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json'), 'utf-8')) as {
+        baselineEntries?: unknown[]
+      }
+      expect(report.baselineEntries).toHaveLength(2)
+    })
+
+    it('should allow high-risk migrations when force is enabled', async () => {
+      const config = createMigrationConfig(projectDir)
+      fs.mkdirSync(path.dirname(config.drizzleSchemaPath), { recursive: true })
+      fs.writeFileSync(path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json'), JSON.stringify({
+        dialect: 'aiex-drizzle-sqlite',
+        entries: [
+          {
+            schemaPath: `${projectDir}/.aiex/schema/customer.json.properties.email`,
+            table: 'customers',
+            column: 'email',
+            drizzleType: 'text()',
+            sqliteType: 'text',
+            nullable: true,
+            primary: false,
+            unique: false,
+            relation: 'root',
+            notes: [],
+          },
+        ],
+      }))
+      fs.writeFileSync(path.join(config.schemaPath, 'customer.json'), JSON.stringify({
+        title: 'Customer',
+        type: 'object',
+        table: { name: 'customers' },
+        properties: {
+          name: { type: 'string' },
+        },
+      }))
+
+      const result = await runSchemaSync(config, { force: true })
+
+      expect(result.error).not.toBe('High-risk schema migration blocked')
+      expect(result.riskReport.hasHighRisk).toBe(true)
+
+      const report = JSON.parse(fs.readFileSync(path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json'), 'utf-8')) as {
+        baselineEntries?: unknown[]
+      }
+      expect(report.baselineEntries).toBeUndefined()
+    })
   })
 })

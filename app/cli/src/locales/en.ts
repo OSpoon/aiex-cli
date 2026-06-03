@@ -30,6 +30,7 @@ export const en = {
       args: {
         generate: 'Only generate Drizzle schema, skip migrate',
         name: 'Name for the migration',
+        force: 'Allow high-risk schema migrations',
       },
       noSchemas: 'No schema files found in {{path}}',
       runWebHint: 'Run {{cmd}} to create and configure schemas in the Web UI',
@@ -45,6 +46,8 @@ export const en = {
       migrationsApplied: 'Migrations applied',
       migrationFail: 'Migration failed',
       runWithoutGenerate: 'Done! Run without --generate to apply migrations',
+      riskSummary: 'Migration risk: {{level}} ({{count}} item(s))',
+      highRiskBlocked: 'High-risk schema migration blocked. Review .aiex/drizzle/schema-map.json and rerun with {{flag}} to continue.',
     },
     extract: {
       description: 'Extract structured data from text, images, or PDFs',
@@ -215,6 +218,7 @@ export const en = {
       migrationFailed: 'Migration failed',
       migrationHelperInvalidOutput: 'Migration helper did not return valid output',
       migrationHelperFailed: 'Migration helper failed',
+      highRiskMigrationBlocked: 'High-risk schema migration blocked',
     },
     db: {
       notFound: 'Database not found at {{path}}. Run {{cmd}} first to create the database.',

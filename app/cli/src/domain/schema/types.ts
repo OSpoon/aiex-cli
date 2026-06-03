@@ -5,8 +5,8 @@ export type ColumnType = { class: 'text', mode?: 'json' }
 export interface CheckConstraint {
   name: string
   column: string
-  kind: 'min_length' | 'max_length' | 'min_value' | 'max_value'
-  value: number
+  kind: 'min_length' | 'max_length' | 'min_value' | 'max_value' | 'enum_value'
+  value: number | (string | number)[]
 }
 
 export interface ParsedColumn {
@@ -22,6 +22,49 @@ export interface ParsedColumn {
     table: string
     column: string
   }
+}
+
+export interface SchemaMappingEntry {
+  schemaPath: string
+  table: string
+  column: string
+  drizzleType: string
+  sqliteType: 'text' | 'integer' | 'real'
+  nullable: boolean
+  primary: boolean
+  unique: boolean
+  relation?: 'root' | 'has-one' | 'has-many'
+  constraints?: {
+    enumValues?: (string | number)[]
+  }
+  notes: string[]
+}
+
+export type MigrationRiskSeverity = 'low' | 'medium' | 'high'
+
+export interface MigrationRiskItem {
+  severity: MigrationRiskSeverity
+  kind:
+    | 'table_added'
+    | 'table_removed'
+    | 'column_added'
+    | 'column_removed'
+    | 'column_type_changed'
+    | 'nullable_tightened'
+    | 'nullable_relaxed'
+    | 'unique_added'
+    | 'primary_changed'
+    | 'enum_narrowed'
+    | 'enum_changed'
+  table: string
+  column?: string
+  message: string
+}
+
+export interface MigrationRiskReport {
+  level: 'none' | MigrationRiskSeverity
+  items: MigrationRiskItem[]
+  hasHighRisk: boolean
 }
 
 export interface ParsedTable {
@@ -50,6 +93,7 @@ export interface ParseResult {
   relations: ParsedRelation[]
   reverseRelations: ParsedReverseRelation[]
   warnings: string[]
+  mapping?: SchemaMappingEntry[]
 }
 
 export interface MigrationConfig {

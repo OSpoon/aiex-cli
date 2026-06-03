@@ -1,5 +1,5 @@
 import type { JsonSchemaDefinition, JsonSchemaProperty } from './schemas'
-import type { CheckConstraint, ColumnType, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult } from './types'
+import type { CheckConstraint, ColumnType, ParsedColumn, ParsedRelation, ParsedReverseRelation, ParsedTable, ParseResult, SchemaMappingEntry } from './types'
 
 export function toSnakeCase(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
@@ -77,12 +77,88 @@ function getColumnChecks(prop: JsonSchemaProperty, colName: string): CheckConstr
       checks.push({ name: `${colName}_max`, column: colName, kind: 'max_value', value: prop.maximum })
   }
 
+  if (prop.enum?.length)
+    checks.push({ name: `${colName}_enum`, column: colName, kind: 'enum_value', value: prop.enum })
+
   return checks
+}
+
+function warnNonDrizzleBackedProperty(
+  warnings: string[],
+  schemaPath: string,
+  property: JsonSchemaProperty,
+): void {
+  if (property.pattern) {
+    warnings.push(
+      `${schemaPath}.pattern is kept for extraction guidance but is not emitted as a SQLite constraint because SQLite has no portable REGEXP support.`,
+    )
+  }
+  if (property.drizzle?.customType) {
+    warnings.push(
+      `${schemaPath}.drizzle.customType is declared but not emitted. AIEX currently supports stable built-in Drizzle SQLite column types only.`,
+    )
+  }
+}
+
+function describeColumnType(columnType: ColumnType): { drizzleType: string, sqliteType: 'text' | 'integer' | 'real' } {
+  switch (columnType.class) {
+    case 'text':
+      return {
+        drizzleType: columnType.mode === 'json' ? `text({ mode: 'json' })` : 'text()',
+        sqliteType: 'text',
+      }
+    case 'integer':
+      return {
+        drizzleType: columnType.mode ? `integer({ mode: '${columnType.mode}' })` : 'integer()',
+        sqliteType: 'integer',
+      }
+    case 'real':
+      return { drizzleType: 'real()', sqliteType: 'real' }
+  }
+}
+
+function columnNotes(property: JsonSchemaProperty, column: ParsedColumn): string[] {
+  const notes: string[] = []
+  if (property.type === 'object' || property.type === 'array')
+    notes.push('stored_as_json')
+  if (property.format === 'date-time')
+    notes.push('date_time_as_timestamp')
+  if (property.drizzle?.mode)
+    notes.push(`drizzle_mode:${property.drizzle.mode}`)
+  if (property.foreignKey)
+    notes.push(`foreign_key:${property.foreignKey.table}.${property.foreignKey.column}`)
+  if (column.default !== undefined)
+    notes.push('default')
+  return notes
+}
+
+function mapColumnToReport(
+  schemaPath: string,
+  table: string,
+  property: JsonSchemaProperty,
+  column: ParsedColumn,
+  relation: SchemaMappingEntry['relation'],
+): SchemaMappingEntry {
+  const columnType = describeColumnType(column.columnType)
+  return {
+    schemaPath,
+    table,
+    column: column.name,
+    drizzleType: columnType.drizzleType,
+    sqliteType: columnType.sqliteType,
+    nullable: column.isNullable,
+    primary: column.isPrimary,
+    unique: column.isUnique,
+    relation,
+    constraints: property.enum?.length ? { enumValues: property.enum } : undefined,
+    notes: columnNotes(property, column),
+  }
 }
 
 function parseObjectToTable(
   schema: JsonSchemaDefinition,
-  _warnings: string[],
+  warnings: string[],
+  mapping: SchemaMappingEntry[],
 ): ParsedTable {
   const tableName = schema.table.name
   const columns: ParsedColumn[] = []
@@ -113,16 +189,22 @@ function parseObjectToTable(
     const column = mapPropertyToColumn(propName, prop, isRequired)
     columns.push(column)
     checks.push(...getColumnChecks(prop, column.name))
+    warnNonDrizzleBackedProperty(warnings, `$.properties.${propName}`, prop)
+    mapping.push(mapColumnToReport(`$.properties.${propName}`, tableName, prop, column, 'root'))
   }
 
   if (schema.table.timestamps) {
     const tsCol: ParsedColumn = { name: 'created_at', columnType: { class: 'integer', mode: 'timestamp' }, isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false }
     columns.push(tsCol)
     columns.push({ ...tsCol, name: 'updated_at' })
+    mapping.push(mapColumnToReport('$.table.timestamps.createdAt', tableName, { type: 'integer', drizzle: { mode: 'timestamp' } }, tsCol, 'root'))
+    mapping.push(mapColumnToReport('$.table.timestamps.updatedAt', tableName, { type: 'integer', drizzle: { mode: 'timestamp' } }, { ...tsCol, name: 'updated_at' }, 'root'))
   }
 
   if (schema.table.softDelete) {
-    columns.push({ name: 'deleted_at', columnType: { class: 'integer', mode: 'timestamp' }, isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false })
+    const deletedAt: ParsedColumn = { name: 'deleted_at', columnType: { class: 'integer', mode: 'timestamp' }, isPrimary: false, isAutoIncrement: false, isNullable: true, isUnique: false }
+    columns.push(deletedAt)
+    mapping.push(mapColumnToReport('$.table.softDelete.deletedAt', tableName, { type: 'integer', drizzle: { mode: 'timestamp' } }, deletedAt, 'root'))
   }
 
   return checks.length > 0 ? { name: tableName, columns, checks } : { name: tableName, columns }
@@ -133,6 +215,7 @@ function parseNestedObject(
   property: JsonSchemaProperty,
   parentTableName: string,
   warnings: string[],
+  mapping: SchemaMappingEntry[],
 ): { table: ParsedTable, relation: ParsedRelation, reverseRelation: ParsedReverseRelation } {
   const nestedTableName = `${parentTableName}_${toSnakeCase(propName)}`
   const columns: ParsedColumn[] = []
@@ -147,6 +230,18 @@ function parseNestedObject(
     isNullable: false,
     isUnique: false,
   })
+  mapping.push({
+    schemaPath: `$.properties.${propName}.id`,
+    table: nestedTableName,
+    column: 'id',
+    drizzleType: 'integer().primaryKey({ autoIncrement: true })',
+    sqliteType: 'integer',
+    nullable: false,
+    primary: true,
+    unique: false,
+    relation: relationType,
+    notes: ['generated_nested_primary_key'],
+  })
 
   columns.push({
     name: `${parentTableName}_id`,
@@ -157,6 +252,18 @@ function parseNestedObject(
     isUnique: false,
     isForeignKey: true,
     foreignKeyRef: { table: parentTableName, column: 'id' },
+  })
+  mapping.push({
+    schemaPath: `$.properties.${propName}.${parentTableName}Id`,
+    table: nestedTableName,
+    column: `${parentTableName}_id`,
+    drizzleType: 'integer().references(...)',
+    sqliteType: 'integer',
+    nullable: false,
+    primary: false,
+    unique: false,
+    relation: relationType,
+    notes: [`generated_parent_foreign_key:${parentTableName}.id`],
   })
 
   if (property.type === 'object' && property.properties) {
@@ -170,6 +277,8 @@ function parseNestedObject(
       const column = mapPropertyToColumn(childName, childProp, false)
       columns.push(column)
       checks.push(...getColumnChecks(childProp, column.name))
+      warnNonDrizzleBackedProperty(warnings, `$.properties.${propName}.properties.${childName}`, childProp)
+      mapping.push(mapColumnToReport(`$.properties.${propName}.properties.${childName}`, nestedTableName, childProp, column, relationType))
     }
   }
 
@@ -197,24 +306,25 @@ export function parseJsonSchema(schema: JsonSchemaDefinition): ParseResult {
   const relations: ParsedRelation[] = []
   const reverseRelations: ParsedReverseRelation[] = []
   const warnings: string[] = []
+  const mapping: SchemaMappingEntry[] = []
 
-  const mainTable = parseObjectToTable(schema, warnings)
+  const mainTable = parseObjectToTable(schema, warnings, mapping)
   tables.push(mainTable)
 
   for (const [propName, prop] of Object.entries(schema.properties)) {
     if (prop.type === 'object' && prop.nested?.enabled) {
-      const nested = parseNestedObject(propName, prop, mainTable.name, warnings)
+      const nested = parseNestedObject(propName, prop, mainTable.name, warnings, mapping)
       tables.push(nested.table)
       relations.push(nested.relation)
       reverseRelations.push(nested.reverseRelation)
     }
     else if (prop.type === 'array' && prop.items?.nested?.enabled && prop.items?.type === 'object' && prop.items.properties) {
-      const nested = parseNestedObject(propName, prop.items, mainTable.name, warnings)
+      const nested = parseNestedObject(propName, prop.items, mainTable.name, warnings, mapping)
       tables.push(nested.table)
       relations.push(nested.relation)
       reverseRelations.push(nested.reverseRelation)
     }
   }
 
-  return { tables, relations, reverseRelations, warnings }
+  return { tables, relations, reverseRelations, warnings, mapping }
 }

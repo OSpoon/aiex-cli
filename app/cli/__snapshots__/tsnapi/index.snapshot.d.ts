@@ -126,6 +126,7 @@ export interface ParseResult {
   relations: ParsedRelation[];
   reverseRelations: ParsedReverseRelation[];
   warnings: string[];
+  mapping?: SchemaMappingEntry[];
 }
 
 // Types

@@ -15,6 +15,12 @@ function renderDefaultValue(value: unknown): string {
   return JSON.stringify(value)
 }
 
+function renderSqlLiteral(value: string | number): string {
+  return typeof value === 'number'
+    ? String(value)
+    : `'${value.replace(/'/g, '\'\'')}'`
+}
+
 function generateColumnDefinition(column: ParsedColumn): string {
   if (column.isPrimary && column.isAutoIncrement) {
     return `  ${column.name}: integer().primaryKey({ autoIncrement: true })`
@@ -56,6 +62,11 @@ function renderCheckToDrizzle(check: CheckConstraint, tableVar: string): string 
     case 'max_value':
       expr = `${colRef} <= ${check.value}`
       break
+    case 'enum_value': {
+      const values = Array.isArray(check.value) ? check.value : []
+      expr = `${colRef} IN (${values.map(renderSqlLiteral).join(', ')})`
+      break
+    }
   }
   return `    ${check.name}: check('${check.name}', sql\`${expr}\`)`
 }

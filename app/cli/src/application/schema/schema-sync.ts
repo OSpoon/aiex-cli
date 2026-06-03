@@ -1,9 +1,10 @@
-import type { MigrationConfig } from '@/domain/schema/types'
+import type { MigrationConfig, MigrationRiskReport, SchemaMappingEntry } from '@/domain/schema/types'
 import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
+import { analyzeMigrationRisk } from '@/domain/schema/migration-risk'
 import { resolveHelperPath, resolveTsxPath } from '@/infrastructure/runtime/package-paths'
 import { t } from '@/locales'
 import { parseAllSchemas } from './parse-all-schemas'
@@ -17,6 +18,8 @@ export interface GenerateSchemaResult {
   schemaCount: number
   tables: number
   relations: number
+  mappingEntries: number
+  riskReport: MigrationRiskReport
 }
 
 export interface MigrationResult {
@@ -33,7 +36,33 @@ export interface SchemaSyncResult {
   schemaCount: number
   tables: number
   relations: number
+  mappingEntries: number
+  riskReport: MigrationRiskReport
   migration?: MigrationResult
+}
+
+interface SchemaMapFile {
+  entries?: SchemaMappingEntry[]
+  baselineEntries?: SchemaMappingEntry[]
+}
+
+const NO_RISK_REPORT: MigrationRiskReport = { level: 'none', items: [], hasHighRisk: false }
+
+function schemaMapPath(config: MigrationConfig): string {
+  return path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json')
+}
+
+async function readPreviousSchemaMap(config: MigrationConfig): Promise<SchemaMappingEntry[]> {
+  try {
+    const content = await fs.readFile(schemaMapPath(config), 'utf-8')
+    const parsed = JSON.parse(content) as SchemaMapFile
+    if (Array.isArray(parsed.baselineEntries))
+      return parsed.baselineEntries
+    return Array.isArray(parsed.entries) ? parsed.entries : []
+  }
+  catch {
+    return []
+  }
 }
 
 export async function listSchemaFiles(schemaDir: string): Promise<string[]> {
@@ -52,7 +81,9 @@ export async function listSchemaFiles(schemaDir: string): Promise<string[]> {
 export async function generateSchemaFromFiles(
   schemaFiles: string[],
   config: MigrationConfig,
+  options: { force?: boolean } = {},
 ): Promise<GenerateSchemaResult> {
+  const previousMapping = await readPreviousSchemaMap(config)
   const entries = await Promise.all(
     schemaFiles.map(async (filePath) => {
       const content = await fs.readFile(filePath, 'utf-8')
@@ -69,12 +100,28 @@ export async function generateSchemaFromFiles(
       schemaCount: schemaFiles.length,
       tables: 0,
       relations: 0,
+      mappingEntries: 0,
+      riskReport: NO_RISK_REPORT,
     }
   }
 
-  const { tables, relations, reverseRelations, warnings, drizzleCode } = result.data
+  const { tables, relations, reverseRelations, warnings, mapping, drizzleCode } = result.data
+  const riskReport = previousMapping.length > 0
+    ? analyzeMigrationRisk(previousMapping, mapping)
+    : NO_RISK_REPORT
   await fs.mkdir(path.dirname(config.drizzleSchemaPath), { recursive: true })
   await fs.writeFile(config.drizzleSchemaPath, drizzleCode)
+  await fs.writeFile(
+    schemaMapPath(config),
+    `${JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      dialect: 'aiex-drizzle-sqlite',
+      entries: mapping,
+      baselineEntries: riskReport.hasHighRisk && !options.force ? previousMapping : undefined,
+      warnings,
+      migrationRisk: riskReport,
+    }, null, 2)}\n`,
+  )
 
   return {
     success: true,
@@ -82,6 +129,8 @@ export async function generateSchemaFromFiles(
     schemaCount: schemaFiles.length,
     tables: tables.length,
     relations: relations.length + reverseRelations.length,
+    mappingEntries: mapping.length,
+    riskReport,
   }
 }
 
@@ -132,7 +181,7 @@ export async function runSchemaMigration(
 
 export async function runSchemaSync(
   config: MigrationConfig,
-  options: { migrationName?: string, generateOnly?: boolean } = {},
+  options: { migrationName?: string, generateOnly?: boolean, force?: boolean } = {},
 ): Promise<SchemaSyncResult> {
   const schemaFiles = await listSchemaFiles(config.schemaPath)
   if (schemaFiles.length === 0) {
@@ -143,10 +192,12 @@ export async function runSchemaSync(
       schemaCount: 0,
       tables: 0,
       relations: 0,
+      mappingEntries: 0,
+      riskReport: NO_RISK_REPORT,
     }
   }
 
-  const generated = await generateSchemaFromFiles(schemaFiles, config)
+  const generated = await generateSchemaFromFiles(schemaFiles, config, { force: options.force })
   if (!generated.success) {
     return {
       success: false,
@@ -155,16 +206,22 @@ export async function runSchemaSync(
       schemaCount: generated.schemaCount,
       tables: generated.tables,
       relations: generated.relations,
+      mappingEntries: generated.mappingEntries,
+      riskReport: generated.riskReport,
     }
   }
 
-  if (options.generateOnly) {
+  if (options.generateOnly || (generated.riskReport.hasHighRisk && !options.force)) {
+    const blockedByRisk = generated.riskReport.hasHighRisk && !options.force && !options.generateOnly
     return {
-      success: true,
+      success: !blockedByRisk,
+      error: blockedByRisk ? t('errors.schema.highRiskMigrationBlocked') : undefined,
       warnings: generated.warnings,
       schemaCount: generated.schemaCount,
       tables: generated.tables,
       relations: generated.relations,
+      mappingEntries: generated.mappingEntries,
+      riskReport: generated.riskReport,
     }
   }
 
@@ -176,6 +233,8 @@ export async function runSchemaSync(
     schemaCount: generated.schemaCount,
     tables: generated.tables,
     relations: generated.relations,
+    mappingEntries: generated.mappingEntries,
+    riskReport: generated.riskReport,
     migration,
   }
 }

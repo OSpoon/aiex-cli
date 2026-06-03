@@ -28,6 +28,11 @@ export const schemaCommand = defineCommand({
       type: 'string',
       description: t('command.schema.args.name'),
     },
+    force: {
+      type: 'boolean',
+      description: t('command.schema.args.force'),
+      default: false,
+    },
   },
   async run({ args }) {
     intro(pc.inverse(' aiex schema '))
@@ -48,7 +53,7 @@ export const schemaCommand = defineCommand({
     const s1 = spinner()
     s1.start(t('command.schema.generating'))
 
-    const generated = await generateSchemaFromFiles(schemaFiles, config)
+    const generated = await generateSchemaFromFiles(schemaFiles, config, { force: args.force })
     for (const warning of generated.warnings) {
       consola.warn(warning)
     }
@@ -65,8 +70,19 @@ export const schemaCommand = defineCommand({
       return
     }
 
+    if (generated.riskReport.items.length > 0) {
+      consola.info(t('command.schema.riskSummary', { level: generated.riskReport.level, count: generated.riskReport.items.length }))
+      for (const item of generated.riskReport.items)
+        consola.warn(`[${item.severity}] ${item.message}`)
+    }
+
     if (args.generate) {
       outro(t('command.schema.runWithoutGenerate'))
+      return
+    }
+
+    if (generated.riskReport.hasHighRisk && !args.force) {
+      failCommand(t('command.schema.highRiskBlocked', { flag: pc.cyan('--force') }))
       return
     }
 

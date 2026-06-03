@@ -19,12 +19,14 @@ describe('schemaCommand definition', () => {
     expect(cmd.meta.description).toBe('Sync JSON Schema to SQLite database')
   })
 
-  it('should define generate and name args', () => {
+  it('should define generate, name, and force args', () => {
     expect(cmd.args.generate).toBeDefined()
     expect(cmd.args.generate.type).toBe('boolean')
     expect(cmd.args.generate.alias).toBe('g')
     expect(cmd.args.name).toBeDefined()
     expect(cmd.args.name.type).toBe('string')
+    expect(cmd.args.force).toBeDefined()
+    expect(cmd.args.force.type).toBe('boolean')
   })
 })
 

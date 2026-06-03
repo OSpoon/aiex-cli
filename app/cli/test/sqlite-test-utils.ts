@@ -26,6 +26,12 @@ function renderDefaultToSql(value: unknown): string {
   return `'${JSON.stringify(value)}'`
 }
 
+function renderSqlLiteral(value: string | number): string {
+  return typeof value === 'number'
+    ? String(value)
+    : `'${value.replace(/'/g, '\'\'')}'`
+}
+
 function buildColumnSql(column: ParsedColumn): string {
   let sql = `${column.name} ${renderColumnTypeToSql(column.columnType)}`
 
@@ -60,6 +66,11 @@ function renderCheckToSql(check: CheckConstraint): string {
     case 'max_value':
       expr = `${check.column} <= ${check.value}`
       break
+    case 'enum_value': {
+      const values = Array.isArray(check.value) ? check.value : []
+      expr = `${check.column} IN (${values.map(renderSqlLiteral).join(', ')})`
+      break
+    }
   }
   return `CONSTRAINT ${check.name} CHECK(${expr})`
 }

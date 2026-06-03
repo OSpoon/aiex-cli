@@ -2,6 +2,25 @@
 
 This document splits the extraction pipeline into smaller diagrams so each stage can be read independently.
 
+## 0. Schema To SQLite Pipeline
+
+```mermaid
+flowchart TD
+  S0[".aiex/schema/*.json"] --> S1["Parse as AIEX Drizzle-backed schema dialect"]
+  S1 --> S2{"Dialect warnings?"}
+  S2 -->|"yes"| S3["Report unsupported or non-portable JSON Schema keywords"]
+  S2 -->|"no"| S4
+  S3 --> S4["Map fields to Drizzle SQLite tables and columns"]
+  S4 --> S5["Generate .aiex/drizzle/schema.ts"]
+  S4 --> S6["Write .aiex/drizzle/schema-map.json"]
+  S6 --> R1["Compare previous and current schema-map"]
+  R1 --> R2{"High-risk migration?"}
+  R2 -->|"yes and no --force"| R3["Block migration and keep baselineEntries"]
+  R2 -->|"no or --force"| S7["Drizzle migration helper"]
+  S7 --> S8["Apply SQLite migration"]
+  S8 --> S9["SQLite database ready for extraction inserts"]
+```
+
 ## 1. Entry And File Routing
 
 ```mermaid
