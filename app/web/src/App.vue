@@ -10,6 +10,7 @@ import { useI18n } from "vue-i18n"
 import { toast, Toaster } from "vue-sonner"
 import { deleteSchema, getPromptSnapshot, getSchema, getTableData, listDataTables, listExtractions, listSchemas, migrateSchema, MigrationError, saveSchema } from "@/api-client"
 import { cloneJson, isDeepEqual } from "@/lib/jsonschema-editor/lib/object-utils"
+import { deriveTableName, normalizeSchemaNaming } from "@/lib/jsonschema-editor/lib/schemaNaming"
 import { useTheme } from "@/lib/jsonschema-editor/themes/useTheme"
 
 const { t } = useI18n()
@@ -169,7 +170,7 @@ function extractionQualityLabel(record: ExtractionRecord): string {
 
 const ECOMMERCE_EXAMPLE: JSONSchema = {
   $schema: (tableSchemaMeta as { $id: string }).$id,
-  title: "Customer",
+  title: "Customers",
   type: "object",
   table: { name: "customers", timestamps: true, softDelete: true },
   properties: {
@@ -261,8 +262,9 @@ async function loadSchema(name: string) {
   loading.value = true
   try {
     const data = await getSchema(name)
-    schema.value = data as JSONSchema
-    originalSchema.value = cloneJson(data as JSONSchema)
+    const normalized = normalizeSchemaNaming(data as JSONSchema)
+    schema.value = normalized
+    originalSchema.value = cloneJson(normalized)
   } catch {
     toast.error(t("app.failedToLoadSchema", { name }))
   }
@@ -270,9 +272,10 @@ async function loadSchema(name: string) {
 }
 
 async function handleSave() {
-  const schemaValue = schema.value as any
+  const normalized = normalizeSchemaNaming(schema.value)
+  const schemaValue = normalized as any
   const title = schemaValue.title?.trim()
-  const tableName = schemaValue.table?.name?.trim()
+  const tableName = deriveTableName(title ?? "")
 
   if (!title) {
     toast.error(t("app.pleaseEnterSchemaTitle"))
@@ -285,10 +288,11 @@ async function handleSave() {
   }
 
   const fileName = `${tableName}.json`
+  schema.value = normalized
   loading.value = true
   try {
-    await saveSchema(fileName, schema.value)
-    originalSchema.value = cloneJson(schema.value)
+    await saveSchema(fileName, normalized)
+    originalSchema.value = cloneJson(normalized)
     await loadSchemaList()
   } catch {
     toast.error(t("app.failedToSaveSchema", { name: fileName }))
@@ -316,9 +320,10 @@ async function runMigration(force = false) {
 }
 
 async function handleSaveAndMigrate() {
-  const schemaValue = schema.value as any
+  const normalized = normalizeSchemaNaming(schema.value)
+  const schemaValue = normalized as any
   const title = schemaValue.title?.trim()
-  const tableName = schemaValue.table?.name?.trim()
+  const tableName = deriveTableName(title ?? "")
 
   if (!title) {
     toast.error(t("app.pleaseEnterSchemaTitle"))
@@ -331,12 +336,13 @@ async function handleSaveAndMigrate() {
   }
 
   const fileName = `${tableName}.json`
+  schema.value = normalized
   loading.value = true
   migrating.value = true
 
   try {
-    await saveSchema(fileName, schema.value)
-    originalSchema.value = cloneJson(schema.value)
+    await saveSchema(fileName, normalized)
+    originalSchema.value = cloneJson(normalized)
     await loadSchemaList()
 
     loading.value = false
@@ -409,8 +415,9 @@ function loadExample() {
     if (!confirm(t("app.unsavedChangesConfirm", { action: t("app.confirmActionLoadExample") })))
       return
   }
-  schema.value = cloneJson(ECOMMERCE_EXAMPLE)
-  originalSchema.value = cloneJson(ECOMMERCE_EXAMPLE)
+  const normalized = normalizeSchemaNaming(ECOMMERCE_EXAMPLE)
+  schema.value = normalized
+  originalSchema.value = cloneJson(normalized)
 }
 
 async function handlePreviewPrompt(name: string) {

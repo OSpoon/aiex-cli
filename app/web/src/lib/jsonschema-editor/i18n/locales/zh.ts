@@ -162,8 +162,8 @@ export const zh: Translation = {
   typeValidationErrorPositive: '值必须为正数。',
 
   // ─── aiex Database Extensions ──────────────────────────────────────────────
-  schemaTitleLabel: 'Schema 标题',
-  schemaTitlePlaceholder: 'Schema 标题（例如：用户、文章）',
+  schemaTitleLabel: 'Schema 名称',
+  schemaTitlePlaceholder: 'Schema 名称（例如：Customers、OrderItems）',
   tableNamePlaceholder: '表名 (snake_case)，保存后文件名与此一致',
   timestampsLabel: '自动时间戳',
   softDeleteLabel: '软删除',

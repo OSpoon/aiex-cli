@@ -7,6 +7,7 @@ import ToggleSwitch from "primevue/toggleswitch"
 import { computed, useId } from "vue"
 import { useTranslation } from "@/lib/jsonschema-editor/hooks/use-translation"
 import { useSchemaStore } from "@/lib/jsonschema-editor/hooks/useSchemaStore"
+import { deriveTableName } from "@/lib/jsonschema-editor/lib/schemaNaming"
 import { isObjectSchema } from "@/lib/jsonschema-editor/types/jsonSchema"
 
 withDefaults(defineProps<{
@@ -26,45 +27,25 @@ const emit = defineEmits<{
 const store = useSchemaStore()
 const t = useTranslation()
 
-const tableNameId = useId()
 const timestampsId = useId()
 const softDeleteId = useId()
 const schemaTitleId = useId()
-
-// Table name validation regex: must start with lowercase letter, followed by lowercase letters, digits, or underscores
-const TABLE_NAME_REGEX = /^[a-z][a-z0-9_]*$/
-const STARTS_WITH_LOWERCASE_REGEX = /^[a-z]/
 
 const schemaTitle = computed({
   get: () => {
     const schema = store.schema.value
     if (!isObjectSchema(schema)) return ""
-    return schema.title ?? ""
+    return schema.title ?? schema.table?.name ?? ""
   },
   set: (value: string) => {
     const schema = store.schema.value
     if (!isObjectSchema(schema)) return
     store.replaceSchema({
       ...schema,
-      title: value
-    })
-  }
-})
-
-const tableName = computed({
-  get: () => {
-    const schema = store.schema.value
-    if (!isObjectSchema(schema)) return ""
-    return schema.table?.name ?? ""
-  },
-  set: (value: string) => {
-    const schema = store.schema.value
-    if (!isObjectSchema(schema)) return
-    store.replaceSchema({
-      ...schema,
+      title: value,
       table: {
         ...schema.table,
-        name: value
+        name: deriveTableName(value)
       } as TableConfig
     })
   }
@@ -72,20 +53,8 @@ const tableName = computed({
 
 // Validation state
 const isValid = computed(() => {
-  if (!schemaTitle.value.trim()) return false
-  if (!tableName.value) return false
-  return TABLE_NAME_REGEX.test(tableName.value)
-})
-
-const validationError = computed(() => {
-  if (!tableName.value) return ""
-  if (!STARTS_WITH_LOWERCASE_REGEX.test(tableName.value)) {
-    return "Must start with lowercase letter"
-  }
-  if (!TABLE_NAME_REGEX.test(tableName.value)) {
-    return "Only lowercase letters, digits, and underscores allowed"
-  }
-  return ""
+  const title = schemaTitle.value.trim()
+  return title.length > 0 && deriveTableName(title).length > 0
 })
 
 const tableConfig = computed<TableConfig | undefined>({
@@ -129,28 +98,15 @@ const softDelete = computed({
   <div class="table-config p-4 border-b" style="border-color: var(--p-content-border-color);">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="flex min-w-0 flex-1 flex-wrap items-start gap-x-6 gap-y-3">
-        <div class="flex min-w-[180px] max-w-[260px] flex-1 flex-col gap-1">
+        <div class="flex min-w-[220px] max-w-[320px] flex-1 flex-col gap-1">
           <InputText
             :id="schemaTitleId"
             v-model="schemaTitle"
             :placeholder="t.schemaTitlePlaceholder"
             size="small"
             class="w-full"
-            :invalid="!schemaTitle.trim()"
+            :invalid="!!schemaTitle && !isValid"
           />
-        </div>
-        <div class="flex min-w-[200px] max-w-[280px] flex-1 flex-col gap-1">
-          <InputText
-            :id="tableNameId"
-            v-model="tableName"
-            :placeholder="t.tableNamePlaceholder"
-            size="small"
-            class="w-full font-mono"
-            :invalid="!!tableName && !isValid"
-          />
-          <p v-if="validationError" class="text-xs text-red-500">
-            {{ validationError }}
-          </p>
         </div>
         <div class="flex min-h-8 items-center gap-2">
           <ToggleSwitch :input-id="timestampsId" v-model="timestamps" />

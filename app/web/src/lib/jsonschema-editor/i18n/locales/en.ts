@@ -166,8 +166,8 @@ export const en: Translation = {
   typeValidationErrorPositive: 'Value must be positive.',
 
   // ─── aiex Database Extensions ──────────────────────────────────────────────
-  schemaTitleLabel: 'Schema Title',
-  schemaTitlePlaceholder: 'Schema title (e.g., Users, Posts)',
+  schemaTitleLabel: 'Schema Name',
+  schemaTitlePlaceholder: 'Schema name (e.g., Customers, OrderItems)',
   tableNamePlaceholder: 'Table name (snake_case), used as schema filename',
   timestampsLabel: 'Auto Timestamps',
   softDeleteLabel: 'Soft Delete',
