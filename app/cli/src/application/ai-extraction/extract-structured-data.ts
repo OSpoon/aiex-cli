@@ -4,7 +4,7 @@ import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
 import type { RetryInfo } from '@/utils/retry'
 import path from 'node:path'
 import { generateText, jsonSchema, Output } from 'ai'
-import { buildFieldEvidenceQuality, stripEvidence, verifyFieldEvidence } from '@/domain/ai-extraction/evidence'
+import { buildFieldEvidenceQuality, findInvalidFieldEvidence, stripEvidence, verifyFieldEvidence } from '@/domain/ai-extraction/evidence'
 import { safeParseJSON } from '@/domain/ai-extraction/json-utils'
 import { selectModel } from '@/domain/ai-extraction/model-selector'
 import { generateExtractionPrompt } from '@/domain/ai-extraction/prompt-generator'
@@ -217,12 +217,21 @@ export async function extractStructuredData(input: {
                 rawEvidence: stripped.rawEvidence,
               })
             : undefined
+          const invalidEvidenceFields = canLocateEvidence
+            ? findInvalidFieldEvidence({
+                schema,
+                text,
+                data: businessData,
+                rawEvidence: stripped.rawEvidence,
+              })
+            : []
           const evidenceQuality = canLocateEvidence
             ? buildFieldEvidenceQuality({
                 schema,
                 data: businessData,
                 rawEvidence: stripped.rawEvidence,
                 verifiedEvidence: evidence,
+                invalidEvidenceFields,
               })
             : undefined
           const outputPath = await writeExtractionOutput({

@@ -124,6 +124,34 @@ export function verifyFieldEvidence(input: {
   return Object.keys(verified).length > 0 ? verified : undefined
 }
 
+export function findInvalidFieldEvidence(input: {
+  schema: JsonSchemaDefinition
+  text: string
+  data: unknown
+  rawEvidence?: Record<string, RawFieldEvidence>
+}): string[] {
+  if (!input.text || !isRecord(input.data) || !input.rawEvidence)
+    return []
+
+  const invalid: string[] = []
+
+  for (const [field, raw] of Object.entries(input.rawEvidence)) {
+    const property = input.schema.properties[field]
+    if (!property)
+      continue
+    if (property.type !== 'string' && property.type !== 'number' && property.type !== 'integer')
+      continue
+    if (typeof raw.quote !== 'string' || raw.quote.trim().length === 0)
+      continue
+    if (!input.text.includes(raw.quote))
+      continue
+    if (!quoteContainsValue(raw.quote, input.data[field], property))
+      invalid.push(field)
+  }
+
+  return invalid
+}
+
 function isEvidenceEligibleProperty(property: JsonSchemaProperty): boolean {
   return property.type === 'string' || property.type === 'number' || property.type === 'integer'
 }
@@ -133,6 +161,7 @@ export function buildFieldEvidenceQuality(input: {
   data: unknown
   rawEvidence?: Record<string, RawFieldEvidence>
   verifiedEvidence?: VerifiedEvidenceMap
+  invalidEvidenceFields?: string[]
 }): FieldEvidenceQuality | undefined {
   if (!isRecord(input.data))
     return undefined
@@ -142,6 +171,7 @@ export function buildFieldEvidenceQuality(input: {
   const unsupportedFields: string[] = []
   const missingFields: string[] = []
   const invalidFields: string[] = []
+  const invalidEvidenceFields = new Set(input.invalidEvidenceFields ?? [])
 
   for (const [field, property] of Object.entries(input.schema.properties)) {
     if (!isEvidenceEligibleProperty(property))
@@ -153,13 +183,17 @@ export function buildFieldEvidenceQuality(input: {
       status = 'missing'
       missingFields.push(field)
     }
+    else if (invalidEvidenceFields.has(field)) {
+      status = 'invalid'
+      invalidFields.push(field)
+    }
     else if (input.verifiedEvidence?.[field]) {
       status = 'supported'
       supportedFields.push(field)
     }
     else if (input.rawEvidence?.[field]) {
-      status = 'invalid'
-      invalidFields.push(field)
+      status = 'unsupported'
+      unsupportedFields.push(field)
     }
     else {
       status = 'unsupported'

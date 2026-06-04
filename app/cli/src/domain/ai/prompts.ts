@@ -16,6 +16,9 @@ export const EVIDENCE_INSTRUCTIONS = `Evidence requirements:
 - Also return a top-level "_evidence" object.
 - For each top-level scalar field you extracted from the text, include "_evidence.<field>.quote".
 - The quote must be an exact contiguous substring copied from the input text.
+- Prefer the shortest quote that still uniquely identifies the field in the document.
+- Include the field label and nearby context when a value is repeated, for example "考试年份：2017年" instead of "2017", or "语文 106 150 71%" instead of "150".
+- Do not use a quote that supports a different field with the same repeated value.
 - Do not invent offsets. Only provide quotes.
 - If no exact quote supports a field, omit that field from "_evidence".`
 
