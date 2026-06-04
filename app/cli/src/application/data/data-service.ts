@@ -1,22 +1,21 @@
 import type { ExtractionAuditRecord } from '@/domain/audit/types'
+import type { DatabaseTableColumn } from '@/domain/database'
 import type { MigrationConfig } from '@/domain/schema/types'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import Database from 'better-sqlite3'
 import { readFile as readJsonFile } from 'jsonfile'
-import { Kysely, sql, SqliteDialect } from 'kysely'
 import { readAIConfig } from '@/infrastructure/ai/ai-config-store'
 import {
   createExtractionAuditRecord,
   listExtractionAuditRecords,
   updateExtractionAuditRecord,
 } from '@/infrastructure/audit/file-audit-store'
+import { createProjectDatabase } from '@/infrastructure/database/sqlite-database'
 import { writeNotionPage } from '@/infrastructure/integrations/notion-sink'
 import { t } from '@/locales'
 
 const FILE_REGEX = /\.json$/
 const EXTRACTION_TIMESTAMP_RE = /-\d{4}-\d{2}-\d{2}T/
-const INTERNAL_ROWID_COLUMN = '__aiex_rowid'
 const TIMESTAMP_CLEANUP = /(\d{2})-(\d{2})-(\d{2})/
 const TIMESTAMP_TZ = /(\d{3})Z/
 
@@ -41,21 +40,7 @@ export interface RowExtractionAction {
   notionError?: string
 }
 
-export interface SqliteTableInfoRow {
-  name: string
-  type: string
-  notnull: number
-  pk: number
-}
-
-export interface TableColumn {
-  name: string
-  type: string
-  notNull: boolean
-  pk: boolean
-}
-
-type DynamicDatabase = Record<string, Record<string, unknown>>
+export type TableColumn = DatabaseTableColumn
 
 export function schemaNameFromExtractionFile(name: string): string | null {
   const stem = name.replace(FILE_REGEX, '')
@@ -100,14 +85,6 @@ async function getRowExtractionActions(aiexDir: string, tableName: string): Prom
   }
 
   return actions
-}
-
-function createReadonlyQueryDb(databasePath: string): Kysely<DynamicDatabase> {
-  return new Kysely<DynamicDatabase>({
-    dialect: new SqliteDialect({
-      database: new Database(databasePath, { readonly: true }),
-    }),
-  })
 }
 
 export async function listExtractions(config: MigrationConfig): Promise<ExtractionRecord[]> {
@@ -173,23 +150,12 @@ export async function listTables(config: MigrationConfig): Promise<Array<{ name:
     schemaFiles = []
   }
 
-  let db: Kysely<DynamicDatabase> | null = null
   let dbTables: string[] = []
   try {
-    db = createReadonlyQueryDb(config.databasePath)
-    const tablesResult = await sql<{ name: string }>`
-      select name
-      from sqlite_master
-      where type = 'table' and name not like 'sqlite_%' and name not like '_%'
-      order by name
-    `.execute(db)
-    dbTables = tablesResult.rows.map(row => row.name)
+    dbTables = await createProjectDatabase(config).listTableNames()
   }
   catch {
     // db not ready
-  }
-  finally {
-    await db?.destroy()
   }
 
   const tables: Array<{ name: string, title: string, hasData: boolean }> = []
@@ -242,82 +208,34 @@ export async function getTableData(
   const { page, pageSize, search, sortField, sortOrder, all } = query
   const aiexDir = path.dirname(config.schemaPath)
 
-  let db: Kysely<DynamicDatabase>
-  try {
-    db = createReadonlyQueryDb(config.databasePath)
-  }
-  catch {
+  const database = createProjectDatabase(config)
+  if (!(await database.exists()))
     throw new Error(t('server.dbNotFound'))
-  }
 
   try {
-    const tableExists = await sql<{ name: string }>`
-      select name
-      from sqlite_master
-      where type = 'table' and name = ${tableName}
-    `.execute(db)
-
-    if (tableExists.rows.length === 0)
-      throw new Error(t('server.tableNotFound', { name: tableName }))
-
-    const tableInfo = await sql<SqliteTableInfoRow>`
-      pragma table_info(${sql.table(tableName)})
-    `.execute(db)
-
-    const columns: TableColumn[] = tableInfo.rows.map(col => ({
-      name: col.name,
-      type: col.type,
-      notNull: !!col.notnull,
-      pk: !!col.pk,
-    }))
-
-    const searchConditions = columns.map(col => sql`${sql.ref(col.name)} like ${`%${search}%`}`)
-    const searchCondition = search
-      ? sql`where ${sql.join(searchConditions, sql` or `)}`
-      : sql``
-
-    const sortColumn = columns.find(col => col.name === sortField)
-    const orderBy = sortColumn
-      ? sql`order by ${sql.ref(sortColumn.name)} ${sql.raw(sortOrder === 'desc' ? 'desc' : 'asc')}`
-      : sql``
-
-    const countResult = await sql<{ count: number }>`
-      select count(*) as count
-      from ${sql.table(tableName)}
-      ${searchCondition}
-    `.execute(db)
-    const total = countResult.rows[0]?.count ?? 0
-
-    const offset = (page - 1) * pageSize
-    const totalPages = all ? 1 : Math.max(1, Math.ceil(total / pageSize))
-
-    const result = all
-      ? await sql<Record<string, unknown>>`
-          select rowid as ${sql.raw(INTERNAL_ROWID_COLUMN)}, *
-          from ${sql.table(tableName)}
-          ${searchCondition}
-          ${orderBy}
-        `.execute(db)
-      : await sql<Record<string, unknown>>`
-          select rowid as ${sql.raw(INTERNAL_ROWID_COLUMN)}, *
-          from ${sql.table(tableName)}
-          ${searchCondition}
-          ${orderBy}
-          limit ${pageSize}
-          offset ${offset}
-        `.execute(db)
+    const tableRows = await database.readTableRows({
+      tableName,
+      page,
+      pageSize,
+      search,
+      sortField,
+      sortOrder,
+      all,
+    }).catch((error) => {
+      if (error instanceof Error && error.message === `Table not found: ${tableName}`)
+        throw new Error(t('server.tableNotFound', { name: tableName }))
+      throw error
+    })
 
     const actionsByRowId = await getRowExtractionActions(aiexDir, tableName)
     const rowActions = Object.fromEntries(
-      result.rows
-        .map((row, index) => {
-          const rowId = row[INTERNAL_ROWID_COLUMN]
-          const action = rowId === null || rowId === undefined ? undefined : actionsByRowId.get(String(rowId))
+      tableRows.rowIds
+        .map((rowId, index) => {
+          const action = rowId === undefined ? undefined : actionsByRowId.get(rowId)
           return action ? [String(index), action] : null
         })
         .filter((entry): entry is [string, RowExtractionAction] => !!entry),
     )
-    const rows = result.rows.map(({ [INTERNAL_ROWID_COLUMN]: _rowid, ...row }) => row)
 
     // Find schema file corresponding to this table
     const schemaDir = config.schemaPath
@@ -335,18 +253,20 @@ export async function getTableData(
     catch {}
 
     return {
-      columns,
-      rows,
+      columns: tableRows.columns,
+      rows: tableRows.rows,
       rowActions,
-      total,
-      page: all ? 1 : page,
-      pageSize: all ? total : pageSize,
-      totalPages,
+      total: tableRows.total,
+      page: tableRows.page,
+      pageSize: all ? tableRows.total : tableRows.pageSize,
+      totalPages: tableRows.totalPages,
       schema,
     }
   }
-  finally {
-    await db.destroy()
+  catch (error) {
+    if (error instanceof Error)
+      throw error
+    throw new Error(String(error))
   }
 }
 

@@ -3,7 +3,7 @@ import { ZodError } from 'zod'
 import { collectDialectWarnings } from '@/domain/schema/dialect'
 import { parseJsonSchema } from '@/domain/schema/parser'
 import { JsonSchemaDefinitionSchema } from '@/domain/schema/schemas'
-import { generateDrizzleSchema } from '@/infrastructure/schema/generate-drizzle-schema'
+import { generateDatabaseSchema } from '@/infrastructure/database/schema-generator'
 
 export interface SchemaEntry {
   filePath: string
@@ -61,6 +61,6 @@ export function parseAllSchemas(entries: SchemaEntry[]): { success: true, data: 
     }
   }
 
-  const drizzleCode = generateDrizzleSchema({ tables, relations, reverseRelations, warnings })
+  const drizzleCode = generateDatabaseSchema({ tables, relations, reverseRelations, warnings })
   return { success: true, data: { tables, relations, reverseRelations, warnings, mapping, drizzleCode } }
 }

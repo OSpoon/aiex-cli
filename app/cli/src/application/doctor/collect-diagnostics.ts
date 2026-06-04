@@ -4,7 +4,6 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
-import Database from 'better-sqlite3'
 import { execa } from 'execa'
 import { readFile as readJsonFile } from 'jsonfile'
 import { createConfig } from '@/config'
@@ -13,6 +12,7 @@ import { buildDoctorDiagnostics } from '@/domain/doctor/diagnostics'
 import { parseJsonSchema } from '@/domain/schema/parser'
 import { JsonSchemaDefinitionSchema } from '@/domain/schema/schemas'
 import { readAIConfig } from '@/infrastructure/ai/ai-config-store'
+import { createProjectDatabase } from '@/infrastructure/database/sqlite-database'
 import { checkImageOcrAvailability } from '@/infrastructure/ocr/system-ocr'
 import { createMigrationConfig } from '@/infrastructure/schema/migration-config'
 import pkg from '~/package.json'
@@ -187,36 +187,20 @@ export async function collectDoctorDiagnostics(
     }
   }
 
-  let dbExists = false
-  if (dirExists) {
-    try {
-      const stat = await fs.stat(migConfig.databasePath)
-      dbExists = stat.isFile()
-    }
-    catch {
-      dbExists = false
-    }
-  }
+  const database = createProjectDatabase(migConfig)
+  const dbExists = dirExists ? await database.exists() : false
 
   let databaseTablesOk: boolean | null = null
   let missingDatabaseTables: string[] = []
   if (dbExists && expectedTables.size > 0) {
-    const db = new Database(migConfig.databasePath, { readonly: true })
-    try {
-      missingDatabaseTables = [...expectedTables].filter((table) => {
-        const row = db.prepare(
-          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
-        ).get(table)
-        return !row
-      })
-      databaseTablesOk = missingDatabaseTables.length === 0
-    }
-    catch (error) {
+    const tableCheck = await database.verifyTables([...expectedTables])
+    if (tableCheck.error) {
       databaseTablesOk = false
-      errors.push(`Could not inspect database tables: ${error instanceof Error ? error.message : String(error)}`)
+      errors.push(`Could not inspect database tables: ${tableCheck.error}`)
     }
-    finally {
-      db.close()
+    else {
+      missingDatabaseTables = tableCheck.missing
+      databaseTablesOk = tableCheck.ok
     }
   }
   else if (dbExists) {

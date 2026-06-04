@@ -2,42 +2,29 @@ import type { ExtractResult } from './types'
 import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
 import type { MigrationConfig } from '@/domain/schema/types'
 import type { RetryInfo } from '@/utils/retry'
-import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { spinner } from '@clack/prompts'
-import Database from 'better-sqlite3'
 import { consola } from 'consola'
 import pc from 'picocolors'
 import { extractStructuredData } from '@/application/ai-extraction/extract-structured-data'
 import { loadSchema } from '@/application/schema/load-schema'
 import { parseJsonSchema } from '@/domain/schema/parser'
-import { insertExtractedData } from '@/infrastructure/extraction/insert-extracted-data'
+import { createProjectDatabase } from '@/infrastructure/database/sqlite-database'
 import { t } from '@/locales'
 
-async function ensureDatabaseReady(dbPath: string, schema: any): Promise<string | null> {
-  try {
-    await fsp.access(dbPath)
-  }
-  catch {
+async function ensureDatabaseReady(config: MigrationConfig, schema: any): Promise<string | null> {
+  const database = createProjectDatabase(config)
+  if (!(await database.exists()))
     return t('errors.db.notFound', { path: pc.cyan('.aiex/database.db'), cmd: pc.cyan('aiex schema') })
-  }
 
   try {
     const result = parseJsonSchema(schema)
-    const db = new Database(dbPath)
-    try {
-      for (const table of result.tables) {
-        const row = db.prepare(
-          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
-        ).get(table.name)
-        if (!row) {
-          return t('errors.db.tableNotFound', { name: table.name, cmd: pc.cyan('aiex schema') })
-        }
-      }
-    }
-    finally {
-      db.close()
-    }
+    const tableCheck = await database.verifyTables(result.tables.map(table => table.name))
+    if (tableCheck.error)
+      return t('errors.db.cannotVerify', { error: tableCheck.error })
+    const missing = tableCheck.missing[0]
+    if (missing)
+      return t('errors.db.tableNotFound', { name: missing, cmd: pc.cyan('aiex schema') })
   }
   catch (e) {
     return t('errors.db.cannotVerify', { error: e instanceof Error ? e.message : String(e) })
@@ -113,7 +100,7 @@ export async function extractSingle(
     if (!options?.quiet)
       s2.start(t('command.extract.file.insertingDb'))
 
-    const dbError = await ensureDatabaseReady(config.databasePath, schemaLoad.schema)
+    const dbError = await ensureDatabaseReady(config, schemaLoad.schema)
     if (dbError) {
       if (!options?.quiet)
         s2.stop(t('command.extract.file.dbNotReady'))
@@ -122,33 +109,27 @@ export async function extractSingle(
     }
 
     try {
-      const db = new Database(config.databasePath)
-      try {
-        const insertResult = insertExtractedData(db, schemaLoad.schema, result.data as Record<string, unknown>)
-        if (insertResult.success) {
-          if (!options?.quiet) {
-            s2.stop(t('command.extract.file.insertedTables', { count: insertResult.tablesInserted.length }))
-          }
-          return {
-            success: true,
-            outputPath: result.outputPath,
-            data: result.data,
-            tablesInserted: insertResult.tablesInserted,
-            tokensUsed: result.tokensUsed,
-            quality: result.quality,
-            evidence: result.evidence,
-          }
+      const database = createProjectDatabase(config)
+      const insertResult = database.insertExtracted(schemaLoad.schema, result.data as Record<string, unknown>)
+      if (insertResult.success) {
+        if (!options?.quiet) {
+          s2.stop(t('command.extract.file.insertedTables', { count: insertResult.tablesInserted.length }))
         }
-        else {
-          if (!options?.quiet)
-            s2.stop(t('command.extract.file.dbInsertFail'))
-          consola.error(insertResult.error || t('common.unknownError'))
-          return { success: false, error: insertResult.error, quality: result.quality, failureStage: 'db_insert' }
+        return {
+          success: true,
+          outputPath: result.outputPath,
+          data: result.data,
+          tablesInserted: insertResult.tablesInserted,
+          tokensUsed: result.tokensUsed,
+          quality: result.quality,
+          evidence: result.evidence,
         }
       }
-      finally {
-        db.close()
-      }
+
+      if (!options?.quiet)
+        s2.stop(t('command.extract.file.dbInsertFail'))
+      consola.error(insertResult.error || t('common.unknownError'))
+      return { success: false, error: insertResult.error, quality: result.quality, failureStage: 'db_insert' }
     }
     catch (e) {
       if (!options?.quiet)
