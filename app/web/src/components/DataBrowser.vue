@@ -5,9 +5,7 @@ import { computed, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { toast } from "vue-sonner"
 import { VxeColumn, VxeTable } from "vxe-table"
-import * as XLSX from "xlsx"
 import { getTableData, retryNotionSync } from "@/api-client"
-import "vxe-pc-ui/lib/style.css"
 import "vxe-table/lib/style.css"
 
 interface ColumnInfo {
@@ -163,6 +161,12 @@ const pageSizeOptions = [10, 20, 50, 100, 200]
 // ── export ──
 
 const exporting = ref(false)
+let xlsxModulePromise: Promise<typeof import("xlsx")> | null = null
+
+function loadXlsx() {
+  xlsxModulePromise ||= import("xlsx")
+  return xlsxModulePromise
+}
 
 async function fetchAllRows() {
   if (!props.tableName) return null
@@ -234,6 +238,7 @@ function downloadBlob(content: string | ArrayBuffer | Blob, filename: string, mi
 async function exportCSV() {
   const fullData = await fetchAllRows()
   if (!fullData) return
+  const XLSX = await loadXlsx()
   const { columns, rows, schema } = fullData
   const formattedRows = formatExportRows(rows, columns, schema, "csv")
   const ws = XLSX.utils.json_to_sheet(formattedRows, { header: columns.map(col => col.name) })
@@ -245,6 +250,7 @@ async function exportCSV() {
 async function exportExcel() {
   const fullData = await fetchAllRows()
   if (!fullData) return
+  const XLSX = await loadXlsx()
   const { columns, rows, schema } = fullData
   const formattedRows = formatExportRows(rows, columns, schema, "xlsx")
   const ws = XLSX.utils.json_to_sheet(formattedRows, { header: columns.map(col => col.name) })

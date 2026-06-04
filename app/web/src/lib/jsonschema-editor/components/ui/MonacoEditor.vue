@@ -84,7 +84,9 @@ onMounted(async () => {
         )
       }
     }
-    monaco = await import("monaco-editor")
+    await import("monaco-editor/esm/vs/language/json/monaco.contribution")
+    await import("monaco-editor/esm/vs/editor/contrib/hover/browser/hoverContribution")
+    monaco = await import("monaco-editor/esm/vs/editor/editor.api")
     monacoModule = monaco
   } catch {
     console.warn(
