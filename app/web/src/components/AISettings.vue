@@ -1,6 +1,7 @@
 <!-- eslint-disable vue/attribute-hyphenation -->
 <script setup lang="ts">
 import type { AIConfig, AIModelConfig, NotionDatabaseProperty, NotionSchemaConfig, PdfConverterKind } from "@/api-client"
+import defaultPrompts from "@aiex/default-prompts"
 import Button from "primevue/button"
 import Dialog from "primevue/dialog"
 import { computed, onMounted, ref } from "vue"
@@ -111,18 +112,8 @@ const canSave = computed(() => {
     && (pdfConverter.value !== "external" || !!externalCommand.value.trim())
 })
 
-const defaultSystemTemplate = `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
-
-{schema}
-
-Extraction requirements:
-1. Extract data strictly according to the field names and types defined in the structure
-2. If a field's information is missing from the text, set that field to null
-3. Do not add fields that are not in the structure definition
-4. Maintain data accuracy and completeness`
-
-const defaultUserTemplate = `Please extract data from the following text:
-{text}`
+const defaultSystemTemplate = defaultPrompts.systemTemplate
+const defaultUserTemplate = defaultPrompts.userTemplate
 
 async function loadConfig() {
   loading.value = true

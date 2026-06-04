@@ -12,6 +12,7 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@/*": ["src/*"],
+      "@aiex/default-prompts": ["../cli/assets/default-prompts.json"],
       "@aiex/table-schema": ["../cli/schemas/table-schema.json"]
     },
     "resolveJsonModule": true,

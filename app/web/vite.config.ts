@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        '@aiex/default-prompts': path.resolve(__dirname, '../cli/assets/default-prompts.json'),
         '@aiex/table-schema': path.resolve(__dirname, '../cli/schemas/table-schema.json'),
       },
     },

@@ -1,6 +1,6 @@
 import type { PromptConfig } from '@/domain/ai/types'
 import type { JsonSchemaDefinition, JsonSchemaProperty } from '@/domain/schema/schemas'
-import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_SCHEMA, PLACEHOLDER_TEXT } from '@/domain/ai/types'
+import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_SCHEMA, PLACEHOLDER_TEXT } from '@/domain/ai/prompts'
 
 function propertyToDescription(name: string, prop: JsonSchemaProperty, indent: string = ''): string {
   const lines: string[] = []

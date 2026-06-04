@@ -1,3 +1,5 @@
+import { DEFAULT_PROMPT_CONFIG } from './prompts'
+
 export interface AIModelConfig {
   name: string
   capabilities: {
@@ -103,9 +105,6 @@ export interface AIConfig {
   webhook?: WebhookConfig
 }
 
-export const PLACEHOLDER_SCHEMA = '{schema}'
-export const PLACEHOLDER_TEXT = '{text}'
-
 export interface ExtractionResult {
   success: boolean
   outputPath?: string
@@ -120,6 +119,12 @@ export interface ExtractionResult {
   evidence?: Record<string, import('@/domain/audit/types').FieldEvidence>
 }
 
+export {
+  DEFAULT_PROMPT_CONFIG,
+  PLACEHOLDER_SCHEMA,
+  PLACEHOLDER_TEXT,
+} from './prompts'
+
 export const DEFAULT_MODELS: AIModelConfig[] = [
   { name: 'qwen-plus', capabilities: { vision: false, structuredOutput: true } },
   { name: 'qwen-vl-plus', capabilities: { vision: true, structuredOutput: true } },
@@ -130,20 +135,6 @@ export const DEFAULT_PROVIDER_CONFIG: AIProviderConfig = {
   apiKey: '',
   models: [...DEFAULT_MODELS],
   timeout: 300,
-}
-
-export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
-  systemTemplate: `You are a professional data extraction assistant. Your task is to extract structured data from text and return a JSON object based on the data structure definition provided below.
-
-{schema}
-
-Extraction requirements:
-1. Extract strictly according to the field names and types defined in the structure
-2. If the text lacks information for a field, set that field to null
-3. Do not add fields that do not exist in the structure definition
-4. Maintain data accuracy and completeness`,
-  userTemplate: `Please extract data from the following text:
-{text}`,
 }
 
 export const DEFAULT_EXTRACTION_CONFIG: ExtractionConfig = {

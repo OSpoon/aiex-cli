@@ -414,19 +414,6 @@ export const zhCN: Translations = {
       localAuto: '视觉模型或本地 OCR',
     },
   },
-  prompt: {
-    defaultSystem: `你是一个专业的数据抽取助手。你的任务是从文本中抽取结构化数据，并基于下方提供的数据结构定义返回 JSON 对象。
-
-{schema}
-
-抽取要求:
-1. 严格按照结构中定义的字段名称和类型抽取数据
-2. 如果文本中缺少某个字段的信息，将该字段设为 null
-3. 不要添加结构定义之外的字段
-4. 保持数据准确性和完整性`,
-    defaultUser: `请从以下文本中抽取数据:
-{text}`,
-  },
   fields: {
     config: '字段配置',
     fewShotExamples: '少样本示例',

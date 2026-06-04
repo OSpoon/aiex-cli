@@ -9,8 +9,8 @@ import { safeParseJSON } from '@/domain/ai-extraction/json-utils'
 import { selectModel } from '@/domain/ai-extraction/model-selector'
 import { generateExtractionPrompt } from '@/domain/ai-extraction/prompt-generator'
 import { schemaToExtractionOutputSchema, validateExtractedData } from '@/domain/ai-extraction/validator'
-import { DEFAULT_PROMPT_CONFIG, PLACEHOLDER_TEXT } from '@/domain/ai/types'
-import { EVIDENCE_INSTRUCTIONS, withEvidenceSchema } from '@/domain/extraction/evidence-schema'
+import { buildCorrectionUserPrompt, CORRECTION_SYSTEM_PROMPT, DEFAULT_PROMPT_CONFIG, EVIDENCE_INSTRUCTIONS, PLACEHOLDER_TEXT } from '@/domain/ai/prompts'
+import { withEvidenceSchema } from '@/domain/extraction/evidence-schema'
 import { calculateMissingFields } from '@/domain/extraction/field-completeness'
 import { initLangfuse } from '@/infrastructure/ai/langfuse-telemetry'
 import { createOpenAICompatibleProvider } from '@/infrastructure/ai/openai-compatible-client'
@@ -257,30 +257,14 @@ export async function extractStructuredData(input: {
       if (attempt < maxAttempts) {
         const invalidJson = data !== undefined ? JSON.stringify(canLocateEvidence ? stripEvidence(data).data : data, null, 2) : (result ? result.text : '')
 
-        systemPrompt = `You are a precise data correction assistant. Your task is to correct validation errors in a previously generated JSON object to make it comply with the provided JSON Schema.
-        
-CRITICAL RULES:
-1. Only correct the fields that failed validation.
-2. Preserve all other correctly extracted fields and their values exactly.
-3. Return ONLY the corrected JSON object. No explanations, no markdown blocks other than JSON.`
-
-        userPrompt = `The JSON data you generated previously failed validation. Please correct it.
-
-[Original Text]
-${text || 'Data is contained in the attached file.'}
-
-[JSON Schema Definition]
-${JSON.stringify(schemaToExtractionOutputSchema(schema), null, 2)}
-
-[Previously Generated Invalid JSON]
-${invalidJson}
-
-[Validation Error Details]
-${errorMsg}
-
-${canLocateEvidence ? EVIDENCE_INSTRUCTIONS : ''}
-
-Please output the corrected JSON object now:`
+        systemPrompt = CORRECTION_SYSTEM_PROMPT
+        userPrompt = buildCorrectionUserPrompt({
+          text,
+          schema: schemaToExtractionOutputSchema(schema),
+          invalidJson,
+          error: errorMsg,
+          includeEvidenceInstructions: canLocateEvidence,
+        })
       }
     }
 
