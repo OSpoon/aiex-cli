@@ -193,15 +193,18 @@ describe('aiex Drizzle-backed schema dialect', () => {
     const reportPath = path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json')
     const report = JSON.parse(fs.readFileSync(reportPath, 'utf-8')) as {
       dialect: string
-      entries: Array<{ schemaPath: string, table: string, column: string, drizzleType: string, notes: string[] }>
+      databaseDialect: string
+      entries: Array<{ schemaPath: string, table: string, column: string, drizzleType: string, databaseType: string, notes: string[] }>
     }
 
-    expect(report.dialect).toBe('aiex-drizzle-sqlite')
+    expect(report.dialect).toBe('aiex-drizzle')
+    expect(report.databaseDialect).toBe('sqlite')
     expect(report.entries).toContainEqual(expect.objectContaining({
       schemaPath: `${schemaPath}.properties.email`,
       table: 'customers',
       column: 'email',
       drizzleType: 'text()',
+      databaseType: 'text',
     }))
     expect(report.entries).toContainEqual(expect.objectContaining({
       schemaPath: `${schemaPath}.properties.metadata`,

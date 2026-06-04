@@ -32,3 +32,10 @@ export function classifyInputError(error: unknown, inputProcessing?: InputProces
     return 'file_conversion'
   return 'input_detection'
 }
+
+export function qualityGateError(quality?: ExtractionQualityMetrics): string | null {
+  const invalidEvidenceFields = quality?.ai?.evidence?.invalidFields ?? []
+  if (invalidEvidenceFields.length > 0)
+    return `Evidence mismatch for field(s): ${invalidEvidenceFields.join(', ')}`
+  return null
+}

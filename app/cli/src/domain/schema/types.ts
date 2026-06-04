@@ -29,7 +29,7 @@ export interface SchemaMappingEntry {
   table: string
   column: string
   drizzleType: string
-  sqliteType: 'text' | 'integer' | 'real'
+  databaseType: 'text' | 'integer' | 'real'
   nullable: boolean
   primary: boolean
   unique: boolean
@@ -97,6 +97,7 @@ export interface ParseResult {
 }
 
 export interface MigrationConfig {
+  databaseDialect: 'sqlite'
   schemaPath: string
   drizzleSchemaPath: string
   migrationsPath: string

@@ -668,6 +668,7 @@ describe('schema-sqlite', () => {
     it('should create config with correct paths', () => {
       const config = createMigrationConfig('/project')
 
+      expect(config.databaseDialect).toBe('sqlite')
       expect(config.schemaPath).toBe('/project/.aiex/schema')
       expect(config.drizzleSchemaPath).toBe('/project/.aiex/drizzle/schema.ts')
       expect(config.migrationsPath).toBe('/project/.aiex/migrations')

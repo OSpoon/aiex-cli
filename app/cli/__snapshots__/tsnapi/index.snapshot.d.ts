@@ -88,6 +88,7 @@ export interface JsonSchemaProperty {
   required?: string[];
 }
 export interface MigrationConfig {
+  databaseDialect: 'sqlite';
   schemaPath: string;
   drizzleSchemaPath: string;
   migrationsPath: string;

@@ -95,20 +95,20 @@ function warnNonDrizzleBackedProperty(
   }
 }
 
-function describeColumnType(columnType: ColumnType): { drizzleType: string, sqliteType: 'text' | 'integer' | 'real' } {
+function describeColumnType(columnType: ColumnType): { drizzleType: string, databaseType: 'text' | 'integer' | 'real' } {
   switch (columnType.class) {
     case 'text':
       return {
         drizzleType: columnType.mode === 'json' ? `text({ mode: 'json' })` : 'text()',
-        sqliteType: 'text',
+        databaseType: 'text',
       }
     case 'integer':
       return {
         drizzleType: columnType.mode ? `integer({ mode: '${columnType.mode}' })` : 'integer()',
-        sqliteType: 'integer',
+        databaseType: 'integer',
       }
     case 'real':
-      return { drizzleType: 'real()', sqliteType: 'real' }
+      return { drizzleType: 'real()', databaseType: 'real' }
   }
 }
 
@@ -140,7 +140,7 @@ function mapColumnToReport(
     table,
     column: column.name,
     drizzleType: columnType.drizzleType,
-    sqliteType: columnType.sqliteType,
+    databaseType: columnType.databaseType,
     nullable: column.isNullable,
     primary: column.isPrimary,
     unique: column.isUnique,
@@ -231,7 +231,7 @@ function parseNestedObject(
     table: nestedTableName,
     column: 'id',
     drizzleType: 'integer().primaryKey({ autoIncrement: true })',
-    sqliteType: 'integer',
+    databaseType: 'integer',
     nullable: false,
     primary: true,
     unique: false,
@@ -254,7 +254,7 @@ function parseNestedObject(
     table: nestedTableName,
     column: `${parentTableName}_id`,
     drizzleType: 'integer().references(...)',
-    sqliteType: 'integer',
+    databaseType: 'integer',
     nullable: false,
     primary: false,
     unique: false,

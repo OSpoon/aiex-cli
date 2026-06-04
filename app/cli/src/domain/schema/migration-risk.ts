@@ -74,7 +74,7 @@ export function analyzeMigrationRisk(
       continue
     }
 
-    if (previous.sqliteType !== next.sqliteType || previous.drizzleType !== next.drizzleType) {
+    if (previous.databaseType !== next.databaseType || previous.drizzleType !== next.drizzleType) {
       addRisk(
         items,
         'high',

@@ -31,6 +31,7 @@ describe('extract routes', () => {
     await fs.mkdir(schemaPath, { recursive: true })
 
     config = {
+      databaseDialect: 'sqlite',
       schemaPath,
       databasePath: path.join(tempDir, 'database.db'),
       drizzleSchemaPath: path.join(tempDir, 'schema.ts'),

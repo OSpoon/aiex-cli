@@ -10,9 +10,9 @@ flowchart TD
   S1 --> S2{"Dialect warnings?"}
   S2 -->|"yes"| S3["Report unsupported or non-portable JSON Schema keywords"]
   S2 -->|"no"| S4
-  S3 --> S4["Map fields to Drizzle SQLite tables and columns"]
+  S3 --> S4["Map fields to Drizzle schema and SQLite database types"]
   S4 --> S5["Generate .aiex/drizzle/schema.ts"]
-  S4 --> S6["Write .aiex/drizzle/schema-map.json"]
+  S4 --> S6["Write schema-map with databaseDialect=sqlite and databaseType"]
   S6 --> R1["Compare previous and current schema-map"]
   R1 --> R2{"High-risk migration?"}
   R2 -->|"yes and no --force"| R3["Block migration and keep baselineEntries"]
@@ -44,7 +44,7 @@ flowchart TD
   O2 -->|"vision"| O3["File input for vision model"]
   O2 -->|"local OCR"| O1
 
-  O1 --> M1["Record inputProcessing and input quality"]
+  O1 --> M1["Record inputProcessing status, parser, diagnostics, and input quality"]
   O3 --> M1
   M1 --> X1["extractSingle / extractStructuredData"]
 ```
@@ -77,8 +77,9 @@ flowchart TD
   A1 --> Q1
   X1 --> Q1
 
-  Q1 --> S1["Save sidecar Markdown when possible"]
-  S1 --> O1["Return converted text"]
+  Q1 --> S1["Return text plus parser status, warnings, and diagnostics"]
+  S1 --> S2["Save sidecar Markdown when possible"]
+  S2 --> O1["Return converted text"]
 ```
 
 ## 3. Image Pipeline
@@ -126,7 +127,8 @@ flowchart TD
   R2 --> P1
   R1 -->|"no"| E1["Return ai_extraction failure"]
 
-  Q1 --> O1["Write business JSON to .aiex/extracted/*.json"]
+  Q1 --> Q2["Build field evidence quality\nsupported, unsupported, missing, invalid"]
+  Q2 --> O1["Write business JSON to .aiex/extracted/*.json"]
 ```
 
 ## 5. Evidence Location Rules
@@ -136,17 +138,17 @@ flowchart TD
   E0["Validated business JSON"] --> E1{"Text chain is locatable?"}
 
   E1 -->|"text / PDF text / OCR text"| E2["Ask model for _evidence.<field>.quote only"]
-  E1 -->|"vision image attachment"| N1["Do not record location evidence"]
+  E1 -->|"vision image attachment"| N1["Mark fields unsupported for location evidence"]
 
   E2 --> E3["Strip _evidence from business JSON"]
   E3 --> E4{"For each scalar field"}
   E4 --> E5{"Quote appears exactly once in source text?"}
-  E5 -->|"no"| N2["Do not record location"]
+  E5 -->|"no"| N2["Mark field invalid or missing"]
   E5 -->|"yes"| E6{"Field value is contained in quote?"}
   E6 -->|"no"| N2
-  E6 -->|"yes"| E7["System records quote, start, end\nverified=true, matchMethod=exact_unique"]
+  E6 -->|"yes"| E7["Mark field supported\nquote, start, end, verified=true, matchMethod=exact_unique"]
 
-  E7 --> A1["Store verified evidence in audit only"]
+  E7 --> A1["Store evidence and quality summary in audit only"]
   N1 --> A1
   N2 --> A1
 ```
@@ -155,12 +157,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  O0["Extraction output ready"] --> D1{"insert !== false?"}
+  O0["Extraction output ready"] --> G1{"Quality gate has invalid evidence?"}
 
+  G1 -->|"yes"| E0["Return ai_extraction failure\npreserve output, tokens, quality, evidence"]
+  G1 -->|"no"| D1{"insert !== false?"}
   D1 -->|"no"| A1["Update extraction audit"]
   D1 -->|"yes"| D2["ensureDatabaseReady"]
   D2 --> D3{"Database ready?"}
-  D3 -->|"no"| E1["Return db_insert failure"]
+  D3 -->|"no"| E1["Return db_insert failure\npreserve output, tokens, quality, evidence"]
   D3 -->|"yes"| D4["insertExtractedData into SQLite"]
 
   D4 --> N1{"Notion sync enabled?"}

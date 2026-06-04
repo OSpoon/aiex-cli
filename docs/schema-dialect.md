@@ -1,10 +1,10 @@
 # AIEX Drizzle-Backed Schema Dialect
 
-AIEX does not try to implement the full JSON Schema specification. The schema files are an AIEX dialect that uses JSON Schema-shaped input to generate stable Drizzle SQLite tables, migrations, and insertable data models.
+AIEX does not try to implement the full JSON Schema specification. The schema files are an AIEX dialect that uses JSON Schema-shaped input to generate stable Drizzle-backed database tables, migrations, and insertable data models. The current built-in database dialect is SQLite.
 
 ## Principle
 
-Support only what can be represented reliably by Drizzle and SQLite.
+Support only what can be represented reliably by Drizzle and the active database adapter. Today that adapter is SQLite.
 
 Unsupported JSON Schema features should be reported as warnings or validation errors instead of being silently treated as database behavior.
 
@@ -49,7 +49,7 @@ Property names must start with a letter and contain only letters, digits, or und
 
 ## Non-Portable Or Unsupported JSON Schema Keywords
 
-The dialect warns for full JSON Schema keywords that do not map reliably to Drizzle SQLite:
+The dialect warns for full JSON Schema keywords that do not map reliably to the current Drizzle SQLite target:
 
 `oneOf`, `anyOf`, `allOf`, `not`, `if`, `then`, `else`, `const`, `contains`, `prefixItems`, `additionalItems`, `additionalProperties`, `patternProperties`, `propertyNames`, `dependentRequired`, `dependentSchemas`, `dependencies`, `unevaluatedItems`, `unevaluatedProperties`, `multipleOf`, `exclusiveMinimum`, `exclusiveMaximum`.
 
@@ -63,7 +63,24 @@ Every schema generation writes:
 .aiex/drizzle/schema-map.json
 ```
 
-The report records each AIEX schema field and the generated table, column, Drizzle type, SQLite type, nullability, uniqueness, relation role, and notes. This is the primary artifact for debugging Schema to SQLite behavior.
+The report records each AIEX schema field and the generated table, column, Drizzle type, database dialect, database storage type, nullability, uniqueness, relation role, and notes. This is the primary artifact for debugging Schema to database behavior.
+
+Current reports use:
+
+```json
+{
+  "dialect": "aiex-drizzle",
+  "databaseDialect": "sqlite",
+  "entries": [
+    {
+      "drizzleType": "text()",
+      "databaseType": "text"
+    }
+  ]
+}
+```
+
+`databaseType` is the normalized storage type used by migration risk analysis. It is intentionally named after the database adapter, not SQLite directly, so future adapters can reuse the same comparison surface without changing the public report shape again.
 
 ## Migration Risk Analysis
 

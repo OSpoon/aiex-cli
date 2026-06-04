@@ -1,6 +1,6 @@
 import type { JsonSchemaDefinition } from '@/domain/schema/schemas'
 import { describe, expect, it } from 'vitest'
-import { stripEvidence, verifyFieldEvidence } from '@/domain/ai-extraction/evidence'
+import { buildFieldEvidenceQuality, stripEvidence, verifyFieldEvidence } from '@/domain/ai-extraction/evidence'
 
 describe('stripEvidence', () => {
   it('should return data as-is when no _evidence key', () => {
@@ -180,5 +180,54 @@ describe('verifyFieldEvidence', () => {
       rawEvidence: { score: { quote: '1,234,567' } },
     })
     expect(result).toBeDefined()
+  })
+
+  it('should classify field evidence status without claiming unsupported fields are traceable', () => {
+    const verifiedEvidence = verifyFieldEvidence({
+      schema,
+      text: 'Alice is 30',
+      data: { name: 'Alice', age: 31, score: null },
+      rawEvidence: {
+        name: { quote: 'Alice' },
+        age: { quote: '30' },
+      },
+    })
+
+    const quality = buildFieldEvidenceQuality({
+      schema,
+      data: { name: 'Alice', age: 31, score: null },
+      rawEvidence: {
+        name: { quote: 'Alice' },
+        age: { quote: '30' },
+      },
+      verifiedEvidence,
+    })
+
+    expect(quality).toEqual({
+      fieldStatus: {
+        name: 'supported',
+        age: 'invalid',
+        score: 'missing',
+      },
+      supportedFields: ['name'],
+      unsupportedFields: [],
+      missingFields: ['score'],
+      invalidFields: ['age'],
+      supportedRate: 1 / 3,
+    })
+  })
+
+  it('marks populated scalar fields without evidence as unsupported', () => {
+    const quality = buildFieldEvidenceQuality({
+      schema,
+      data: { name: 'Alice', age: 30, score: 95.5 },
+    })
+
+    expect(quality?.fieldStatus).toEqual({
+      name: 'unsupported',
+      age: 'unsupported',
+      score: 'unsupported',
+    })
+    expect(quality?.unsupportedFields).toEqual(['name', 'age', 'score'])
   })
 })

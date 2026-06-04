@@ -37,10 +37,10 @@ aiex watch -s invoice -d ./watch_folder # watch folder daemon for automatic extr
 - **AI Extraction** — Extract structured data from files (text, images, PDFs) using any OpenAI-compatible provider (OpenAI, Anthropic, Ollama, DeepSeek, local models, etc.)
 - **Interactive Mode** — Run `aiex extract` without arguments for a guided extraction workflow
 - **Batch Mode** — `aiex extract -d <dir>` processes entire directories with optional glob filtering
-- **Incremental Extraction** — File hash deduplication skips already-processed files; use `--force` to override
+- **Incremental Extraction** — File hash deduplication skips already-processed file inputs; use `--force` to override
 - **Web Data Export** — Export SQLite table data to CSV, Excel (.xlsx), or JSON from the Web UI
 - **Notion Sync** — Optionally sync CLI extraction results to configured Notion data sources
-- **Extraction Audit Trail** — Every extraction is recorded with status, input source, output path, token usage, database inserts, Notion pages, and errors
+- **Extraction Audit Trail** — Every extraction is recorded with status, input source, parser diagnostics, evidence quality, output path, token usage, database inserts, Notion pages, and errors
 - **Built-in Model Registry** — Knows capabilities of 2000+ models (vision, structured output) so you don't have to guess
 
 <br>
@@ -90,7 +90,7 @@ Saves the extracted result to `.aiex/extracted/<schema-name>-<timestamp>.json` w
 
 By default, aiex automatically selects a model based on your input type (vision-capable for images, structured output for text). Use `--model` / `-m` to override and specify any model from your AI configuration.
 
-Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records include the run status (`running`, `succeeded`, `failed`, or `stale`), schema name, input source, output file, token usage, inserted table rows, synced Notion pages, retry lineage, and error message. Use the Web UI to inspect, retry, or delete extraction records.
+Every extraction is also recorded under `.aiex/extracted/_audit/`. Audit records include the run status (`running`, `succeeded`, `failed`, or `stale`), schema name, input source, parser status, parser diagnostics, input quality, field evidence quality, output file, token usage, inserted table rows, synced Notion pages, retry lineage, failure stage, and error message. Use the Web UI to inspect, retry, or delete extraction records.
 
 ### 4. Watch Folder Daemon (Auto-Extraction)
 

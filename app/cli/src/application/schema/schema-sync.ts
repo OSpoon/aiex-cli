@@ -110,7 +110,8 @@ export async function generateSchemaFromFiles(
     schemaMapPath(config),
     `${JSON.stringify({
       generatedAt: new Date().toISOString(),
-      dialect: 'aiex-drizzle-sqlite',
+      dialect: 'aiex-drizzle',
+      databaseDialect: config.databaseDialect,
       entries: mapping,
       baselineEntries: riskReport.hasHighRisk && !options.force ? previousMapping : undefined,
       warnings,

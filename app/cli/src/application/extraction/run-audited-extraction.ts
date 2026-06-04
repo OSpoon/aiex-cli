@@ -33,12 +33,8 @@ export async function runAuditedExtraction(
   } = options
 
   let fileHash: string | undefined
-  let isPlainTextFile = false
 
   if (source.type === 'file') {
-    const ext = path.extname(source.filePath).toLowerCase().replace('.', '')
-    isPlainTextFile = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'yaml', 'yml'].includes(ext)
-
     try {
       fileHash = await getFileHash(source.filePath)
     }
@@ -51,7 +47,7 @@ export async function runAuditedExtraction(
       }
     }
 
-    if (fileHash && !isPlainTextFile && !force) {
+    if (fileHash && !force) {
       const existing = await findSucceededAuditByHash(aiexDir, schemaName, fileHash)
       if (existing) {
         if (!quiet) {
@@ -213,6 +209,9 @@ export async function runAuditedExtraction(
     await updateExtractionAuditRecord(aiexDir, audit.id, {
       status: 'failed',
       error: r.error || 'Extraction failed',
+      outputPath: r.outputPath,
+      outputName: r.outputPath ? path.basename(r.outputPath) : undefined,
+      tokensUsed: r.tokensUsed,
       quality: mergeQuality(inputQuality, r.quality),
       failureStage: r.failureStage ?? 'ai_extraction',
       evidence: r.evidence,
@@ -226,16 +225,19 @@ export async function runAuditedExtraction(
       schemaName,
       'extraction.failed',
       source,
-      undefined,
+      r.data,
       r.error || 'Extraction failed',
-      undefined,
+      r.tokensUsed,
       quiet,
     )
     return {
       success: false,
       error: r.error,
+      outputPath: r.outputPath,
+      outputName: r.outputPath ? path.basename(r.outputPath) : undefined,
       auditId: audit.id,
       fileHash,
+      tokensUsed: r.tokensUsed,
       inputProcessing,
       quality: mergeQuality(inputQuality, r.quality),
       failureStage: r.failureStage ?? 'ai_extraction',

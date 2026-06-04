@@ -173,14 +173,15 @@ describe('schema-runner', () => {
       const config = createMigrationConfig(projectDir)
       fs.mkdirSync(path.dirname(config.drizzleSchemaPath), { recursive: true })
       fs.writeFileSync(path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json'), JSON.stringify({
-        dialect: 'aiex-drizzle-sqlite',
+        dialect: 'aiex-drizzle',
+        databaseDialect: 'sqlite',
         entries: [
           {
             schemaPath: `${projectDir}/.aiex/schema/customer.json.properties.name`,
             table: 'customers',
             column: 'name',
             drizzleType: 'text()',
-            sqliteType: 'text',
+            databaseType: 'text',
             nullable: true,
             primary: false,
             unique: false,
@@ -192,7 +193,7 @@ describe('schema-runner', () => {
             table: 'customers',
             column: 'email',
             drizzleType: 'text()',
-            sqliteType: 'text',
+            databaseType: 'text',
             nullable: true,
             primary: false,
             unique: false,
@@ -230,14 +231,15 @@ describe('schema-runner', () => {
       const config = createMigrationConfig(projectDir)
       fs.mkdirSync(path.dirname(config.drizzleSchemaPath), { recursive: true })
       fs.writeFileSync(path.join(path.dirname(config.drizzleSchemaPath), 'schema-map.json'), JSON.stringify({
-        dialect: 'aiex-drizzle-sqlite',
+        dialect: 'aiex-drizzle',
+        databaseDialect: 'sqlite',
         entries: [
           {
             schemaPath: `${projectDir}/.aiex/schema/customer.json.properties.email`,
             table: 'customers',
             column: 'email',
             drizzleType: 'text()',
-            sqliteType: 'text',
+            databaseType: 'text',
             nullable: true,
             primary: false,
             unique: false,

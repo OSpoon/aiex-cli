@@ -164,7 +164,7 @@ describe('hash-based incremental extraction', () => {
     expect(extractStructuredData).toHaveBeenCalledTimes(1)
   })
 
-  it('should never skip plain text files (e.g. .txt) even on subsequent runs', async () => {
+  it('should skip already processed plain text files on subsequent runs', async () => {
     const projectDir = createProjectFixture()
     process.chdir(projectDir)
 
@@ -204,13 +204,13 @@ describe('hash-based incremental extraction', () => {
       outputPath: path.join(projectDir, '.aiex', 'extracted', 'test_table-result.json'),
     })
 
-    // 2nd run: should NOT skip since it is a plain text file (.txt)
+    // 2nd run: should skip because idempotency is based on content hash
     await cmd.run({ args: { schema: 'test_schema', file: filePath } })
     expect(process.exitCode).toBe(0)
-    expect(extractStructuredData).toHaveBeenCalledTimes(1)
+    expect(extractStructuredData).not.toHaveBeenCalled()
   })
 
-  it('should skip already processed non-plain-text files but not plain text files in batch mode', async () => {
+  it('should skip already processed files in batch mode based on source hash', async () => {
     const projectDir = createProjectFixture()
     process.chdir(projectDir)
 
@@ -257,10 +257,10 @@ describe('hash-based incremental extraction', () => {
       tablesInserted: [{ table: 'test_table', rowId: 1 }],
     })
 
-    // 2nd batch run without force: should skip sample.pdf but process sample.txt again
+    // 2nd batch run without force: should skip both files
     await cmd.run({ args: { schema: 'test_schema', dir: batchDir } })
     expect(process.exitCode).toBe(0)
-    expect(extractStructuredData).toHaveBeenCalledTimes(1) // only 1 call for sample.txt
+    expect(extractStructuredData).not.toHaveBeenCalled()
 
     // Reset mocks
     vi.clearAllMocks()
@@ -279,5 +279,41 @@ describe('hash-based incremental extraction', () => {
     await cmd.run({ args: { schema: 'test_schema', dir: batchDir, force: true } })
     expect(process.exitCode).toBe(0)
     expect(extractStructuredData).toHaveBeenCalledTimes(2) // processes both again
+  })
+
+  it('preserves extraction output details in audit record when database insert fails', async () => {
+    const projectDir = createProjectFixture()
+    process.chdir(projectDir)
+
+    const filePath = path.join(projectDir, 'sample.pdf')
+    fs.writeFileSync(filePath, 'dummy pdf contents')
+    const outputPath = path.join(projectDir, '.aiex', 'extracted', 'test_table-result.json')
+
+    mockAIConfig()
+    vi.mocked(extractStructuredData).mockResolvedValue({
+      success: true,
+      data: { name: 'extracted-from-pdf' },
+      outputPath,
+      tokensUsed: { prompt: 1, completion: 2, total: 3 },
+    })
+    vi.mocked(insertExtractedData).mockReturnValue({
+      success: false,
+      tablesInserted: [],
+      error: 'insert failed',
+    })
+
+    await cmd.run({ args: { schema: 'test_schema', file: filePath } })
+
+    const auditDir = path.join(projectDir, '.aiex', 'extracted', '_audit')
+    const auditFiles = fs.readdirSync(auditDir)
+    expect(auditFiles).toHaveLength(1)
+    const audit = JSON.parse(fs.readFileSync(path.join(auditDir, auditFiles[0]), 'utf-8'))
+
+    expect(audit.status).toBe('failed')
+    expect(audit.outputPath).toBe(outputPath)
+    expect(audit.outputName).toBe('test_table-result.json')
+    expect(audit.tokensUsed).toEqual({ prompt: 1, completion: 2, total: 3 })
+    expect(audit.failureStage).toBe('db_insert')
+    expect(audit.error).toBe('insert failed')
   })
 })

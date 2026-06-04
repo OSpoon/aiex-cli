@@ -1,5 +1,5 @@
 import type { AIConfig, AIModelConfig } from '@/domain/ai/types'
-import type { ExtractFileInput, InputProcessingInfo } from '@/domain/input/types'
+import type { ExtractFileInput, InputProcessingInfo, InputProcessingStatus } from '@/domain/input/types'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
@@ -31,6 +31,24 @@ export function isImageFile(filePath: string): boolean {
   return FILE_PART_EXTENSIONS.has(ext)
 }
 
+function textStatus(text: string): InputProcessingStatus {
+  return text.trim().length > 0 ? 'parsed' : 'partially_parsed'
+}
+
+function withProcessingResult(
+  inputProcessing: InputProcessingInfo,
+  status: InputProcessingStatus,
+  diagnostics: NonNullable<InputProcessingInfo['diagnostics']> = {},
+  warnings: string[] = [],
+): InputProcessingInfo {
+  return {
+    ...inputProcessing,
+    status,
+    diagnostics,
+    warnings: warnings.length ? warnings : undefined,
+  }
+}
+
 export async function describeExtractFileInput(
   filePath: string,
   aiConfig?: AIConfig,
@@ -39,10 +57,12 @@ export async function describeExtractFileInput(
   const detected = await detectInputFileKind(filePath)
 
   if (detected.kind === 'image') {
+    const useLocalOcr = shouldUseImageOcrFallback(aiConfig, modelOverride)
     return {
       kind: 'image',
       mime: detected.mime,
-      handler: shouldUseImageOcrFallback(aiConfig, modelOverride) ? 'image_local_ocr' : 'image_vision',
+      handler: useLocalOcr ? 'image_local_ocr' : 'image_vision',
+      parser: useLocalOcr ? 'system_ocr' : 'vision_model',
     }
   }
 
@@ -53,6 +73,7 @@ export async function describeExtractFileInput(
       mime: detected.mime,
       handler: 'pdf_converter',
       converter: converter.name,
+      parser: converter.name,
     }
   }
 
@@ -61,6 +82,7 @@ export async function describeExtractFileInput(
       kind: 'text',
       mime: detected.mime,
       handler: 'text',
+      parser: 'utf8_text',
     }
   }
 
@@ -87,7 +109,11 @@ export async function readExtractFileInput(
       consola.info(t('command.extract.file.ocrText', { confidence: (result.confidence * 100).toFixed(1) }))
       return {
         text: result.text,
-        inputProcessing,
+        inputProcessing: withProcessingResult(inputProcessing, textStatus(result.text), {
+          confidence: result.confidence,
+          textLength: result.text.length,
+          platform: process.platform,
+        }),
         quality: {
           input: {
             kind: 'image',
@@ -105,7 +131,9 @@ export async function readExtractFileInput(
     return {
       text: '',
       filePath,
-      inputProcessing,
+      inputProcessing: withProcessingResult(inputProcessing, 'parsed', {
+        filePart: true,
+      }),
       quality: {
         input: { kind: 'image' },
       },
@@ -132,18 +160,24 @@ export async function readExtractFileInput(
       consola.info(t('command.extract.file.markdownSaved', { path: fallbackMd }))
     }
     const textLength = result.text.length
+    const emptyText = result.text.trim().length === 0
     return {
       text: result.text,
-      inputProcessing,
+      inputProcessing: withProcessingResult(inputProcessing, emptyText ? 'partially_parsed' : 'parsed', {
+        pageCount: result.pageCount,
+        textLength,
+        emptyText,
+        fallbackUsed: result.metadata?.fallback === 'true',
+      }, result.warnings),
       quality: {
         input: {
           kind: 'pdf',
           textLength,
-          emptyText: result.text.trim().length === 0,
+          emptyText,
           pdf: {
             pageCount: result.pageCount,
             textLength,
-            emptyText: result.text.trim().length === 0,
+            emptyText,
             fallbackUsed: result.metadata?.fallback === 'true',
             converter: result.metadata?.converter ?? converter.name,
           },
@@ -155,7 +189,10 @@ export async function readExtractFileInput(
     const text = await fsp.readFile(filePath, 'utf-8')
     return {
       text,
-      inputProcessing,
+      inputProcessing: withProcessingResult(inputProcessing, textStatus(text), {
+        textLength: text.length,
+        emptyText: text.trim().length === 0,
+      }),
       quality: {
         input: {
           kind: 'text',

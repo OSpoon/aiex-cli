@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyInputError, formatInputProcessing, mergeQuality } from '@/application/extraction/quality'
+import { classifyInputError, formatInputProcessing, mergeQuality, qualityGateError } from '@/application/extraction/quality'
 
 describe('quality', () => {
   describe('formatInputProcessing', () => {
@@ -16,6 +16,46 @@ describe('quality', () => {
     it('should fall back to kind when mime is not available', () => {
       const input = { handler: 'image_local_ocr' as const, kind: 'image' as const }
       expect(formatInputProcessing(input)).toBe('image -> image_local_ocr')
+    })
+  })
+
+  describe('qualityGateError', () => {
+    it('blocks invalid evidence before database insert', () => {
+      expect(qualityGateError({
+        ai: {
+          validationPassed: true,
+          attempts: 1,
+          selfCorrectionCount: 0,
+          apiRetryCount: 0,
+          evidence: {
+            fieldStatus: { age: 'invalid' },
+            supportedFields: [],
+            unsupportedFields: [],
+            missingFields: [],
+            invalidFields: ['age'],
+            supportedRate: 0,
+          },
+        },
+      })).toBe('Evidence mismatch for field(s): age')
+    })
+
+    it('does not block unsupported evidence-free fields', () => {
+      expect(qualityGateError({
+        ai: {
+          validationPassed: true,
+          attempts: 1,
+          selfCorrectionCount: 0,
+          apiRetryCount: 0,
+          evidence: {
+            fieldStatus: { name: 'unsupported' },
+            supportedFields: [],
+            unsupportedFields: ['name'],
+            missingFields: [],
+            invalidFields: [],
+            supportedRate: 0,
+          },
+        },
+      })).toBeNull()
     })
   })
 

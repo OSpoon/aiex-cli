@@ -8,7 +8,7 @@ function entry(overrides: Partial<SchemaMappingEntry> = {}): SchemaMappingEntry 
     table: 'customers',
     column: 'name',
     drizzleType: 'text()',
-    sqliteType: 'text',
+    databaseType: 'text',
     nullable: true,
     primary: false,
     unique: false,
@@ -39,9 +39,9 @@ describe('migration risk analysis', () => {
 
   it('marks type changes and nullable tightening as high risk', () => {
     const report = analyzeMigrationRisk([
-      entry({ column: 'age', drizzleType: 'integer()', sqliteType: 'integer', nullable: true }),
+      entry({ column: 'age', drizzleType: 'integer()', databaseType: 'integer', nullable: true }),
     ], [
-      entry({ column: 'age', drizzleType: 'real()', sqliteType: 'real', nullable: false }),
+      entry({ column: 'age', drizzleType: 'real()', databaseType: 'real', nullable: false }),
     ])
 
     expect(report.items).toEqual(expect.arrayContaining([

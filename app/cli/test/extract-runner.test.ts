@@ -96,7 +96,7 @@ describe('loadSchema', () => {
       table: { name: 'test' },
     }))
 
-    const config = { schemaPath: path.join(dir, 'schema'), databasePath: '', drizzleSchemaPath: '', migrationsPath: '', drizzleConfigPath: '' }
+    const config = { databaseDialect: 'sqlite' as const, schemaPath: path.join(dir, 'schema'), databasePath: '', drizzleSchemaPath: '', migrationsPath: '', drizzleConfigPath: '' }
     const result = await loadSchema(config, 'test')
     expect(result.schema).toBeDefined()
     expect(result.schema.title).toBe('Test')
@@ -105,7 +105,7 @@ describe('loadSchema', () => {
   })
 
   it('should return error for missing schema file', async () => {
-    const config = { schemaPath: '/nonexistent/schema', databasePath: '', drizzleSchemaPath: '', migrationsPath: '', drizzleConfigPath: '' }
+    const config = { databaseDialect: 'sqlite' as const, schemaPath: '/nonexistent/schema', databasePath: '', drizzleSchemaPath: '', migrationsPath: '', drizzleConfigPath: '' }
     const result = await loadSchema(config, 'missing')
     expect(result.schema).toBeNull()
     expect(result.error).toBeDefined()
@@ -149,6 +149,29 @@ describe('isImageFile', () => {
 })
 
 describe('readExtractFileInput', () => {
+  it('marks empty text files as partially parsed', async () => {
+    const dir = `/tmp/test-read-empty-text-${Date.now()}`
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, 'empty.txt')
+    fs.writeFileSync(filePath, '')
+
+    const input = await readExtractFileInput(filePath)
+
+    expect(input.inputProcessing).toEqual({
+      kind: 'text',
+      mime: 'text/plain',
+      handler: 'text',
+      parser: 'utf8_text',
+      status: 'partially_parsed',
+      diagnostics: {
+        textLength: 0,
+        emptyText: true,
+      },
+    })
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
   it('describes image files as vision input when OCR fallback is not selected', async () => {
     const dir = `/tmp/test-describe-image-file-${Date.now()}`
     fs.mkdirSync(dir, { recursive: true })
@@ -161,6 +184,7 @@ describe('readExtractFileInput', () => {
       kind: 'image',
       mime: 'image/png',
       handler: 'image_vision',
+      parser: 'vision_model',
     })
 
     fs.rmSync(dir, { recursive: true })
@@ -181,6 +205,11 @@ describe('readExtractFileInput', () => {
         kind: 'image',
         mime: 'image/png',
         handler: 'image_vision',
+        parser: 'vision_model',
+        status: 'parsed',
+        diagnostics: {
+          filePart: true,
+        },
       },
       quality: {
         input: {
@@ -232,6 +261,13 @@ describe('readExtractFileInput', () => {
         kind: 'image',
         mime: 'image/png',
         handler: 'image_local_ocr',
+        parser: 'system_ocr',
+        status: 'parsed',
+        diagnostics: {
+          confidence: 0.91,
+          textLength: 11,
+          platform: expect.any(String),
+        },
       },
       quality: {
         input: {
@@ -266,6 +302,14 @@ describe('readExtractFileInput', () => {
       mime: 'application/pdf',
       handler: 'pdf_converter',
       converter: 'unpdf',
+      parser: 'unpdf',
+      status: 'parsed',
+      diagnostics: expect.objectContaining({
+        pageCount: expect.any(Number),
+        textLength: expect.any(Number),
+        emptyText: false,
+        fallbackUsed: false,
+      }),
     })
 
     fs.rmSync(dir, { recursive: true })

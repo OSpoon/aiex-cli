@@ -11,6 +11,7 @@ import { loadSchema } from '@/application/schema/load-schema'
 import { parseJsonSchema } from '@/domain/schema/parser'
 import { createProjectDatabase } from '@/infrastructure/database/sqlite-database'
 import { t } from '@/locales'
+import { qualityGateError } from './quality'
 
 async function ensureDatabaseReady(config: MigrationConfig, schema: any): Promise<string | null> {
   const database = createProjectDatabase(config)
@@ -96,6 +97,21 @@ export async function extractSingle(
   }
 
   if (result.data && options?.insert !== false) {
+    const qualityError = qualityGateError(result.quality)
+    if (qualityError) {
+      consola.error(qualityError)
+      return {
+        success: false,
+        error: qualityError,
+        outputPath: result.outputPath,
+        data: result.data,
+        tokensUsed: result.tokensUsed,
+        quality: result.quality,
+        failureStage: 'ai_extraction',
+        evidence: result.evidence,
+      }
+    }
+
     const s2 = spinner()
     if (!options?.quiet)
       s2.start(t('command.extract.file.insertingDb'))
@@ -105,7 +121,16 @@ export async function extractSingle(
       if (!options?.quiet)
         s2.stop(t('command.extract.file.dbNotReady'))
       consola.error(dbError)
-      return { success: false, error: dbError, quality: result.quality, failureStage: 'db_insert' }
+      return {
+        success: false,
+        error: dbError,
+        outputPath: result.outputPath,
+        data: result.data,
+        tokensUsed: result.tokensUsed,
+        quality: result.quality,
+        failureStage: 'db_insert',
+        evidence: result.evidence,
+      }
     }
 
     try {
@@ -129,13 +154,31 @@ export async function extractSingle(
       if (!options?.quiet)
         s2.stop(t('command.extract.file.dbInsertFail'))
       consola.error(insertResult.error || t('common.unknownError'))
-      return { success: false, error: insertResult.error, quality: result.quality, failureStage: 'db_insert' }
+      return {
+        success: false,
+        error: insertResult.error,
+        outputPath: result.outputPath,
+        data: result.data,
+        tokensUsed: result.tokensUsed,
+        quality: result.quality,
+        failureStage: 'db_insert',
+        evidence: result.evidence,
+      }
     }
     catch (e) {
       if (!options?.quiet)
         s2.stop(t('command.extract.file.dbInsertFail'))
       consola.error(e instanceof Error ? e.message : String(e))
-      return { success: false, error: String(e), quality: result.quality, failureStage: 'db_insert' }
+      return {
+        success: false,
+        error: String(e),
+        outputPath: result.outputPath,
+        data: result.data,
+        tokensUsed: result.tokensUsed,
+        quality: result.quality,
+        failureStage: 'db_insert',
+        evidence: result.evidence,
+      }
     }
   }
 

@@ -2,6 +2,7 @@ export interface PdfConversionResult {
   text: string
   pageCount: number
   metadata?: Record<string, string>
+  warnings?: string[]
 }
 
 export interface PdfConverter {

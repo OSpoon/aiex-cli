@@ -1,3 +1,4 @@
+import type { FieldEvidenceQuality, FieldEvidenceStatus } from '@/domain/extraction/quality'
 import type { JsonSchemaDefinition, JsonSchemaProperty } from '@/domain/schema/schemas'
 
 export interface RawFieldEvidence {
@@ -121,4 +122,63 @@ export function verifyFieldEvidence(input: {
   }
 
   return Object.keys(verified).length > 0 ? verified : undefined
+}
+
+function isEvidenceEligibleProperty(property: JsonSchemaProperty): boolean {
+  return property.type === 'string' || property.type === 'number' || property.type === 'integer'
+}
+
+export function buildFieldEvidenceQuality(input: {
+  schema: JsonSchemaDefinition
+  data: unknown
+  rawEvidence?: Record<string, RawFieldEvidence>
+  verifiedEvidence?: VerifiedEvidenceMap
+}): FieldEvidenceQuality | undefined {
+  if (!isRecord(input.data))
+    return undefined
+
+  const fieldStatus: Record<string, FieldEvidenceStatus> = {}
+  const supportedFields: string[] = []
+  const unsupportedFields: string[] = []
+  const missingFields: string[] = []
+  const invalidFields: string[] = []
+
+  for (const [field, property] of Object.entries(input.schema.properties)) {
+    if (!isEvidenceEligibleProperty(property))
+      continue
+
+    const value = input.data[field]
+    let status: FieldEvidenceStatus
+    if (value === null || value === undefined) {
+      status = 'missing'
+      missingFields.push(field)
+    }
+    else if (input.verifiedEvidence?.[field]) {
+      status = 'supported'
+      supportedFields.push(field)
+    }
+    else if (input.rawEvidence?.[field]) {
+      status = 'invalid'
+      invalidFields.push(field)
+    }
+    else {
+      status = 'unsupported'
+      unsupportedFields.push(field)
+    }
+
+    fieldStatus[field] = status
+  }
+
+  const total = Object.keys(fieldStatus).length
+  if (total === 0)
+    return undefined
+
+  return {
+    fieldStatus,
+    supportedFields,
+    unsupportedFields,
+    missingFields,
+    invalidFields,
+    supportedRate: supportedFields.length / total,
+  }
 }

@@ -1,3 +1,14 @@
+export type FieldEvidenceStatus = 'supported' | 'unsupported' | 'missing' | 'invalid'
+
+export interface FieldEvidenceQuality {
+  fieldStatus: Record<string, FieldEvidenceStatus>
+  supportedFields: string[]
+  unsupportedFields: string[]
+  missingFields: string[]
+  invalidFields: string[]
+  supportedRate: number
+}
+
 export interface ExtractionQualityMetrics {
   input?: {
     kind: 'pdf' | 'image' | 'text'
@@ -24,5 +35,6 @@ export interface ExtractionQualityMetrics {
     missingFields?: string[]
     missingFieldRate?: number
     validationError?: string
+    evidence?: FieldEvidenceQuality
   }
 }
