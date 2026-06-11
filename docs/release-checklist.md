@@ -19,6 +19,7 @@ Use these when package exports, optional dependencies, or build config changed.
 ```bash
 pnpm --filter aiex-cli build
 pnpm --filter aiex-cli exec publint
+pnpm --filter aiex-cli smoke:cli
 pnpm --filter aiex-cli smoke:package
 node app/cli/dist/cli.mjs --help
 ```

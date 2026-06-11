@@ -48,6 +48,7 @@
     "start": "tsx src/index.ts",
     "test": "vitest",
     "coverage": "vitest --coverage",
+    "smoke:cli": "node scripts/cli-smoke.mjs",
     "smoke:package": "node scripts/package-smoke.mjs",
     "typecheck": "tsc",
     "lint": "eslint .",
