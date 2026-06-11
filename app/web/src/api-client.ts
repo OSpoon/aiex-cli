@@ -1,7 +1,7 @@
-import ky, { HTTPError } from 'ky'
+import ky, { HTTPError } from "ky"
 
 const api = ky.create({
-  retry: 0,
+  retry: 0
 })
 
 async function getErrorMessage(error: unknown, fallback: string): Promise<string> {
@@ -9,8 +9,7 @@ async function getErrorMessage(error: unknown, fallback: string): Promise<string
     try {
       const data = await error.response.json() as { error?: string }
       return data.error || fallback
-    }
-    catch {
+    } catch {
       return fallback
     }
   }
@@ -19,7 +18,7 @@ async function getErrorMessage(error: unknown, fallback: string): Promise<string
 }
 
 export async function listSchemas(): Promise<string[]> {
-  return api.get('api/schema').json<string[]>()
+  return api.get("api/schema").json<string[]>()
 }
 
 export async function getSchema(name: string): Promise<unknown> {
@@ -29,8 +28,7 @@ export async function getSchema(name: string): Promise<unknown> {
 export async function saveSchema(name: string, schema: unknown): Promise<void> {
   try {
     await api.post(`api/schema/${encodeURIComponent(name)}`, { json: schema })
-  }
-  catch (error) {
+  } catch (error) {
     throw new Error(await getErrorMessage(error, `Failed to save schema: ${name}`))
   }
 }
@@ -38,8 +36,7 @@ export async function saveSchema(name: string, schema: unknown): Promise<void> {
 export async function deleteSchema(name: string): Promise<void> {
   try {
     await api.delete(`api/schema/${encodeURIComponent(name)}`)
-  }
-  catch (error) {
+  } catch (error) {
     throw new Error(await getErrorMessage(error, `Failed to delete schema: ${name}`))
   }
 }
@@ -56,7 +53,7 @@ export interface MigrateResult {
 }
 
 export interface MigrationRiskItem {
-  severity: 'low' | 'medium' | 'high'
+  severity: "low" | "medium" | "high"
   kind: string
   table: string
   column?: string
@@ -64,7 +61,7 @@ export interface MigrationRiskItem {
 }
 
 export interface MigrationRiskReport {
-  level: 'none' | 'low' | 'medium' | 'high'
+  level: "none" | "low" | "medium" | "high"
   items: MigrationRiskItem[]
   hasHighRisk: boolean
 }
@@ -72,28 +69,27 @@ export interface MigrationRiskReport {
 export class MigrationError extends Error {
   constructor(message: string, public readonly riskReport?: MigrationRiskReport) {
     super(message)
-    this.name = 'MigrationError'
+    this.name = "MigrationError"
   }
 }
 
 export async function migrateSchema(options: { force?: boolean } = {}): Promise<MigrateResult> {
   try {
-    const data = await api.post(`api/migrate${options.force ? '?force=true' : ''}`).json<MigrateResult>()
+    const data = await api.post(`api/migrate${options.force ? "?force=true" : ""}`).json<MigrateResult>()
     if (!data.success)
-      throw new MigrationError(data.error || 'Migration failed', data.riskReport)
+      throw new MigrationError(data.error || "Migration failed", data.riskReport)
     return data
-  }
-  catch (error) {
+  } catch (error) {
     if (error instanceof MigrationError)
       throw error
     if (error instanceof HTTPError) {
       const data = await error.response.json().catch(() => undefined) as MigrateResult | undefined
-      throw new MigrationError(data?.error || 'Migration failed', data?.riskReport)
+      throw new MigrationError(data?.error || "Migration failed", data?.riskReport)
     }
     if (error instanceof Error) {
       throw new MigrationError(error.message)
     }
-    throw new MigrationError('Migration failed')
+    throw new MigrationError("Migration failed")
   }
 }
 
@@ -226,21 +222,20 @@ export interface AIConfig {
 }
 
 export async function getAIConfig(): Promise<AIConfig> {
-  return api.get('api/ai/config').json<AIConfig>()
+  return api.get("api/ai/config").json<AIConfig>()
 }
 
 export async function saveAIConfig(config: AIConfig): Promise<void> {
   try {
-    await api.put('api/ai/config', { json: config })
-  }
-  catch (error) {
-    throw new Error(await getErrorMessage(error, 'Failed to save AI config'))
+    await api.put("api/ai/config", { json: config })
+  } catch (error) {
+    throw new Error(await getErrorMessage(error, "Failed to save AI config"))
   }
 }
 
 export async function registryLookup(modelName: string): Promise<ModelCapabilities | null> {
-  const data = await api.post('api/ai/registry-lookup', { json: { modelName } }).json<Partial<ModelCapabilities>>().catch(() => null)
-  if (!data || typeof data.vision !== 'boolean') return null
+  const data = await api.post("api/ai/registry-lookup", { json: { modelName } }).json<Partial<ModelCapabilities>>().catch(() => null)
+  if (!data || typeof data.vision !== "boolean") return null
   return data as ModelCapabilities
 }
 
@@ -250,13 +245,12 @@ export async function inspectNotionDatabase(input: {
   schemaName: string
 }): Promise<InspectNotionDatabaseResult> {
   try {
-    const data = await api.post('api/ai/notion/inspect', { json: input }).json<InspectNotionDatabaseResult>()
+    const data = await api.post("api/ai/notion/inspect", { json: input }).json<InspectNotionDatabaseResult>()
     if (!data.success)
-      throw new Error(data.error || 'Notion connection failed')
+      throw new Error(data.error || "Notion connection failed")
     return data
-  }
-  catch (error) {
-    throw new Error(await getErrorMessage(error, 'Notion connection failed'))
+  } catch (error) {
+    throw new Error(await getErrorMessage(error, "Notion connection failed"))
   }
 }
 
@@ -357,27 +351,27 @@ export interface TableDataParams {
 }
 
 export async function listExtractions(): Promise<ExtractionRecord[]> {
-  return api.get('api/data').json<ExtractionRecord[]>()
+  return api.get("api/data").json<ExtractionRecord[]>()
 }
 
 export async function listDataTables(): Promise<TableInfo[]> {
-  return api.get('api/data/tables').json<TableInfo[]>()
+  return api.get("api/data/tables").json<TableInfo[]>()
 }
 
 export async function getTableData(tableName: string, params: TableDataParams = {}): Promise<TableData> {
   const searchParams = new URLSearchParams()
   if (params.page !== undefined)
-    searchParams.set('page', String(params.page))
+    searchParams.set("page", String(params.page))
   if (params.pageSize !== undefined)
-    searchParams.set('pageSize', String(params.pageSize))
+    searchParams.set("pageSize", String(params.pageSize))
   if (params.search)
-    searchParams.set('search', params.search)
+    searchParams.set("search", params.search)
   if (params.sortField)
-    searchParams.set('sortField', params.sortField)
+    searchParams.set("sortField", params.sortField)
   if (params.sortOrder)
-    searchParams.set('sortOrder', params.sortOrder)
+    searchParams.set("sortOrder", params.sortOrder)
   if (params.all !== undefined)
-    searchParams.set('all', String(params.all))
+    searchParams.set("all", String(params.all))
 
   return api.get(`api/data/tables/${encodeURIComponent(tableName)}`, { searchParams }).json<TableData>()
 }
@@ -397,10 +391,9 @@ export async function retryNotionSync(name: string): Promise<RetryNotionSyncResu
   try {
     const data = await api.post(`api/data/${encodeURIComponent(name)}/notion/retry`).json<RetryNotionSyncResult>()
     if (!data.success)
-      throw new Error(data.error || 'Notion sync failed')
+      throw new Error(data.error || "Notion sync failed")
     return data
-  }
-  catch (error) {
-    throw new Error(await getErrorMessage(error, 'Notion sync failed'))
+  } catch (error) {
+    throw new Error(await getErrorMessage(error, "Notion sync failed"))
   }
 }

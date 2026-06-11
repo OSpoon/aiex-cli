@@ -1,7 +1,7 @@
-import type { JSONSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
-import Ajv from 'ajv'
-import addFormats from 'ajv-formats'
-import { parse as parseJsonWithSourceMap } from 'json-source-map'
+import type { JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema.ts"
+import Ajv from "ajv"
+import addFormats from "ajv-formats"
+import { parse as parseJsonWithSourceMap } from "json-source-map"
 
 const POSITION_PATTERN = /position (\d+)/
 
@@ -10,7 +10,7 @@ const ajv = new Ajv({
   allErrors: true,
   strict: false,
   validateSchema: false,
-  validateFormats: false,
+  validateFormats: false
 })
 addFormats(ajv)
 
@@ -31,10 +31,10 @@ export interface ValidationResult {
  */
 export function findLineNumberForPath(
   jsonStr: string,
-  path: string,
+  path: string
 ): { line: number, column: number } | undefined {
   try {
-    if (path === '/' || path === '') {
+    if (path === "/" || path === "") {
       return { line: 1, column: 1 }
     }
 
@@ -44,9 +44,8 @@ export function findLineNumberForPath(
     return location
       ? { line: location.line + 1, column: location.column + 1 }
       : undefined
-  }
-  catch (error) {
-    console.error('Error finding line number:', error)
+  } catch (error) {
+    console.error("Error finding line number:", error)
     return undefined
   }
 }
@@ -56,7 +55,7 @@ export function findLineNumberForPath(
  */
 export function extractErrorPosition(
   error: Error,
-  jsonInput: string,
+  jsonInput: string
 ): { line: number, column: number } {
   let line = 1
   let column = 1
@@ -66,7 +65,7 @@ export function extractErrorPosition(
   if (positionMatch?.[1]) {
     const position = Number.parseInt(positionMatch[1], 10)
     const jsonUpToError = jsonInput.substring(0, position)
-    const lines = jsonUpToError.split('\n')
+    const lines = jsonUpToError.split("\n")
     line = lines.length
     column = lines[lines.length - 1].length + 1
   }
@@ -79,17 +78,17 @@ export function extractErrorPosition(
  */
 export function validateJson(
   jsonInput: string,
-  schema: JSONSchema,
+  schema: JSONSchema
 ): ValidationResult {
   if (!jsonInput.trim()) {
     return {
       valid: false,
       errors: [
         {
-          path: '/',
-          message: 'Empty JSON input',
-        },
-      ],
+          path: "/",
+          message: "Empty JSON input"
+        }
+      ]
     }
   }
 
@@ -104,37 +103,36 @@ export function validateJson(
     if (!valid) {
       const errors
         = validate.errors?.map((error) => {
-          const path = error.instancePath || '/'
+          const path = error.instancePath || "/"
           const position = findLineNumberForPath(jsonInput, path)
           return {
             path,
-            message: error.message || 'Unknown error',
+            message: error.message || "Unknown error",
             line: position?.line,
-            column: position?.column,
+            column: position?.column
           }
         }) || []
 
       return {
         valid: false,
-        errors,
+        errors
       }
     }
 
     return {
       valid: true,
-      errors: [],
+      errors: []
     }
-  }
-  catch (error) {
+  } catch (error) {
     if (!(error instanceof Error)) {
       return {
         valid: false,
         errors: [
           {
-            path: '/',
-            message: `Unknown error: ${error}`,
-          },
-        ],
+            path: "/",
+            message: `Unknown error: ${error}`
+          }
+        ]
       }
     }
 
@@ -144,12 +142,12 @@ export function validateJson(
       valid: false,
       errors: [
         {
-          path: '/',
+          path: "/",
           message: error.message,
           line,
-          column,
-        },
-      ],
+          column
+        }
+      ]
     }
   }
 }

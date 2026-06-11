@@ -1,14 +1,14 @@
-import { z } from 'zod'
+import { z } from "zod"
 
 // Core definitions
 const simpleTypes = [
-  'string',
-  'number',
-  'integer',
-  'boolean',
-  'object',
-  'array',
-  'null',
+  "string",
+  "number",
+  "integer",
+  "boolean",
+  "object",
+  "array",
+  "null"
 ] as const
 
 // ─── aiex Extensions ─────────────────────────────────────────────────────────
@@ -17,29 +17,29 @@ const simpleTypes = [
 export const TableConfigSchema = z.object({
   name: z.string().min(1),
   timestamps: z.boolean().optional(),
-  softDelete: z.boolean().optional(),
+  softDelete: z.boolean().optional()
 })
 
 export type TableConfig = z.infer<typeof TableConfigSchema>
 
 /** Drizzle ORM extension modes */
 export const DrizzleModeSchema = z.enum([
-  'json',
-  'timestamp',
-  'timestamp_ms',
-  'boolean',
-  'bigint',
+  "json",
+  "timestamp",
+  "timestamp_ms",
+  "boolean",
+  "bigint"
 ])
 
 export type DrizzleMode = z.infer<typeof DrizzleModeSchema>
 
-export const FormatSchema = z.enum(['date-time', 'email', 'uri', 'json'])
+export const FormatSchema = z.enum(["date-time", "email", "uri", "json"])
 export type Format = z.infer<typeof FormatSchema>
 
 /** Drizzle ORM property extension */
 export const DrizzleExtensionSchema = z
   .object({
-    mode: DrizzleModeSchema.optional(),
+    mode: DrizzleModeSchema.optional()
   })
   .strict()
   .optional()
@@ -49,7 +49,7 @@ export type DrizzleExtension = z.infer<typeof DrizzleExtensionSchema>
 /** Nested object relation configuration */
 export const NestedConfigSchema = z.object({
   enabled: z.literal(true),
-  relation: z.enum(['has-one', 'has-many']),
+  relation: z.enum(["has-one", "has-many"])
 })
 
 export type NestedConfig = z.infer<typeof NestedConfigSchema>
@@ -58,7 +58,7 @@ export type NestedConfig = z.infer<typeof NestedConfigSchema>
 
 export const ExamplePairSchema = z.object({
   text: z.string().min(1),
-  output: z.record(z.string(), z.unknown()),
+  output: z.record(z.string(), z.unknown())
 })
 
 export type ExamplePair = z.infer<typeof ExamplePairSchema>
@@ -128,7 +128,7 @@ export const baseSchema = z.object({
   /** Drizzle ORM extension (property-level) */
   drizzle: DrizzleExtensionSchema,
   /** Nested object relation (property-level, for array types) */
-  nested: NestedConfigSchema.optional(),
+  nested: NestedConfigSchema.optional()
 })
 
 // Define recursive schema type
@@ -181,10 +181,10 @@ export const jsonSchemaType: z.ZodType<JSONSchema> = z.lazy(() =>
       if: jsonSchemaType.optional(),
       // biome-ignore lint/suspicious/noThenProperty: This is a required property name in JSON Schema
       then: jsonSchemaType.optional(),
-      else: jsonSchemaType.optional(),
+      else: jsonSchemaType.optional()
     }),
-    z.boolean(),
-  ]),
+    z.boolean()
+  ])
 )
 
 // Derive our types from the schema
@@ -218,7 +218,7 @@ export interface SchemaEditorState {
 export type ObjectJSONSchema = Exclude<JSONSchema, boolean>
 
 export function isBooleanSchema(schema: JSONSchema): schema is boolean {
-  return typeof schema === 'boolean'
+  return typeof schema === "boolean"
 }
 
 export function isObjectSchema(schema: JSONSchema): schema is ObjectJSONSchema {
@@ -226,16 +226,16 @@ export function isObjectSchema(schema: JSONSchema): schema is ObjectJSONSchema {
 }
 
 export function asObjectSchema(schema: JSONSchema): ObjectJSONSchema {
-  return isObjectSchema(schema) ? schema : { type: 'null' }
+  return isObjectSchema(schema) ? schema : { type: "null" }
 }
 export function getSchemaDescription(schema: JSONSchema): string {
-  return isObjectSchema(schema) ? schema.description || '' : ''
+  return isObjectSchema(schema) ? schema.description || "" : ""
 }
 
 export function withObjectSchema<T>(
   schema: JSONSchema,
   fn: (schema: ObjectJSONSchema) => T,
-  defaultValue: T,
+  defaultValue: T
 ): T {
   return isObjectSchema(schema) ? fn(schema) : defaultValue
 }
@@ -264,14 +264,14 @@ export function isUnique(schema: JSONSchema): boolean {
 
 /** Get drizzle extension from property */
 export function getDrizzleExtension(
-  schema: JSONSchema,
+  schema: JSONSchema
 ): DrizzleExtension | undefined {
   return isObjectSchema(schema) ? schema.drizzle : undefined
 }
 
 /** Get nested config from property */
 export function getNestedConfig(
-  schema: JSONSchema,
+  schema: JSONSchema
 ): NestedConfig | undefined {
   return isObjectSchema(schema) ? schema.nested : undefined
 }

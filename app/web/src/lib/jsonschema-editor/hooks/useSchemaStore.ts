@@ -1,18 +1,18 @@
-import type { InjectionKey, ShallowRef } from 'vue'
+import type { InjectionKey, ShallowRef } from "vue"
 import type {
   JSONSchema,
   NewField,
-  ObjectJSONSchema,
-} from '@/lib/jsonschema-editor/types/jsonSchema.ts'
+  ObjectJSONSchema
+} from "@/lib/jsonschema-editor/types/jsonSchema.ts"
 import {
   inject,
 
   provide,
 
-  shallowRef,
-} from 'vue'
-import { cloneJson } from '@/lib/jsonschema-editor/lib/object-utils'
-import { isObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
+  shallowRef
+} from "vue"
+import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
+import { isObjectSchema } from "@/lib/jsonschema-editor/types/jsonSchema.ts"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ export interface SchemaStore {
   updateProperty: (
     path: string[],
     propertyName: string,
-    propertySchema: JSONSchema,
+    propertySchema: JSONSchema
   ) => void
 
   /** Delete a property at `path > propertyName`. */
@@ -40,7 +40,7 @@ export interface SchemaStore {
   setPropertyRequired: (
     path: string[],
     propertyName: string,
-    required: boolean,
+    required: boolean
   ) => void
 
   /** Add a new field at `path`. */
@@ -50,7 +50,7 @@ export interface SchemaStore {
   replaceSchema: (newSchema: JSONSchema) => void
 }
 
-export const SchemaStoreKey: InjectionKey<SchemaStore> = Symbol('SchemaStore')
+export const SchemaStoreKey: InjectionKey<SchemaStore> = Symbol("SchemaStore")
 
 // ─── Pure helpers (no Vue dependency) ────────────────────────────────────────
 
@@ -65,7 +65,7 @@ function clone<T>(value: T): T {
  */
 function navigateToPath(
   root: JSONSchema,
-  path: string[],
+  path: string[]
 ): ObjectJSONSchema | undefined {
   let current: JSONSchema = root
   for (const segment of path) {
@@ -77,13 +77,12 @@ function navigateToPath(
     // If the property is an array with items, follow .items
     if (
       isObjectSchema(next)
-      && next.type === 'array'
+      && next.type === "array"
       && next.items
       && isObjectSchema(next.items)
     ) {
       current = next.items
-    }
-    else {
+    } else {
       current = next
     }
   }
@@ -95,7 +94,7 @@ function navigateToPath(
  */
 function getSubSchema(
   root: JSONSchema,
-  path: string[],
+  path: string[]
 ): JSONSchema | undefined {
   if (path.length === 0)
     return root
@@ -119,7 +118,7 @@ function setDeep(
   root: JSONSchema,
   path: string[],
   propertyName: string,
-  propertySchema: JSONSchema,
+  propertySchema: JSONSchema
 ): JSONSchema {
   const newRoot = clone(root)
   const parent = path.length === 0 ? newRoot : navigateToPath(newRoot, path)
@@ -138,7 +137,7 @@ function setDeep(
 function deleteDeep(
   root: JSONSchema,
   path: string[],
-  propertyName: string,
+  propertyName: string
 ): JSONSchema {
   const newRoot = clone(root)
   const parent = path.length === 0 ? newRoot : navigateToPath(newRoot, path)
@@ -162,7 +161,7 @@ function renameDeep(
   root: JSONSchema,
   path: string[],
   oldName: string,
-  newName: string,
+  newName: string
 ): JSONSchema {
   const newRoot = clone(root)
   const parent = path.length === 0 ? newRoot : navigateToPath(newRoot, path)
@@ -189,7 +188,7 @@ function setRequiredDeep(
   root: JSONSchema,
   path: string[],
   propertyName: string,
-  required: boolean,
+  required: boolean
 ): JSONSchema {
   const newRoot = clone(root)
   const parent = path.length === 0 ? newRoot : navigateToPath(newRoot, path)
@@ -203,8 +202,7 @@ function setRequiredDeep(
     if (!parent.required.includes(propertyName)) {
       parent.required.push(propertyName)
     }
-  }
-  else {
+  } else {
     parent.required = parent.required.filter(n => n !== propertyName)
   }
   return newRoot
@@ -221,7 +219,7 @@ function setRequiredDeep(
  */
 export function createSchemaStore(
   initialSchema: JSONSchema,
-  onChange?: (schema: JSONSchema) => void,
+  onChange?: (schema: JSONSchema) => void
 ): SchemaStore {
   const schema = shallowRef<JSONSchema>(clone(initialSchema))
 
@@ -252,9 +250,9 @@ export function createSchemaStore(
     }
     commitCount++
     if (commitCount > MAX_COMMITS_PER_BATCH) {
-      if (typeof console !== 'undefined') {
+      if (typeof console !== "undefined") {
         console.warn(
-          '[SchemaStore] commit rate limit reached — dropping update to prevent loop',
+          "[SchemaStore] commit rate limit reached — dropping update to prevent loop"
         )
       }
       return
@@ -264,8 +262,7 @@ export function createSchemaStore(
     try {
       schema.value = newSchema
       onChange?.(newSchema)
-    }
-    finally {
+    } finally {
       isUpdating = false
     }
   }
@@ -280,7 +277,7 @@ export function createSchemaStore(
     updateProperty(
       path: string[],
       propertyName: string,
-      propertySchema: JSONSchema,
+      propertySchema: JSONSchema
     ): void {
       commit(setDeep(schema.value, path, propertyName, clone(propertySchema)))
     },
@@ -296,7 +293,7 @@ export function createSchemaStore(
     setPropertyRequired(
       path: string[],
       propertyName: string,
-      required: boolean,
+      required: boolean
     ): void {
       commit(setRequiredDeep(schema.value, path, propertyName, required))
     },
@@ -305,7 +302,7 @@ export function createSchemaStore(
       const { type, description } = field
       const fieldSchema: ObjectJSONSchema = {
         type,
-        ...(description ? { description } : {}),
+        ...(description ? { description } : {})
       }
 
       let newSchema = setDeep(schema.value, path, field.name, fieldSchema)
@@ -317,7 +314,7 @@ export function createSchemaStore(
 
     replaceSchema(newSchema: JSONSchema): void {
       commit(clone(newSchema))
-    },
+    }
   }
 
   return store
@@ -333,8 +330,8 @@ export function useSchemaStore(): SchemaStore {
   const store = inject(SchemaStoreKey)
   if (!store) {
     throw new Error(
-      'useSchemaStore() was called without a parent providing SchemaStore. '
-      + 'Wrap your component tree with JsonSchemaEditor or call provideSchemaStore().',
+      "useSchemaStore() was called without a parent providing SchemaStore. "
+      + "Wrap your component tree with JsonSchemaEditor or call provideSchemaStore()."
     )
   }
   return store
@@ -348,5 +345,5 @@ export const _testing = {
   setDeep,
   deleteDeep,
   renameDeep,
-  setRequiredDeep,
+  setRequiredDeep
 }

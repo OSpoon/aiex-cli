@@ -1,51 +1,51 @@
-import type { PresetName } from './presets.ts'
+import type { ComputedRef, Ref } from "vue"
+import type { PresetName } from "./presets.ts"
 /**
  * Composable for runtime theme switching.
  *
  * Dark mode uses VueUse `useColorMode` (system preference + localStorage).
  * PrimeVue / Tailwind still need custom classes via `applyDarkMode`.
  */
-import { useColorMode } from '@vueuse/core'
-import { usePrimeVue } from 'primevue/config'
-import type { ComputedRef, Ref } from 'vue'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { presets } from './presets.ts'
+import { useColorMode } from "@vueuse/core"
+import { usePrimeVue } from "primevue/config"
+import { computed, nextTick, onMounted, ref, watch } from "vue"
+import { presets } from "./presets.ts"
 
-const STORAGE_KEY = 'jscb-color-scheme'
+const STORAGE_KEY = "jscb-color-scheme"
 
-const currentPreset = ref<PresetName>('aura')
+const currentPreset = ref<PresetName>("aura")
 
 /** Resolve dark state for pre-mount init (matches useColorMode storage semantics). */
 export function getInitialDarkMode(): boolean {
-  if (typeof window === 'undefined') return false
+  if (typeof window === "undefined") return false
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'dark') return true
-    if (stored === 'light') return false
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+    if (stored === "dark") return true
+    if (stored === "light") return false
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
   } catch {
     return false
   }
 }
 
-const DARK_MODE_SELECTOR = '.jscb-dark'
+const DARK_MODE_SELECTOR = ".jscb-dark"
 
 function applyDarkMode(isDark: boolean): void {
-  document.documentElement.classList.toggle('jscb-dark', isDark)
-  document.documentElement.setAttribute('data-vxe-ui-theme', isDark ? 'dark' : 'light')
+  document.documentElement.classList.toggle("jscb-dark", isDark)
+  document.documentElement.setAttribute("data-vxe-ui-theme", isDark ? "dark" : "light")
 
-  for (const el of document.querySelectorAll<HTMLElement>('.jscb')) {
-    el.classList.toggle('dark', isDark)
+  for (const el of document.querySelectorAll<HTMLElement>(".jscb")) {
+    el.classList.toggle("dark", isDark)
   }
 
-  for (const el of document.querySelectorAll<HTMLElement>('[data-jscb-overlay-container]')) {
-    el.classList.toggle('dark', isDark)
+  for (const el of document.querySelectorAll<HTMLElement>("[data-jscb-overlay-container]")) {
+    el.classList.toggle("dark", isDark)
   }
 }
 
 /** Apply theme before Vue mounts to avoid a light flash on refresh. */
 export function initTheme(): void {
-  if (typeof document === 'undefined') return
+  if (typeof document === "undefined") return
   applyDarkMode(getInitialDarkMode())
 }
 
@@ -66,16 +66,16 @@ export function useTheme(): {
 
   const colorMode = useColorMode({
     storageKey: STORAGE_KEY,
-    initialValue: 'auto',
+    initialValue: "auto",
     modes: {
-      auto: '',
-      light: '',
-      dark: '',
-    },
+      auto: "",
+      light: "",
+      dark: ""
+    }
   })
 
   watch(() => colorMode.state.value, (val) => {
-    applyDarkMode(val === 'dark')
+    applyDarkMode(val === "dark")
   })
 
   const ensureDarkModeSelector = (): void => {
@@ -83,8 +83,8 @@ export function useTheme(): {
       ...(primevue.config.theme ?? {}),
       options: {
         ...(primevue.config.theme?.options ?? {}),
-        darkModeSelector: DARK_MODE_SELECTOR,
-      },
+        darkModeSelector: DARK_MODE_SELECTOR
+      }
     }
   }
 
@@ -94,26 +94,26 @@ export function useTheme(): {
       preset: presets[name],
       options: {
         ...(primevue.config.theme?.options ?? {}),
-        darkModeSelector: DARK_MODE_SELECTOR,
-      },
+        darkModeSelector: DARK_MODE_SELECTOR
+      }
     }
   }
 
   /** Toggle dark/light; set `colorMode.store` to `'auto'` to follow system again. */
   const toggleDarkMode = (value?: boolean): void => {
     if (value !== undefined) {
-      colorMode.store.value = value ? 'dark' : 'light'
+      colorMode.store.value = value ? "dark" : "light"
     } else {
-      colorMode.store.value = colorMode.state.value === 'dark' ? 'light' : 'dark'
+      colorMode.store.value = colorMode.state.value === "dark" ? "light" : "dark"
     }
   }
 
-  const darkMode = computed(() => colorMode.state.value === 'dark')
+  const darkMode = computed(() => colorMode.state.value === "dark")
 
   ensureDarkModeSelector()
 
   onMounted(() => {
-    nextTick(() => applyDarkMode(colorMode.state.value === 'dark'))
+    nextTick(() => applyDarkMode(colorMode.state.value === "dark"))
   })
 
   return {
@@ -122,6 +122,6 @@ export function useTheme(): {
     colorMode,
     switchPreset,
     toggleDarkMode,
-    presetNames: Object.keys(presets) as PresetName[],
+    presetNames: Object.keys(presets) as PresetName[]
   }
 }

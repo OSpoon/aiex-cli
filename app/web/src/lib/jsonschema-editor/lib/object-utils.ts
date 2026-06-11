@@ -1,12 +1,11 @@
-import { dequal } from 'dequal'
-import { toRaw } from 'vue'
+import { dequal } from "dequal"
+import { toRaw } from "vue"
 
 export function cloneJson<T>(value: T): T {
   const raw = toRaw(value)
   try {
     return structuredClone(raw)
-  }
-  catch {
+  } catch {
     return JSON.parse(JSON.stringify(raw)) as T
   }
 }

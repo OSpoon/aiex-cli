@@ -567,6 +567,29 @@ describe('schema-sqlite', () => {
       expect(code).toContain('email: text().unique()')
     })
 
+    it('should import sql from drizzle-orm when CHECK constraints are generated', () => {
+      const result = {
+        tables: [{
+          name: 'users',
+          columns: [
+            { name: 'name', columnType: columnTypeText(), isPrimary: false, isAutoIncrement: false, isNullable: false, isUnique: false },
+          ],
+          checks: [
+            { name: 'name_min_length', column: 'name', kind: 'min_length' as const, value: 2 },
+          ],
+        }],
+        relations: [],
+        reverseRelations: [],
+        warnings: [],
+      }
+
+      const code = generateDrizzleSchema(result)
+
+      expect(code).toContain('import { sqliteTable, text, integer, real, check } from \'drizzle-orm/sqlite-core\'')
+      expect(code).toContain('import { relations, sql } from \'drizzle-orm\'')
+      expect(code).toContain('name_min_length: check(\'name_min_length\', sql`length($' + '{table.name}) >= 2`)')
+    })
+
     it('should generate child table relation with one()', () => {
       const result = {
         tables: [
@@ -1872,7 +1895,8 @@ describe('schema-sqlite', () => {
         warnings: [],
       }
       const code = generateDrizzleSchema(result)
-      expect(code).toContain('check, sql')
+      expect(code).toContain('import { sqliteTable, text, integer, real, check } from \'drizzle-orm/sqlite-core\'')
+      expect(code).toContain('import { relations, sql } from \'drizzle-orm\'')
     })
 
     it('omits check and sql from import when no checks exist', () => {
@@ -1977,7 +2001,8 @@ describe('schema-sqlite', () => {
       expect(table.checks!.some(c => c.name === 'count_min')).toBe(true)
 
       const code = generateDrizzleSchema(result)
-      expect(code).toContain('check, sql')
+      expect(code).toContain('import { sqliteTable, text, integer, real, check } from \'drizzle-orm/sqlite-core\'')
+      expect(code).toContain('import { relations, sql } from \'drizzle-orm\'')
       expect(code).toContain(`sql\`length(\${table.name})`)
       expect(code).toContain(`sql\`\${table.score}`)
       expect(code).toContain(`sql\`\${table.count}`)

@@ -1,6 +1,6 @@
-import type { Format, JSONSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
-import { isDeepEqual } from '@/lib/jsonschema-editor/lib/object-utils'
-import { asObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
+import type { Format, JSONSchema } from "@/lib/jsonschema-editor/types/jsonSchema.ts"
+import { isDeepEqual } from "@/lib/jsonschema-editor/lib/object-utils"
+import { asObjectSchema } from "@/lib/jsonschema-editor/types/jsonSchema.ts"
 
 // Static regex patterns for semantic detection
 const COORDINATES_KEY_REGEX = /coordinates?|coords?|latLon|lonLat|point/i
@@ -27,12 +27,12 @@ function mergeSchemas(schema1: JSONSchema, schema2: JSONSchema): JSONSchema {
   }
 
   // Handle basic type merging (e.g., integer into number)
-  if (s1.type === 'integer' && s2.type === 'number')
-    return { type: 'number' }
-  if (s1.type === 'number' && s2.type === 'integer')
-    return { type: 'number' }
+  if (s1.type === "integer" && s2.type === "number")
+    return { type: "number" }
+  if (s1.type === "number" && s2.type === "integer")
+    return { type: "number" }
 
-  return { type: 'string' }
+  return { type: "string" }
 }
 
 // --- Helper Functions for Type Inference ---
@@ -49,16 +49,16 @@ function inferObjectSchema(obj: Record<string, unknown>): JSONSchema {
   }
 
   return {
-    type: 'object',
+    type: "object",
     properties,
-    required: required.length > 0 ? required.sort() : undefined, // Sort required keys
+    required: required.length > 0 ? required.sort() : undefined // Sort required keys
   }
 }
 
 function detectEnumsInArrayItems(
   mergedProperties: Record<string, JSONSchema>,
   originalArray: Record<string, unknown>[],
-  totalItems: number,
+  totalItems: number
 ): Record<string, JSONSchema> {
   if (totalItems < 10 || Object.keys(mergedProperties).length === 0) {
     return mergedProperties // Not enough data or no properties to check
@@ -71,7 +71,7 @@ function detectEnumsInArrayItems(
     for (const key in mergedProperties) {
       if (Object.hasOwn(item, key)) {
         const value = item[key]
-        if (typeof value === 'string' || typeof value === 'number') {
+        if (typeof value === "string" || typeof value === "number") {
           if (!valueMap[key])
             valueMap[key] = new Set()
           valueMap[key].add(value)
@@ -91,13 +91,13 @@ function detectEnumsInArrayItems(
     ) {
       const currentSchema = asObjectSchema(updatedProperties[key])
       if (
-        currentSchema.type === 'string'
-        || currentSchema.type === 'number'
-        || currentSchema.type === 'integer'
+        currentSchema.type === "string"
+        || currentSchema.type === "number"
+        || currentSchema.type === "integer"
       ) {
         updatedProperties[key] = {
           type: currentSchema.type,
-          enum: distinctValues.sort(),
+          enum: distinctValues.sort()
         }
       }
     }
@@ -107,7 +107,7 @@ function detectEnumsInArrayItems(
 
 function detectSemanticFormatsInArrayItems(
   mergedProperties: Record<string, JSONSchema>,
-  originalArray: Record<string, unknown>[],
+  originalArray: Record<string, unknown>[]
 ): Record<string, JSONSchema> {
   const updatedProperties = { ...mergedProperties }
 
@@ -117,10 +117,10 @@ function detectSemanticFormatsInArrayItems(
     // Coordinates Detection
     if (
       COORDINATES_KEY_REGEX.test(key)
-      && currentSchema.type === 'array'
+      && currentSchema.type === "array"
     ) {
-      const itemsSchema = asObjectSchema(currentSchema.items ?? { type: 'string' })
-      if (itemsSchema?.type === 'number' || itemsSchema?.type === 'integer') {
+      const itemsSchema = asObjectSchema(currentSchema.items ?? { type: "string" })
+      if (itemsSchema?.type === "number" || itemsSchema?.type === "integer") {
         let isValidCoordArray = true
         let coordLength: number | null = null
         for (const item of originalArray) {
@@ -134,21 +134,20 @@ function detectSemanticFormatsInArrayItems(
             if (
               arr.length !== coordLength
               || (arr.length !== 2 && arr.length !== 3)
-              || !arr.every(v => typeof v === 'number')
+              || !arr.every(v => typeof v === "number")
             ) {
               isValidCoordArray = false
               break
             }
-          }
-          else if (Object.hasOwn(item, key)) {
+          } else if (Object.hasOwn(item, key)) {
             isValidCoordArray = false
             break
           }
         }
         if (isValidCoordArray && coordLength !== null) {
           updatedProperties[key] = {
-            type: 'array',
-            items: { type: 'number' },
+            type: "array",
+            items: { type: "number" }
           }
         }
       }
@@ -157,7 +156,7 @@ function detectSemanticFormatsInArrayItems(
     // Timestamp Detection
     if (
       TIMESTAMP_KEY_REGEX.test(key)
-      && currentSchema.type === 'integer'
+      && currentSchema.type === "integer"
     ) {
       let isTimestampLike = true
       const now = Date.now()
@@ -166,7 +165,7 @@ function detectSemanticFormatsInArrayItems(
         if (Object.hasOwn(item, key)) {
           const val = item[key]
           if (
-            typeof val !== 'number'
+            typeof val !== "number"
             || !Number.isInteger(val)
             || val < fiftyYearsAgo
           ) {
@@ -177,9 +176,9 @@ function detectSemanticFormatsInArrayItems(
       }
       if (isTimestampLike) {
         updatedProperties[key] = {
-          type: 'integer',
-          drizzle: { mode: 'timestamp_ms' },
-          description: 'Unix timestamp (likely milliseconds)',
+          type: "integer",
+          drizzle: { mode: "timestamp_ms" },
+          description: "Unix timestamp (likely milliseconds)"
         }
       }
     }
@@ -190,7 +189,7 @@ function detectSemanticFormatsInArrayItems(
 
 function processArrayOfObjects(
   itemSchemas: JSONSchema[],
-  originalArray: Record<string, unknown>[],
+  originalArray: Record<string, unknown>[]
 ): JSONSchema {
   let mergedProperties: Record<string, JSONSchema> = {}
   const propertyCounts: Record<string, number> = {}
@@ -204,8 +203,7 @@ function processArrayOfObjects(
       propertyCounts[key] = (propertyCounts[key] || 0) + 1
       if (key in mergedProperties) {
         mergedProperties[key] = mergeSchemas(mergedProperties[key], value)
-      }
-      else {
+      } else {
         mergedProperties[key] = value
       }
     }
@@ -219,90 +217,90 @@ function processArrayOfObjects(
   mergedProperties = detectEnumsInArrayItems(
     mergedProperties,
     originalArray,
-    totalItems,
+    totalItems
   )
 
   // Apply Semantic Detection
   mergedProperties = detectSemanticFormatsInArrayItems(
     mergedProperties,
-    originalArray,
+    originalArray
   )
 
   return {
-    type: 'object',
+    type: "object",
     properties: mergedProperties,
-    required: requiredProps.length > 0 ? requiredProps.sort() : undefined,
+    required: requiredProps.length > 0 ? requiredProps.sort() : undefined
   }
 }
 
 function inferArraySchema(obj: unknown[]): JSONSchema {
   if (obj.length === 0)
-    return { type: 'array', items: {} }
+    return { type: "array", items: {} }
 
   const itemSchemas = obj.map(item => inferSchema(item)) // Recursive call
 
   const firstItemSchema = asObjectSchema(itemSchemas[0])
   const allSameType = itemSchemas.every(
-    schema => asObjectSchema(schema).type === firstItemSchema.type,
+    schema => asObjectSchema(schema).type === firstItemSchema.type
   )
 
   if (allSameType) {
-    if (firstItemSchema.type === 'object') {
+    if (firstItemSchema.type === "object") {
       const itemsSchema = processArrayOfObjects(
         itemSchemas,
-        obj as Record<string, unknown>[],
+        obj as Record<string, unknown>[]
       )
       return {
-        type: 'array',
-        items: itemsSchema,
+        type: "array",
+        items: itemsSchema
       }
     }
     return {
-      type: 'array',
-      items: itemSchemas[0],
+      type: "array",
+      items: itemSchemas[0]
     }
   }
 
   // Mixed type arrays
   const uniqueSchemas = [
-    ...new Map(itemSchemas.map(s => [JSON.stringify(s), s])).values(),
+    ...new Map(itemSchemas.map(s => [JSON.stringify(s), s])).values()
   ]
 
   // Check if merged schemas result in a single object type
   if (
     uniqueSchemas.length === 1
-    && asObjectSchema(uniqueSchemas[0]).type === 'object'
+    && asObjectSchema(uniqueSchemas[0]).type === "object"
   ) {
     return {
-      type: 'array',
-      items: uniqueSchemas[0],
+      type: "array",
+      items: uniqueSchemas[0]
     }
   }
 
   return {
-    type: 'array',
-    items: uniqueSchemas.length === 1 ? uniqueSchemas[0] : { type: 'string' },
+    type: "array",
+    items: uniqueSchemas.length === 1 ? uniqueSchemas[0] : { type: "string" }
   }
 }
 
 function inferStringSchema(str: string): JSONSchema {
   const formats: Array<[Format, RegExp]> = [
-    ['date-time', DATE_TIME_REGEX],
-    ['email', EMAIL_REGEX],
-    ['uri', URI_REGEX],
+    ["date-time", DATE_TIME_REGEX],
+    ["email", EMAIL_REGEX],
+    ["uri", URI_REGEX]
   ]
 
   for (const [format, regex] of formats) {
     if (regex.test(str)) {
-      return { type: 'string', format }
+      return { type: "string", format }
     }
   }
 
-  return { type: 'string' }
+  return { type: "string" }
 }
 
 function inferNumberSchema(num: number): JSONSchema {
-  return Number.isInteger(num) ? { type: 'integer' } : { type: 'number' }
+  return Number.isInteger(num) ? { type: "integer" } : { type: "number" }
 }
 
 // --- Main Inference Function ---
@@ -313,21 +311,21 @@ function inferNumberSchema(num: number): JSONSchema {
  */
 export function inferSchema(obj: unknown): JSONSchema {
   if (obj === null)
-    return { type: 'null' }
+    return { type: "null" }
 
-  const type = Array.isArray(obj) ? 'array' : typeof obj
+  const type = Array.isArray(obj) ? "array" : typeof obj
 
   switch (type) {
-    case 'object':
+    case "object":
       return inferObjectSchema(obj as Record<string, unknown>) // Cast needed
-    case 'array':
+    case "array":
       return inferArraySchema(obj as unknown[]) // Cast needed
-    case 'string':
+    case "string":
       return inferStringSchema(obj as string)
-    case 'number':
+    case "number":
       return inferNumberSchema(obj as number)
-    case 'boolean':
-      return { type: 'boolean' } // Simple enough to keep inline
+    case "boolean":
+      return { type: "boolean" } // Simple enough to keep inline
     default:
       // Should not happen for valid JSON, but return empty schema as fallback
       return {}
@@ -343,37 +341,34 @@ export function createSchemaFromJson(jsonObject: unknown): JSONSchema {
   // Ensure the root schema is always an object, even if input is array/primitive
   const rootSchema = asObjectSchema(inferredSchema)
   const finalSchema: Record<string, unknown> = {
-    $schema: 'https://json-schema.org/draft-07/schema',
-    title: 'Generated Schema',
-    description: 'Generated from JSON data',
+    $schema: "https://json-schema.org/draft-07/schema",
+    title: "Generated Schema",
+    description: "Generated from JSON data"
   }
 
-  if (rootSchema.type === 'object' || rootSchema.properties) {
-    finalSchema.type = 'object'
+  if (rootSchema.type === "object" || rootSchema.properties) {
+    finalSchema.type = "object"
     finalSchema.properties = rootSchema.properties
     if (rootSchema.required)
       finalSchema.required = rootSchema.required
-  }
-  else if (rootSchema.type === 'array' || rootSchema.items) {
-    finalSchema.type = 'object'
+  } else if (rootSchema.type === "array" || rootSchema.items) {
+    finalSchema.type = "object"
     finalSchema.properties = { value: rootSchema }
-    finalSchema.required = ['value']
-    finalSchema.title = 'Generated Schema (Array Root)'
-    finalSchema.description = 'Input was an array value, wrapped in an object.'
-  }
-  else if (rootSchema.type) {
+    finalSchema.required = ["value"]
+    finalSchema.title = "Generated Schema (Array Root)"
+    finalSchema.description = "Input was an array value, wrapped in an object."
+  } else if (rootSchema.type) {
     // Handle primitive types at the root (e.g., input is just "hello")
     // This might be less common, but good to handle. Wrap it in an object.
-    finalSchema.type = 'object'
+    finalSchema.type = "object"
     finalSchema.properties = { value: rootSchema }
-    finalSchema.required = ['value']
-    finalSchema.title = 'Generated Schema (Primitive Root)'
+    finalSchema.required = ["value"]
+    finalSchema.title = "Generated Schema (Primitive Root)"
     finalSchema.description
-      = 'Input was a primitive value, wrapped in an object.'
-  }
-  else {
+      = "Input was a primitive value, wrapped in an object."
+  } else {
     // Default empty object if inference fails completely
-    finalSchema.type = 'object'
+    finalSchema.type = "object"
   }
 
   return finalSchema as JSONSchema

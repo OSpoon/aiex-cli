@@ -1,10 +1,10 @@
 import type {
   JSONSchema,
   NewField,
-  ObjectJSONSchema,
-} from '@/lib/jsonschema-editor/types/jsonSchema.ts'
-import { cloneJson } from '@/lib/jsonschema-editor/lib/object-utils'
-import { isBooleanSchema, isObjectSchema } from '@/lib/jsonschema-editor/types/jsonSchema.ts'
+  ObjectJSONSchema
+} from "@/lib/jsonschema-editor/types/jsonSchema.ts"
+import { cloneJson } from "@/lib/jsonschema-editor/lib/object-utils"
+import { isBooleanSchema, isObjectSchema } from "@/lib/jsonschema-editor/types/jsonSchema.ts"
 
 // Static regex for field name validation
 const VALID_NAME_PATTERN = /^[a-z]\w*$/i
@@ -25,7 +25,7 @@ export function copySchema<T extends JSONSchema>(schema: T): T {
 export function updateObjectProperty(
   schema: ObjectJSONSchema,
   propertyName: string,
-  propertySchema: JSONSchema,
+  propertySchema: JSONSchema
 ): ObjectJSONSchema {
   if (!isObjectSchema(schema))
     return schema
@@ -44,7 +44,7 @@ export function updateObjectProperty(
  */
 export function removeObjectProperty(
   schema: ObjectJSONSchema,
-  propertyName: string,
+  propertyName: string
 ): ObjectJSONSchema {
   if (!isObjectSchema(schema) || !schema.properties)
     return schema
@@ -56,7 +56,7 @@ export function removeObjectProperty(
   // Also remove from required array if present
   if (newSchema.required) {
     newSchema.required = newSchema.required.filter(
-      name => name !== propertyName,
+      name => name !== propertyName
     )
   }
 
@@ -69,7 +69,7 @@ export function removeObjectProperty(
 export function updatePropertyRequired(
   schema: ObjectJSONSchema,
   propertyName: string,
-  required: boolean,
+  required: boolean
 ): ObjectJSONSchema {
   if (!isObjectSchema(schema))
     return schema
@@ -84,11 +84,10 @@ export function updatePropertyRequired(
     if (!newSchema.required.includes(propertyName)) {
       newSchema.required.push(propertyName)
     }
-  }
-  else {
+  } else {
     // Remove from required array
     newSchema.required = newSchema.required.filter(
-      name => name !== propertyName,
+      name => name !== propertyName
     )
   }
 
@@ -100,12 +99,12 @@ export function updatePropertyRequired(
  */
 export function updateArrayItems(
   schema: JSONSchema,
-  itemsSchema: JSONSchema,
+  itemsSchema: JSONSchema
 ): JSONSchema {
-  if (isObjectSchema(schema) && schema.type === 'array') {
+  if (isObjectSchema(schema) && schema.type === "array") {
     return {
       ...schema,
-      items: itemsSchema,
+      items: itemsSchema
     }
   }
   return schema
@@ -120,17 +119,17 @@ export function createFieldSchema(field: NewField): JSONSchema {
     return {
       type,
       description,
-      ...validation,
+      ...validation
     }
   }
-  return validation ?? { type: 'string' }
+  return validation ?? { type: "string" }
 }
 
 /**
  * Validates a field name
  */
 export function validateFieldName(name: string): boolean {
-  if (!name || name.trim() === '') {
+  if (!name || name.trim() === "") {
     return false
   }
 
@@ -150,7 +149,7 @@ export function getSchemaProperties(schema: JSONSchema): Property[] {
   return Object.entries(schema.properties).map(([name, propSchema]) => ({
     name,
     schema: propSchema,
-    required: required.includes(name),
+    required: required.includes(name)
   }))
 }
 
@@ -160,7 +159,7 @@ export function getSchemaProperties(schema: JSONSchema): Property[] {
 export function getArrayItemsSchema(schema: JSONSchema): JSONSchema | null {
   if (isBooleanSchema(schema))
     return null
-  if (schema.type !== 'array')
+  if (schema.type !== "array")
     return null
 
   return schema.items || null
@@ -172,7 +171,7 @@ export function getArrayItemsSchema(schema: JSONSchema): JSONSchema | null {
 export function renameObjectProperty(
   schema: ObjectJSONSchema,
   oldName: string,
-  newName: string,
+  newName: string
 ): ObjectJSONSchema {
   if (!isObjectSchema(schema) || !schema.properties)
     return schema
@@ -184,8 +183,7 @@ export function renameObjectProperty(
   for (const [key, value] of Object.entries(newSchema.properties ?? {})) {
     if (key === oldName) {
       newProperties[newName] = value
-    }
-    else {
+    } else {
       newProperties[key] = value
     }
   }
@@ -195,7 +193,7 @@ export function renameObjectProperty(
   // Update required array if the field name changed
   if (newSchema.required) {
     newSchema.required = newSchema.required.map(field =>
-      field === oldName ? newName : field,
+      field === oldName ? newName : field
     )
   }
 
@@ -209,12 +207,12 @@ export function hasChildren(schema: JSONSchema): boolean {
   if (!isObjectSchema(schema))
     return false
 
-  if (schema.type === 'object' && schema.properties) {
+  if (schema.type === "object" && schema.properties) {
     return Object.keys(schema.properties).length > 0
   }
 
-  if (schema.type === 'array' && schema.items && isObjectSchema(schema.items)) {
-    return schema.items.type === 'object' && !!schema.items.properties
+  if (schema.type === "array" && schema.items && isObjectSchema(schema.items)) {
+    return schema.items.type === "object" && !!schema.items.properties
   }
 
   return false

@@ -1,4 +1,4 @@
-declare module 'json-source-map' {
+declare module "json-source-map" {
   export interface SourceLocation {
     line: number
     column: number
@@ -17,4 +17,3 @@ declare module 'json-source-map' {
     pointers: Record<string, JsonPointerLocation>
   }
 }
-

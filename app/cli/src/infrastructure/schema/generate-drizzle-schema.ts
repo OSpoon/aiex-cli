@@ -139,8 +139,9 @@ function generateRelationDefinitions(relations: ParsedRelation[], reverseRelatio
 
 export function generateDrizzleSchema(result: ParseResult): string {
   const hasChecks = result.tables.some(t => t.checks?.length)
-  const drizzleImports = `sqliteTable, text, integer, real${hasChecks ? ', check, sql' : ''}`
-  const imports = `import { ${drizzleImports} } from 'drizzle-orm/sqlite-core'\nimport { relations } from 'drizzle-orm'`
+  const sqliteCoreImports = `sqliteTable, text, integer, real${hasChecks ? ', check' : ''}`
+  const drizzleImports = `relations${hasChecks ? ', sql' : ''}`
+  const imports = `import { ${sqliteCoreImports} } from 'drizzle-orm/sqlite-core'\nimport { ${drizzleImports} } from 'drizzle-orm'`
   const tableDefs = result.tables.map(generateTableDefinition).join('\n\n')
   const relationDefs = generateRelationDefinitions(result.relations, result.reverseRelations)
 

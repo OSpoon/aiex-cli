@@ -1,14 +1,14 @@
-import type { InjectionKey, Ref } from 'vue'
-import type { Translation } from './translation-keys.ts'
-import { inject } from 'vue'
-import { useI18n } from 'vue-i18n'
+import type { InjectionKey, Ref } from "vue"
+import type { Translation } from "./translation-keys.ts"
+import { inject } from "vue"
+import { useI18n } from "vue-i18n"
 
 /**
  * Injection key kept for backwards compatibility.
  * @internal
  */
 export const TranslationKey: InjectionKey<Ref<Translation>>
-  = Symbol('TranslationContext')
+  = Symbol("TranslationContext")
 
 /**
  * No-op — translations are now managed by vue-i18n.
@@ -17,7 +17,7 @@ export const TranslationKey: InjectionKey<Ref<Translation>>
  * with external consumers of the library.
  */
 export function provideTranslation(
-  _translation: Ref<Translation> | Translation,
+  _translation: Ref<Translation> | Translation
 ): void {
   // Translations are handled by vue-i18n at the app level
 }
@@ -41,12 +41,12 @@ export function useTranslation(): Translation {
   if (injected) {
     return new Proxy({} as Translation, {
       get(_target, key: string | symbol) {
-        if (typeof key !== 'string') return ''
-        if (key.startsWith('__v_') || key === 'constructor' || key === 'toJSON') {
+        if (typeof key !== "string") return ""
+        if (key.startsWith("__v_") || key === "constructor" || key === "toJSON") {
           return undefined
         }
         return (injected.value as any)[key] ?? key
-      },
+      }
     })
   }
 
@@ -54,13 +54,12 @@ export function useTranslation(): Translation {
   const { t } = useI18n()
   return new Proxy({} as Translation, {
     get(_target, key: string | symbol) {
-      if (typeof key !== 'string') return ''
-      if (key.startsWith('__v_') || key === 'constructor' || key === 'toJSON') {
+      if (typeof key !== "string") return ""
+      if (key.startsWith("__v_") || key === "constructor" || key === "toJSON") {
         return undefined
       }
       const result = t(key)
-      return typeof result === 'string' ? result : key
-    },
+      return typeof result === "string" ? result : key
+    }
   })
 }
-

@@ -1,13 +1,13 @@
-import type { Translation } from '@/lib/jsonschema-editor/i18n/translation-keys.ts'
-import type { JSONSchema } from './jsonSchema.ts'
-import z from 'zod'
-import { baseSchema } from './jsonSchema.ts'
+import type { JSONSchema } from "./jsonSchema.ts"
+import type { Translation } from "@/lib/jsonschema-editor/i18n/translation-keys.ts"
+import z from "zod"
+import { baseSchema } from "./jsonSchema.ts"
 
 function refineRangeConsistency(
   min: number | undefined,
   isMinExclusive: boolean,
   max: number | undefined,
-  isMaxExclusive: boolean,
+  isMaxExclusive: boolean
 ): boolean {
   if (min !== undefined && max !== undefined && min > max) {
     return false
@@ -38,7 +38,7 @@ function getJsonStringType(t: Translation): z.ZodTypeAny {
       format: baseSchema.shape.format,
       enum: baseSchema.shape.enum,
       contentMediaType: baseSchema.shape.contentMediaType, // TODO
-      contentEncoding: baseSchema.shape.contentEncoding, // TODO
+      contentEncoding: baseSchema.shape.contentEncoding // TODO
     })
     // If minLength and maxLength are both set, minLength must not be greater than maxLength.
     .refine(
@@ -46,8 +46,8 @@ function getJsonStringType(t: Translation): z.ZodTypeAny {
         refineRangeConsistency(minLength, false, maxLength, false),
       {
         message: t.stringValidationErrorLengthRange,
-        path: ['length'],
-      },
+        path: ["length"]
+      }
     )
 }
 
@@ -62,7 +62,7 @@ function getJsonNumberType(t: Translation): z.ZodTypeAny {
       maximum: baseSchema.shape.maximum,
       exclusiveMinimum: baseSchema.shape.exclusiveMinimum,
       exclusiveMaximum: baseSchema.shape.exclusiveMaximum,
-      enum: baseSchema.shape.enum,
+      enum: baseSchema.shape.enum
     })
     // If both minimum (or exclusiveMinimum) and maximum (or exclusiveMaximum) are set, minimum must not be greater than maximum.
     .refine(
@@ -73,8 +73,8 @@ function getJsonNumberType(t: Translation): z.ZodTypeAny {
         && refineRangeConsistency(exclusiveMinimum, true, exclusiveMaximum, true),
       {
         message: t.numberValidationErrorMinMax,
-        path: ['minMax'],
-      },
+        path: ["minMax"]
+      }
     )
     // cannot set both exclusiveMinimum and minimum
     .refine(
@@ -82,8 +82,8 @@ function getJsonNumberType(t: Translation): z.ZodTypeAny {
         exclusiveMinimum === undefined || minimum === undefined,
       {
         message: t.numberValidationErrorBothExclusiveAndInclusiveMin,
-        path: ['redundantMinimum'],
-      },
+        path: ["redundantMinimum"]
+      }
     )
     // cannot set both exclusiveMaximum and maximum
     .refine(
@@ -91,8 +91,8 @@ function getJsonNumberType(t: Translation): z.ZodTypeAny {
         exclusiveMaximum === undefined || maximum === undefined,
       {
         message: t.numberValidationErrorBothExclusiveAndInclusiveMax,
-        path: ['redundantMaximum'],
-      },
+        path: ["redundantMaximum"]
+      }
     )
     // check that the enums are within min/max if they are set
     .refine(
@@ -101,12 +101,12 @@ function getJsonNumberType(t: Translation): z.ZodTypeAny {
         minimum,
         maximum,
         exclusiveMinimum,
-        exclusiveMaximum,
+        exclusiveMaximum
       }) => {
         if (!enumValues || enumValues.length === 0)
           return true
         return enumValues.every((val) => {
-          if (typeof val !== 'number')
+          if (typeof val !== "number")
             return false
           if (minimum !== undefined && val < minimum)
             return false
@@ -121,8 +121,8 @@ function getJsonNumberType(t: Translation): z.ZodTypeAny {
       },
       {
         message: t.numberValidationErrorEnumOutOfRange,
-        path: ['enum'],
-      },
+        path: ["enum"]
+      }
     )
 }
 
@@ -149,7 +149,7 @@ function getJsonArrayType(t: Translation): z.ZodTypeAny {
         .number()
         .int({ message: t.typeValidationErrorIntValue })
         .min(0, { message: t.typeValidationErrorNegativeLength })
-        .optional(),
+        .optional()
     })
     // If both minItems and maxItems are set, minItems must not be greater than maxItems.
     .refine(
@@ -157,8 +157,8 @@ function getJsonArrayType(t: Translation): z.ZodTypeAny {
         refineRangeConsistency(minItems, false, maxItems, false),
       {
         message: t.arrayValidationErrorMinMax,
-        path: ['minmax'],
-      },
+        path: ["minmax"]
+      }
     )
     // If both minContains and maxContains are set, minContains must not be greater than maxContains.
     .refine(
@@ -166,8 +166,8 @@ function getJsonArrayType(t: Translation): z.ZodTypeAny {
         refineRangeConsistency(minContains, false, maxContains, false),
       {
         message: t.arrayValidationErrorContainsMinMax,
-        path: ['minmaxContains'],
-      },
+        path: ["minmaxContains"]
+      }
     )
 }
 
@@ -183,7 +183,7 @@ function getJsonObjectType(t: Translation): z.ZodTypeAny {
         .number()
         .int({ message: t.typeValidationErrorIntValue })
         .min(0, { message: t.typeValidationErrorNegativeLength })
-        .optional(),
+        .optional()
     })
     // If both minProperties and maxProperties are set, minProperties must not be greater than maxProperties.
     .refine(
@@ -191,8 +191,8 @@ function getJsonObjectType(t: Translation): z.ZodTypeAny {
         refineRangeConsistency(minProperties, false, maxProperties, false),
       {
         message: t.objectValidationErrorMinMax,
-        path: ['minmax'],
-      },
+        path: ["minmax"]
+      }
     )
 }
 
@@ -201,7 +201,7 @@ export function getTypeValidation(type: string, t: Translation): z.ZodTypeAny {
     string: getJsonStringType(t),
     number: getJsonNumberType(t),
     array: getJsonArrayType(t),
-    object: getJsonObjectType(t),
+    object: getJsonObjectType(t)
   }
 
   return jsonTypesValidation[type] || z.any()
@@ -215,14 +215,13 @@ export interface TypeValidationResult {
 export function validateSchemaByType(
   schema: unknown,
   type: string,
-  t: Translation,
+  t: Translation
 ): TypeValidationResult {
   const zodSchema = getTypeValidation(type, t)
   const result = zodSchema.safeParse(schema)
   if (result.success) {
     return { success: true }
-  }
-  else {
+  } else {
     return { success: false, errors: result.error.issues }
   }
 }
@@ -236,19 +235,19 @@ export interface ValidationTreeNode {
 
 export function buildValidationTree(
   schema: JSONSchema,
-  t: Translation,
+  t: Translation
 ): ValidationTreeNode {
   // Helper to determine a concrete type string from a schema.type which may be string | string[] | undefined
   const deriveType = (sch: unknown): string | undefined => {
-    if (!sch || typeof sch !== 'object')
+    if (!sch || typeof sch !== "object")
       return undefined
     const declared = (sch as Record<string, unknown>).type
-    if (typeof declared === 'string')
+    if (typeof declared === "string")
       return declared
     if (
       Array.isArray(declared)
       && declared.length > 0
-      && typeof declared[0] === 'string'
+      && typeof declared[0] === "string"
     ) {
       return declared[0]
     }
@@ -257,7 +256,7 @@ export function buildValidationTree(
 
   // TODO confirm assumption below:
   // Handle boolean schemas: true => always valid, false => always invalid
-  if (typeof schema === 'boolean') {
+  if (typeof schema === "boolean") {
     const validation: TypeValidationResult
       = schema === true
         ? { success: true }
@@ -265,11 +264,11 @@ export function buildValidationTree(
             success: false,
             errors: [
               {
-                code: 'custom',
+                code: "custom",
                 message: t.validatorErrorSchemaValidation,
-                path: [],
-              } as unknown as z.ZodIssue,
-            ],
+                path: []
+              } as unknown as z.ZodIssue
+            ]
           }
 
     const node: ValidationTreeNode = {
@@ -278,7 +277,7 @@ export function buildValidationTree(
       children: {},
       cumulativeChildrenErrors: validation.success
         ? 0
-        : (validation.errors?.length ?? 0),
+        : (validation.errors?.length ?? 0)
     }
 
     return node
@@ -288,42 +287,41 @@ export function buildValidationTree(
   const sch = schema as Record<string, unknown>
   const currentType = deriveType(sch)
 
-  const validation = validateSchemaByType(schema, currentType ?? 'object', t)
+  const validation = validateSchemaByType(schema, currentType ?? "object", t)
 
   const children: Record<string, ValidationTreeNode> = {}
 
   // Traverse object properties
-  if (currentType === 'object') {
+  if (currentType === "object") {
     const properties = sch.properties
-    if (properties && typeof properties === 'object') {
+    if (properties && typeof properties === "object") {
       for (const [propName, propSchema] of Object.entries(
-        properties as Record<string, JSONSchema>,
+        properties as Record<string, JSONSchema>
       )) {
         children[propName] = buildValidationTree(propSchema, t)
       }
     }
     // handle dependentSchemas, patternProperties etc. if present (shallow support)
-    if (sch.patternProperties && typeof sch.patternProperties === 'object') {
+    if (sch.patternProperties && typeof sch.patternProperties === "object") {
       for (const [patternName, patternSchema] of Object.entries(
-        sch.patternProperties as Record<string, JSONSchema>,
+        sch.patternProperties as Record<string, JSONSchema>
       )) {
         children[`pattern:${patternName}`] = buildValidationTree(
           patternSchema,
-          t,
+          t
         )
       }
     }
   }
 
   // Traverse array items / prefixItems
-  if (currentType === 'array') {
+  if (currentType === "array") {
     const items = sch.items
     if (Array.isArray(items)) {
       items.forEach((it, idx) => {
         children[`items[${idx}]`] = buildValidationTree(it, t)
       })
-    }
-    else if (items) {
+    } else if (items) {
       children.items = buildValidationTree(items as JSONSchema, t)
     }
 
@@ -335,18 +333,18 @@ export function buildValidationTree(
   }
 
   // Handle combinators: allOf / anyOf / oneOf / not (shallow traversal)
-  const combinators: Array<'allOf' | 'anyOf' | 'oneOf'> = [
-    'allOf',
-    'anyOf',
-    'oneOf',
+  const combinators: Array<"allOf" | "anyOf" | "oneOf"> = [
+    "allOf",
+    "anyOf",
+    "oneOf"
   ]
   for (const comb of combinators) {
     const arr = sch[comb]
     if (Array.isArray(arr)) {
       arr.forEach((subSchema, idx) => {
-        children[[comb, idx].join(':')] = buildValidationTree(
+        children[[comb, idx].join(":")] = buildValidationTree(
           subSchema as JSONSchema,
-          t,
+          t
         )
       })
     }
@@ -357,9 +355,9 @@ export function buildValidationTree(
   }
 
   // $defs / definitions / dependentSchemas (shallow)
-  if (sch.$defs && typeof sch.$defs === 'object') {
+  if (sch.$defs && typeof sch.$defs === "object") {
     for (const [defName, defSchema] of Object.entries(
-      sch.$defs as Record<string, JSONSchema>,
+      sch.$defs as Record<string, JSONSchema>
     )) {
       children[`$defs:${defName}`] = buildValidationTree(defSchema, t)
     }
@@ -367,9 +365,9 @@ export function buildValidationTree(
 
   // definitions is the older name for $defs, so we support both
   const definitions = (sch as Record<string, unknown>).definitions
-  if (definitions && typeof definitions === 'object') {
+  if (definitions && typeof definitions === "object") {
     for (const [defName, defSchema] of Object.entries(
-      definitions as Record<string, JSONSchema>,
+      definitions as Record<string, JSONSchema>
     )) {
       children[`definitions:${defName}`] = buildValidationTree(defSchema, t)
     }
@@ -379,13 +377,13 @@ export function buildValidationTree(
   const ownErrors = validation.success ? 0 : (validation.errors?.length ?? 0)
   const childrenErrors = Object.values(children).reduce(
     (sum, child) => sum + child.cumulativeChildrenErrors,
-    0,
+    0
   )
 
   return {
-    name: currentType ?? 'unknown',
+    name: currentType ?? "unknown",
     validation,
     children,
-    cumulativeChildrenErrors: ownErrors + childrenErrors,
+    cumulativeChildrenErrors: ownErrors + childrenErrors
   }
 }

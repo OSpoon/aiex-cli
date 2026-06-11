@@ -1,5 +1,5 @@
-import type { Ref } from 'vue'
-import { onScopeDispose, ref } from 'vue'
+import type { Ref } from "vue"
+import { onScopeDispose, ref } from "vue"
 
 /**
  * Creates and manages a shared overlay container at the <body> level with
@@ -18,21 +18,21 @@ let refCount = 0
 
 function getOrCreateContainer(): HTMLElement {
   if (!sharedContainer) {
-    sharedContainer = document.createElement('div')
-    sharedContainer.classList.add('jscb')
-    sharedContainer.setAttribute('data-jscb-overlay-container', '')
+    sharedContainer = document.createElement("div")
+    sharedContainer.classList.add("jscb")
+    sharedContainer.setAttribute("data-jscb-overlay-container", "")
     document.body.appendChild(sharedContainer)
 
     // Inject a style so the container itself doesn't interfere
     // with page layout but its children (PrimeVue overlays) are interactive
-    sharedStyle = document.createElement('style')
+    sharedStyle = document.createElement("style")
     sharedStyle.textContent = [
-      '[data-jscb-overlay-container] {',
-      '  position: relative;',
-      '  width: 0;',
-      '  height: 0;',
-      '}',
-    ].join('\n')
+      "[data-jscb-overlay-container] {",
+      "  position: relative;",
+      "  width: 0;",
+      "  height: 0;",
+      "}"
+    ].join("\n")
     document.head.appendChild(sharedStyle)
   }
   refCount++
@@ -59,6 +59,6 @@ export function useOverlayContainer(): { overlayContainer: Ref<HTMLElement> } {
 
   return {
     /** Pass this to PrimeVue's `appendTo` prop */
-    overlayContainer: container,
+    overlayContainer: container
   }
 }
