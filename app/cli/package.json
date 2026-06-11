@@ -80,8 +80,6 @@
     "execa": "catalog:",
     "file-type": "catalog:",
     "hono": "catalog:",
-    "i18next": "catalog:",
-    "i18next-fs-backend": "catalog:",
     "jsonfile": "catalog:",
     "jsonrepair": "catalog:",
     "kysely": "catalog:",

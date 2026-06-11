@@ -44,8 +44,6 @@ catalog:
   execa: ^9.6.1
   file-type: ^22.0.1
   hono: ^4.0.0
-  i18next: ^26.2.0
-  i18next-fs-backend: ^2.6.6
   json-source-map: ^0.6.1
   jsonfile: ^6.2.1
   jsonrepair: ^3.14.0
