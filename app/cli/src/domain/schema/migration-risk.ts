@@ -47,6 +47,62 @@ function enumChanged(previous: SchemaMappingEntry, next: SchemaMappingEntry): bo
   return [...prev].some(value => !current.has(value))
 }
 
+function stableJson(value: unknown): string {
+  return JSON.stringify(value)
+}
+
+function changed(previous: unknown, next: unknown): boolean {
+  return stableJson(previous) !== stableJson(next)
+}
+
+function constraintValue(entry: SchemaMappingEntry, key: keyof NonNullable<SchemaMappingEntry['constraints']>): number | undefined {
+  const value = entry.constraints?.[key]
+  return typeof value === 'number' ? value : undefined
+}
+
+function isLowerBoundTightened(previous: number | undefined, next: number | undefined): boolean {
+  if (next === undefined)
+    return false
+  if (previous === undefined)
+    return true
+  return next > previous
+}
+
+function isUpperBoundTightened(previous: number | undefined, next: number | undefined): boolean {
+  if (next === undefined)
+    return false
+  if (previous === undefined)
+    return true
+  return next < previous
+}
+
+function compareConstraint(
+  items: MigrationRiskItem[],
+  previous: SchemaMappingEntry,
+  next: SchemaMappingEntry,
+  key: 'minLength' | 'minimum' | 'maxLength' | 'maximum',
+  tightened: (previous: number | undefined, next: number | undefined) => boolean,
+): void {
+  const previousValue = constraintValue(previous, key)
+  const nextValue = constraintValue(next, key)
+  if (previousValue === nextValue)
+    return
+
+  const severity: MigrationRiskSeverity = tightened(previousValue, nextValue) ? 'high' : 'medium'
+  addRisk(
+    items,
+    severity,
+    severity === 'high' ? 'constraint_tightened' : 'constraint_changed',
+    previous.table,
+    previous.column,
+    `Column "${keyOf(previous)}" ${key} changes from ${previousValue ?? 'none'} to ${nextValue ?? 'none'}.`,
+  )
+}
+
+function foreignKeyChanged(previous: SchemaMappingEntry, next: SchemaMappingEntry): boolean {
+  return changed(previous.foreignKey, next.foreignKey)
+}
+
 export function analyzeMigrationRisk(
   previousEntries: SchemaMappingEntry[],
   nextEntries: SchemaMappingEntry[],
@@ -103,6 +159,33 @@ export function analyzeMigrationRisk(
     }
     else if (enumChanged(previous, next)) {
       addRisk(items, 'medium', 'enum_changed', previous.table, previous.column, `Column "${key}" enum values change.`)
+    }
+
+    compareConstraint(items, previous, next, 'minLength', isLowerBoundTightened)
+    compareConstraint(items, previous, next, 'minimum', isLowerBoundTightened)
+    compareConstraint(items, previous, next, 'maxLength', isUpperBoundTightened)
+    compareConstraint(items, previous, next, 'maximum', isUpperBoundTightened)
+
+    if (changed(previous.defaultValue, next.defaultValue)) {
+      addRisk(
+        items,
+        'medium',
+        'default_changed',
+        previous.table,
+        previous.column,
+        `Column "${key}" default value changes.`,
+      )
+    }
+
+    if (foreignKeyChanged(previous, next)) {
+      addRisk(
+        items,
+        'high',
+        'foreign_key_changed',
+        previous.table,
+        previous.column,
+        `Column "${key}" foreign key changes.`,
+      )
     }
   }
 

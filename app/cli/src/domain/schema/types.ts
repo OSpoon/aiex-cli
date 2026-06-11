@@ -36,6 +36,15 @@ export interface SchemaMappingEntry {
   relation?: 'root' | 'has-one' | 'has-many'
   constraints?: {
     enumValues?: (string | number)[]
+    minLength?: number
+    maxLength?: number
+    minimum?: number
+    maximum?: number
+  }
+  defaultValue?: unknown
+  foreignKey?: {
+    table: string
+    column: string
   }
   notes: string[]
 }
@@ -56,6 +65,10 @@ export interface MigrationRiskItem {
     | 'primary_changed'
     | 'enum_narrowed'
     | 'enum_changed'
+    | 'constraint_tightened'
+    | 'constraint_changed'
+    | 'default_changed'
+    | 'foreign_key_changed'
   table: string
   column?: string
   message: string

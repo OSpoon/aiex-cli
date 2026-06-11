@@ -64,6 +64,7 @@ Every schema generation writes:
 ```
 
 The report records each AIEX schema field and the generated table, column, Drizzle type, database dialect, database storage type, nullability, uniqueness, relation role, and notes. This is the primary artifact for debugging Schema to database behavior.
+For supported database constraints, the report stores structured constraint metadata such as enum values, length bounds, numeric bounds, default values, and foreign key references so migration risk analysis can compare behavior across schema changes.
 
 Current reports use:
 
@@ -95,8 +96,10 @@ High-risk changes are blocked by default:
 - added unique constraints
 - primary key changes
 - narrowed enum values
+- tightened length or numeric CHECK constraints, such as higher `minLength` / `minimum` or lower `maxLength` / `maximum`
+- foreign key changes
 
-Medium and low risk changes are reported but allowed. High-risk migrations require an explicit CLI override:
+Medium and low risk changes are reported but allowed. Examples include relaxed length or numeric CHECK constraints and default value changes. High-risk migrations require an explicit CLI override:
 
 ```bash
 aiex schema --force

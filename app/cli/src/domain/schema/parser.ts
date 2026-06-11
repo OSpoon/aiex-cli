@@ -127,6 +127,23 @@ function columnNotes(property: JsonSchemaProperty, column: ParsedColumn): string
   return notes
 }
 
+function propertyConstraints(property: JsonSchemaProperty): SchemaMappingEntry['constraints'] {
+  const constraints: NonNullable<SchemaMappingEntry['constraints']> = {}
+
+  if (property.enum?.length)
+    constraints.enumValues = property.enum
+  if (property.minLength !== undefined)
+    constraints.minLength = property.minLength
+  if (property.maxLength !== undefined)
+    constraints.maxLength = property.maxLength
+  if (property.minimum !== undefined)
+    constraints.minimum = property.minimum
+  if (property.maximum !== undefined)
+    constraints.maximum = property.maximum
+
+  return Object.keys(constraints).length > 0 ? constraints : undefined
+}
+
 function mapColumnToReport(
   schemaPath: string,
   table: string,
@@ -145,7 +162,9 @@ function mapColumnToReport(
     primary: column.isPrimary,
     unique: column.isUnique,
     relation,
-    constraints: property.enum?.length ? { enumValues: property.enum } : undefined,
+    constraints: propertyConstraints(property),
+    defaultValue: column.default,
+    foreignKey: column.foreignKeyRef,
     notes: columnNotes(property, column),
   }
 }
@@ -236,6 +255,8 @@ function parseNestedObject(
     primary: true,
     unique: false,
     relation: relationType,
+    defaultValue: undefined,
+    foreignKey: undefined,
     notes: ['generated_nested_primary_key'],
   })
 
@@ -259,6 +280,8 @@ function parseNestedObject(
     primary: false,
     unique: false,
     relation: relationType,
+    defaultValue: undefined,
+    foreignKey: { table: parentTableName, column: 'id' },
     notes: [`generated_parent_foreign_key:${parentTableName}.id`],
   })
 
